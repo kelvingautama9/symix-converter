@@ -11,12 +11,11 @@ interface WhatsAppModalProps {
 }
 
 export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, data }) => {
-  const [maxItems, setMaxItems] = useState(10);
   const [isCopied, setIsCopied] = useState(false);
 
   if (!isOpen) return null;
 
-  const summaryText = generateWhatsAppSummary(data, maxItems);
+  const summaryText = generateWhatsAppSummary(data);
 
   const handleCopy = async () => {
     const success = await copyToClipboard(summaryText);
@@ -33,7 +32,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, d
       origin: { y: 0.7 },
       colors: ['#22c55e', '#16a34a', '#4ade80'],
     });
-    shareToWhatsApp(data, maxItems);
+    shareToWhatsApp(data);
   };
 
   return (
@@ -55,7 +54,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, d
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-[#141414]">WhatsApp Report Format</h3>
-              <p className="text-xs font-mono text-[#141414]/70">Customer OS Summary Template</p>
+              <p className="text-xs font-mono text-[#141414]/70">Customer OS Summary Template (Full {data.length} Items)</p>
             </div>
           </div>
           <button
@@ -64,27 +63,6 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, d
           >
             <X className="w-4 h-4" />
           </button>
-        </div>
-
-        {/* Options */}
-        <div className="px-5 py-3 bg-white border-b-2 border-[#141414] flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
-          <span className="text-[#141414] font-bold uppercase text-[11px]">Item Limit:</span>
-          <div className="flex items-center gap-2">
-            {[5, 10, 20, 50, 100].map((num) => (
-              <button
-                key={num}
-                type="button"
-                onClick={() => setMaxItems(num)}
-                className={`px-2.5 py-1 border-2 border-[#141414] font-bold transition-all shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer ${
-                  maxItems === num
-                    ? 'bg-[#141414] text-white'
-                    : 'bg-[#F0F0EE] text-[#141414] hover:bg-[#DEDEDE]'
-                }`}
-              >
-                {num} Items
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Text Body */}
@@ -99,7 +77,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, d
         {/* Actions Footer */}
         <div className="p-4 sm:p-5 border-t-2 border-[#141414] bg-white flex flex-col sm:flex-row items-center justify-between gap-3 font-mono">
           <div className="text-xs text-[#141414]/70">
-            Summary for <span className="text-[#141414] font-bold">{data.length}</span> Purchase Orders
+            Total Rekap: <span className="text-[#141414] font-bold">{data.length}</span> Purchase Orders (Lengkap tanpa batasan)
           </div>
           <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <button

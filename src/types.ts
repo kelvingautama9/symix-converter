@@ -14,6 +14,9 @@ export interface ExtractedRecord {
   'Terkirim (KG)': number;
   Harga: number;
   _has_delivery?: boolean;
+  _parentIndex?: number;
+  _parentStockPcs?: number;
+  _parentStockKg?: number;
 }
 
 export interface ParseSummary {

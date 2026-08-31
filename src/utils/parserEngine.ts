@@ -51,6 +51,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
   let currentSubstance: string = '';
   let currentStockPcs: number = 0;
   let currentStockKg: number = 0;
+  let parentCount: number = 0;
   let currentPO: ExtractedRecord | null = null;
 
   for (let idx = 0; idx < rawRows.length; idx++) {
@@ -82,6 +83,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         currentPO = null;
       }
 
+      parentCount++;
       currentItemId = valA;
       currentItemDesc = valB;
       currentSubstance = valD;
@@ -171,14 +173,17 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           Substance: currentSubstance,
           'QTY PO (pcs)': qtyOrderPcs,
           'Berat PO (KG)': qtyOrderKg,
-          'Stock (pcs)': currentStockPcs,
-          'Stock (kg)': currentStockKg,
+          'Stock (pcs)': 0, // Dialokasikan secara proporsional/FIFO setelah seluruh Sisa OS terhitung
+          'Stock (kg)': 0,  // Dialokasikan secara proporsional/FIFO setelah seluruh Sisa OS terhitung
           'Sisa OS (pcs)': sisaPcsVal,
           'Sisa OS (kg)': sisaKgVal,
           'Terkirim (PCS)': Math.max(0, qtyOrderPcs - sisaPcsVal),
           'Terkirim (KG)': Math.max(0, qtyOrderKg - sisaKgVal),
           Harga: priceVal,
           _has_delivery: hasInitialDelivery,
+          _parentIndex: parentCount,
+          _parentStockPcs: currentStockPcs,
+          _parentStockKg: currentStockKg,
         };
       }
     }
@@ -238,7 +243,48 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     rowsData.push(currentPO);
   }
 
-  // Membersihkan metadata sebelum dikembalikan
+  // 5. TAHAP ALOKASI STOK BERURUTAN (FIFO / TOP-TO-BOTTOM ACCUMULATION PER ARTIKEL)
+  // Menghindari duplikasi stok untuk artikel/item yang sama dengan beberapa baris PO.
+  // Stok dari parent dialokasikan ke Sisa OS PO dari urutan teratas terlebih dahulu.
+  const parentStockMap = new Map<number, { remainingPcs: number; remainingKg: number }>();
+
+  // Inisialisasi saldo stok awal per parent header
+  for (const item of rowsData) {
+    const pIdx = item._parentIndex ?? 0;
+    if (!parentStockMap.has(pIdx)) {
+      parentStockMap.set(pIdx, {
+        remainingPcs: item._parentStockPcs || 0,
+        remainingKg: item._parentStockKg || 0,
+      });
+    }
+  }
+
+  // Alokasi berurutan dari atas ke bawah terhadap Sisa OS masing-masing PO
+  for (const item of rowsData) {
+    const pIdx = item._parentIndex ?? 0;
+    const stockState = parentStockMap.get(pIdx);
+
+    if (stockState) {
+      const sisaPcs = item['Sisa OS (pcs)'] || 0;
+      const sisaKg = item['Sisa OS (kg)'] || 0;
+
+      // Alokasi Stock (PCS):
+      // Mengambil minimum antara sisa saldo stok gudang dan Sisa OS PO ini
+      const allocPcs = Math.max(0, Math.min(stockState.remainingPcs, sisaPcs));
+      item['Stock (pcs)'] = allocPcs;
+      stockState.remainingPcs = Math.max(0, stockState.remainingPcs - allocPcs);
+
+      // Alokasi Stock (KG):
+      const allocKg = Math.max(0, Math.min(stockState.remainingKg, sisaKg));
+      item['Stock (kg)'] = allocKg;
+      stockState.remainingKg = Math.max(0, stockState.remainingKg - allocKg);
+    } else {
+      item['Stock (pcs)'] = 0;
+      item['Stock (kg)'] = 0;
+    }
+  }
+
+  // Membersihkan metadata internal sebelum dikembalikan
   return rowsData.map((item) => {
     const qtyPcs = item['QTY PO (pcs)'] || 0;
     const qtyKg = item['Berat PO (KG)'] || 0;
@@ -251,6 +297,9 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
       'Terkirim (KG)': Math.max(0, qtyKg - sisaKg),
     };
     delete cleaned._has_delivery;
+    delete cleaned._parentIndex;
+    delete cleaned._parentStockPcs;
+    delete cleaned._parentStockKg;
     return cleaned;
   });
 }

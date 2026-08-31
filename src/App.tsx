@@ -126,7 +126,7 @@ export default function App() {
 
   const handleCopyWhatsAppText = async () => {
     if (!data || data.length === 0) return;
-    const text = generateWhatsAppSummary(data, 10);
+    const text = generateWhatsAppSummary(data);
     const success = await copyToClipboard(text);
     if (success) {
       setIsCopied(true);

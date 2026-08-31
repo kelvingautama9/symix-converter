@@ -10,7 +10,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(15);
+  const [pageSize, setPageSize] = useState(0); // 0 = Unlimited / Show All Rows
   const [sortField, setSortField] = useState<keyof ExtractedRecord | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -32,7 +32,8 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       // Status filter
       const qty = item['QTY PO (pcs)'] || 0;
       const sisa = item['Sisa OS (pcs)'] || 0;
-      const stock = item['Stock (pcs)'] || 0;
+      const stockPcs = item['Stock (pcs)'] || 0;
+      const stockKg = item['Stock (kg)'] || 0;
 
       if (filterStatus === 'PARTIAL_DELIVERY') {
         return sisa < qty && sisa > 0;
@@ -41,11 +42,31 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         return sisa >= qty;
       }
       if (filterStatus === 'STOCK_READY') {
-        return stock >= sisa && sisa > 0;
+        return stockPcs > 0 || stockKg > 0;
       }
       return true;
     });
   }, [data, searchTerm, filterStatus]);
+
+  // Tab counts
+  const filterCounts = useMemo(() => {
+    let partial = 0;
+    let pending = 0;
+    let stockReady = 0;
+
+    data.forEach((item) => {
+      const qty = item['QTY PO (pcs)'] || 0;
+      const sisa = item['Sisa OS (pcs)'] || 0;
+      const stockPcs = item['Stock (pcs)'] || 0;
+      const stockKg = item['Stock (kg)'] || 0;
+
+      if (sisa < qty && sisa > 0) partial++;
+      if (sisa >= qty) pending++;
+      if (stockPcs > 0 || stockKg > 0) stockReady++;
+    });
+
+    return { partial, pending, stockReady, all: data.length };
+  }, [data]);
 
   // Sort
   const sortedData = useMemo(() => {
@@ -65,12 +86,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
     });
   }, [filteredData, sortField, sortOrder]);
 
-  // Pagination
-  const totalPages = Math.ceil(sortedData.length / pageSize) || 1;
+  // Pagination (pageSize === 0 means Unlimited / Show All)
+  const isUnlimited = pageSize === 0;
+  const effectivePageSize = isUnlimited ? sortedData.length || 1 : pageSize;
+  const totalPages = isUnlimited ? 1 : Math.ceil(sortedData.length / effectivePageSize) || 1;
+
   const paginatedData = useMemo(() => {
-    const start = (currentPage - 1) * pageSize;
-    return sortedData.slice(start, start + pageSize);
-  }, [sortedData, currentPage, pageSize]);
+    if (isUnlimited) return sortedData;
+    const start = (currentPage - 1) * effectivePageSize;
+    return sortedData.slice(start, start + effectivePageSize);
+  }, [sortedData, currentPage, effectivePageSize, isUnlimited]);
 
   const handleSort = (field: keyof ExtractedRecord) => {
     if (sortField === field) {
@@ -115,7 +140,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
             }`}
           >
-            All ({data.length})
+            All ({filterCounts.all})
           </button>
           <button
             type="button"
@@ -129,7 +154,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
             }`}
           >
-            Partial Delivery
+            Partial Delivery ({filterCounts.partial})
           </button>
           <button
             type="button"
@@ -143,7 +168,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
             }`}
           >
-            Pending Delivery
+            Pending Delivery ({filterCounts.pending})
           </button>
           <button
             type="button"
@@ -157,7 +182,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
             }`}
           >
-            Stock Ready
+            Stock Ready ({filterCounts.stockReady})
           </button>
         </div>
       </div>
@@ -305,7 +330,9 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </tr>
             ) : (
               paginatedData.map((row, idx) => {
-                const globalIndex = (currentPage - 1) * pageSize + idx + 1;
+                const globalIndex = isUnlimited
+                  ? idx + 1
+                  : (currentPage - 1) * effectivePageSize + idx + 1;
                 const isDeliveredPartial = row['Sisa OS (pcs)'] < row['QTY PO (pcs)'];
                 const terkirimPcs = row['Terkirim (PCS)'] !== undefined ? row['Terkirim (PCS)'] : Math.max(0, row['QTY PO (pcs)'] - row['Sisa OS (pcs)']);
                 const terkirimKg = row['Terkirim (KG)'] !== undefined ? row['Terkirim (KG)'] : Math.max(0, row['Berat PO (KG)'] - row['Sisa OS (kg)']);
@@ -380,51 +407,64 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       {/* Table Pagination Footer */}
       <div className="p-4 border-t-2 border-[#141414] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#141414] font-mono bg-[#F0F0EE]">
         <div>
-          Showing <span className="font-bold">{filteredData.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}</span> -{' '}
-          <span className="font-bold">{Math.min(currentPage * pageSize, filteredData.length)}</span> of{' '}
-          <span className="font-bold">{filteredData.length}</span> PO Records
+          {isUnlimited ? (
+            <span>
+              Menampilkan semua <span className="font-bold">{filteredData.length}</span> PO Records (Tanpa Limit)
+            </span>
+          ) : (
+            <span>
+              Showing <span className="font-bold">{filteredData.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}</span> -{' '}
+              <span className="font-bold">{Math.min(currentPage * effectivePageSize, filteredData.length)}</span> of{' '}
+              <span className="font-bold">{filteredData.length}</span> PO Records
+            </span>
+          )}
         </div>
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
-            <span className="font-bold uppercase text-[10px]">Rows:</span>
+            <span className="font-bold uppercase text-[10px]">Tampilkan:</span>
             <select
               value={pageSize}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="bg-white border-2 border-[#141414] text-[#141414] font-bold px-2 py-0.5 focus:outline-none"
+              className="bg-white border-2 border-[#141414] text-[#141414] font-bold px-2 py-1 text-xs focus:outline-none cursor-pointer"
             >
-              <option value={10}>10</option>
-              <option value={15}>15</option>
-              <option value={30}>30</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
+              <option value={0}>Semua Data (Unlimited)</option>
+              <option value={25}>25 Baris</option>
+              <option value={50}>50 Baris</option>
+              <option value={100}>100 Baris</option>
+              <option value={250}>250 Baris</option>
+              <option value={500}>500 Baris</option>
+              <option value={1000}>1000 Baris</option>
+              <option value={5000}>5000 Baris</option>
             </select>
           </div>
 
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              disabled={currentPage <= 1}
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              className="p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="px-2 font-bold font-mono">
-              {currentPage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              disabled={currentPage >= totalPages}
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              className="p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
+          {!isUnlimited && (
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                disabled={currentPage <= 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                className="p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="px-2 font-bold font-mono">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                type="button"
+                disabled={currentPage >= totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                className="p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

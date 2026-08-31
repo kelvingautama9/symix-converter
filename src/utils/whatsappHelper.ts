@@ -1,17 +1,16 @@
 import { ExtractedRecord } from '../types';
 
 /**
- * Generates the WhatsApp summary string based on finalData
+ * Generates the WhatsApp summary string based on all finalData records without item limits
  */
-export function generateWhatsAppSummary(data: ExtractedRecord[], maxItems: number = 10): string {
+export function generateWhatsAppSummary(data: ExtractedRecord[]): string {
   if (!data || data.length === 0) {
     return 'Halo, belum ada data rekap Sisa Order Status (OS) yang diproses.';
   }
 
   let text = 'Halo, berikut adalah update rekap Sisa Order Status (OS):\n';
 
-  const displayList = data.slice(0, maxItems);
-  displayList.forEach((item, index) => {
+  data.forEach((item, index) => {
     const co = item.CO ? `[CO: ${item.CO}] ` : '';
     const artikel = item.Artikel || '-';
     const noPo = item['No PO'] || '-';
@@ -22,11 +21,6 @@ export function generateWhatsAppSummary(data: ExtractedRecord[], maxItems: numbe
     text += `${index + 1}. ${co}[${artikel}] - [${noPo}]\n`;
     text += `   Order: ${qtyPo} pcs | Terkirim: ${terkirim} pcs | Sisa: *${sisaOs}* pcs\n`;
   });
-
-  if (data.length > maxItems) {
-    const remainingCount = data.length - maxItems;
-    text += `...dan ${remainingCount} item lainnya\n`;
-  }
 
   // Calculate totals for a helpful footer summary
   const totalQtyPcs = data.reduce((acc, curr) => acc + (curr['QTY PO (pcs)'] || 0), 0);
@@ -76,10 +70,10 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 }
 
 /**
- * Opens WhatsApp Web/App with the prefilled message
+ * Opens WhatsApp Web/App with the prefilled message containing all records
  */
-export function shareToWhatsApp(data: ExtractedRecord[], maxItems: number = 10): void {
-  const summaryText = generateWhatsAppSummary(data, maxItems);
+export function shareToWhatsApp(data: ExtractedRecord[]): void {
+  const summaryText = generateWhatsAppSummary(data);
   const encodedText = encodeURIComponent(summaryText);
   const waUrl = `https://wa.me/?text=${encodedText}`;
   window.open(waUrl, '_blank', 'noopener,noreferrer');

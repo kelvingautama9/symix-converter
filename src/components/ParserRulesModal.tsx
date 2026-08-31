@@ -94,19 +94,36 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
             </ul>
           </div>
 
-          {/* Rule 4: Fallback & Output */}
+          {/* Rule 4: Fallback */}
           <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414]">
             <div className="flex items-center gap-2 text-[#141414] font-black uppercase tracking-tight text-xs mb-2">
               <span className="w-5 h-5 bg-[#141414] text-white flex items-center justify-center font-mono text-xs">
                 4
               </span>
-              <span>Stage 4: Fallback & Master 14-Column Output</span>
+              <span>Stage 4: Fallback & Terkirim Calculation</span>
             </div>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
               <li>When encountering "TOTAL" or next Parent, flushes the active PO to final array.</li>
               <li><strong>Critical Fallback:</strong> If no delivery logs exist (<code className="font-bold">_has_delivery == false</code>), sets <code className="font-bold">Sisa OS = QTY PO</code> and <code className="font-bold">Sisa OS Kg = Berat PO</code>.</li>
               <li><strong>Terkirim Calculation:</strong> <code className="font-bold">Terkirim (PCS) = QTY PO (pcs) - Sisa OS (pcs)</code> dan <code className="font-bold">Terkirim (KG) = Berat PO (KG) - Sisa OS (kg)</code>.</li>
-              <li><strong>Columns:</strong> CO, Artikel, Description, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
+            </ul>
+          </div>
+
+          {/* Rule 5: FIFO Sequential Stock Allocation */}
+          <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414]">
+            <div className="flex items-center gap-2 text-[#141414] font-black uppercase tracking-tight text-xs mb-2">
+              <span className="w-5 h-5 bg-[#22c55e] text-white flex items-center justify-center font-mono text-xs">
+                5
+              </span>
+              <span>Stage 5: FIFO Sequential Stock Allocation (Anti Double-Stock)</span>
+            </div>
+            <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
+              Mencegah duplikasi stok untuk artikel/item yang memiliki lebih dari satu baris PO.
+            </p>
+            <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
+              <li><strong>Alokasi Urutan Atas:</strong> Saldo stok gudang dialokasikan untuk memenuhi <code className="font-bold">Sisa OS</code> PO teratas terlebih dahulu: <code className="font-bold">Stock Ready = min(Sisa Stok, Sisa OS)</code>.</li>
+              <li><strong>Sisa Saldo Stok:</strong> Jika ada sisa saldo stok setelah mengisi PO teratas, diteruskan ke baris PO berikutnya di bawahnya.</li>
+              <li><strong>14 Kolom Standar:</strong> CO, Artikel, Description, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
             </ul>
           </div>
         </div>
