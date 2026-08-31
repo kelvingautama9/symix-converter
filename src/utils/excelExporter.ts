@@ -2,6 +2,7 @@ import * as XLSX from 'xlsx';
 import { ExtractedRecord } from '../types';
 
 export const EXCEL_COLUMNS = [
+  'CO',
   'Artikel',
   'Item Description',
   'No PO',
@@ -18,7 +19,7 @@ export const EXCEL_COLUMNS = [
 /**
  * Exports finalData to a formatted Excel file matching the exact requirements:
  * Row 1: Title "REKAPITULASI STOCK & ORDER (OS) CUSTOMER"
- * Row 4: Data headers (11 columns strictly ordered)
+ * Row 4: Data headers (12 columns strictly ordered: CO, Artikel, Desc, No PO, ...)
  * Row 5+: Data rows
  * Auto download: "Rekap_Customer_Terbaru.xlsx"
  */
@@ -71,6 +72,7 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
     sumSisaKg += sisaKg;
 
     sheetData.push([
+      item.CO || '',
       item.Artikel || '',
       item['Item Description'] || '',
       item['No PO'] || '',
@@ -91,6 +93,7 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
     '',
     '',
     '',
+    '',
     sumQtyPcs,
     sumBeratKg,
     sumStockPcs,
@@ -104,6 +107,7 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
 
   // Set column widths for optimal legibility
   worksheet['!cols'] = [
+    { wch: 16 }, // CO
     { wch: 18 }, // Artikel
     { wch: 38 }, // Item Description
     { wch: 28 }, // No PO
@@ -117,11 +121,11 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
     { wch: 14 }, // Harga
   ];
 
-  // Set merges for Title row (A1 to K1)
+  // Set merges for Title row (A1 to L1)
   worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, // Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }, // Subtitle
-    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 3 } }, // Total label
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, // Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }, // Subtitle
+    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 4 } }, // Total label
   ];
 
   const workbook = XLSX.utils.book_new();

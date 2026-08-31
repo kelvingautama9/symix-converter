@@ -108,9 +108,15 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     // 2. TAHAP DETEKSI CHILD (BARIS PURCHASE ORDER)
     else if (
       currentItemId &&
-      (valB.includes('DAP') || valB.includes('PO.') || valB.includes('PO ') || valB.split(/\s+/).length > 1)
+      (valB.includes('DAP') || valB.includes('PO.') || valB.includes('PO ') || valB.includes('PO') || valB.split(/\s+/).length > 1) &&
+      !valA.startsWith('I t e m') &&
+      !valA.startsWith('---') &&
+      !valA.startsWith('Item') &&
+      !valA.startsWith('TOTAL') &&
+      !valA.startsWith('SH-') &&
+      !valA.startsWith('ST-')
     ) {
-      if (valA.length > 5 && valB.length > 5 && !valA.startsWith('I t e m') && !valA.startsWith('---')) {
+      if ((valA.length > 0 || valB.length > 3) && !valA.includes('Gramature') && !valA.includes('Stock')) {
         if (currentPO) {
           if (!currentPO._has_delivery) {
             currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
@@ -118,6 +124,9 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           }
           rowsData.push(currentPO);
         }
+
+        // Ekstraksi Data CO (Customer Order No dari Kolom A)
+        const coNumber = valA ? valA.replace(/\s+/g, ' ').trim() : '-';
 
         // Membersihkan Nomor PO (Menghilangkan Tanggal)
         const partsB = valB.split(' ');
@@ -151,8 +160,9 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
         const hasInitialDelivery = isNumericCell(sisaPcsRaw) || isNumericCell(sisaKgRaw);
 
-        // Membangun struktur kerangka 11 Kolom
+        // Membangun struktur kerangka 12 Kolom (dengan CO di posisi pertama)
         currentPO = {
+          CO: coNumber,
           Artikel: currentItemId,
           'Item Description': currentItemDesc,
           'No PO': cleanPoNo,

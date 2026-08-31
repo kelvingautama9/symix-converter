@@ -18,9 +18,9 @@ export function generateRawSampleERPWorkbook(): { buffer: ArrayBuffer; filename:
   // Col 0: 'SH-8092-A', Col 1: 'BOX MASTER 400X300X200 K150/M125', Col 3: 'K150/M125/K150 B/F', Col 4: 12500, Col 5: 3125
   rawRows.push(['SH-8092-A', 'BOX MASTER 400X300X200 K150/M125', '', 'K150/M125/K150 B/F', 12500, 3125, '', '', '', '', '', '', '', '', '', '']);
 
-  // PO 1.1 (Child with Date in PO name and delivery sub-child)
-  // Col 0: 'ORD-2026-01', Col 1: '12/08/2026 PO.88921/KMS/VIII/26', Col 2: 'GUDANG CIKARANG BLOK B 4850.00 EX-WORK', Col 3: '', Col 6: 10000, Col 7: 2500
-  rawRows.push(['ORD-2026-01', '12/08/2026 PO.88921/KMS/VIII/26', 'GUDANG CIKARANG BLOK B 4850.00 EX-WORK', '', '', '', 10000, 2500, '', '', '', '', '', '', '', '']);
+  // PO 1.1 (Child with CO in Col A, Date in PO name and delivery sub-child)
+  // Col 0: '18H8559 1 O', Col 1: '12/08/2026 PO.88921/KMS/VIII/26', Col 2: 'GUDANG CIKARANG BLOK B 4850.00 EX-WORK', Col 3: '', Col 6: 10000, Col 7: 2500
+  rawRows.push(['18H8559 1 O', '12/08/2026 PO.88921/KMS/VIII/26', 'GUDANG CIKARANG BLOK B 4850.00 EX-WORK', '', '', '', 10000, 2500, '', '', '', '', '', '', '', '']);
   
   // Delivery log 1 (Sub-child with P26 in Col 10, Sisa at Col 14 & 15)
   // Col 9: 'SJ-9901', Col 10: 'DO-P26-8801', Col 14: 6000, Col 15: 1500
@@ -29,8 +29,8 @@ export function generateRawSampleERPWorkbook(): { buffer: ArrayBuffer; filename:
   // Delivery log 2 (Latest overwrite with P26 in Col 10, Sisa 3500 pcs)
   rawRows.push(['', '', '', '', '', '', '', '', '', 'SJ-9988', 'DO-P26-8899', '', '', '', 3500, 875]);
 
-  // PO 1.2 (Child with '-' date in PO, NO DELIVERY LOG -> Fallback test)
-  rawRows.push(['ORD-2026-02', '18-08-2026 PO.89012/DAP/KMS/26', 'GDG TANGERANG UTARA 4850.00 INC-PPN', '', '', '', 5000, 1250, '', '', '', '', '', '', '', '']);
+  // PO 1.2 (Child with CO in Col A, '-' date in PO, NO DELIVERY LOG -> Fallback test)
+  rawRows.push(['18H8532 1 O', '18-08-2026 PO.89012/DAP/KMS/26', 'GDG TANGERANG UTARA 4850.00 INC-PPN', '', '', '', 5000, 1250, '', '', '', '', '', '', '', '']);
 
   // Total Item 1
   rawRows.push(['TOTAL SH-8092-A', '', '', '', '', '', 15000, 3750, '', '', '', '', '', '', 8500, 2125]);
@@ -40,13 +40,13 @@ export function generateRawSampleERPWorkbook(): { buffer: ArrayBuffer; filename:
   // Col 0: 'ST-4410-B', Col 1: 'INNER BOX DIE CUT 250X150X100 E/F', Col 3: 'WK150/M125 E/F', Col 4: '', Col 5: '', Col 6: 4500, Col 7: 675
   rawRows.push(['ST-4410-B', 'INNER BOX DIE CUT 250X150X100 E/F', '', 'WK150/M125 E/F', '', '', 4500, 675, '', '', '', '', '', '', '', '']);
 
-  // PO 2.1 (Child DAP)
-  rawRows.push(['ORD-2026-03', 'DAP-PO.9001/FMCG/26', 'LOC-SURABAYA BARAT 2950.50 NETT', '', '', '', 8000, 1200, '', '', '', '', '', '', '', '']);
+  // PO 2.1 (Child DAP with CO)
+  rawRows.push(['18H8885 1 O', 'DAP-PO.9001/FMCG/26', 'LOC-SURABAYA BARAT 2950.50 NETT', '', '', '', 8000, 1200, '', '', '', '', '', '', '', '']);
   // Delivery Log
   rawRows.push(['', '', '', '', '', '', '', '', '', 'P26-SURABAYA', 'SUR-P26-112', '', '', '', 2000, 300]);
 
   // PO 2.2 (Child with no delivery)
-  rawRows.push(['ORD-2026-04', '20/08/2026 DAP-PO.9044/RETAIL/26', 'LOC-SEMARANG 2950.50 NETT', '', '', '', 12000, 1800, '', '', '', '', '', '', '', '']);
+  rawRows.push(['18H8306 1 O', '20/08/2026 DAP-PO.9044/RETAIL/26', 'LOC-SEMARANG 2950.50 NETT', '', '', '', 12000, 1800, '', '', '', '', '', '', '', '']);
 
   // Total Item 2
   rawRows.push(['TOTAL ST-4410-B', '', '', '', '', '', 20000, 3000, '', '', '', '', '', '', 14000, 2100]);
@@ -56,11 +56,11 @@ export function generateRawSampleERPWorkbook(): { buffer: ArrayBuffer; filename:
   rawRows.push(['SH-1025-X', 'HEAVY DUTY CORRUGATED PALLET BOX', '', 'K275/M150x2/K275 CB/F', 800, 960, '', '', '', '', '', '', '', '', '', '']);
 
   // PO 3.1
-  rawRows.push(['ORD-2026-05', 'PO 77123-EXPORT-SINGAPORE', 'PORT TANJUNG PRIOK 18500.00 FOB', '', '', '', 1500, 1800, '', '', '', '', '', '', '', '']);
+  rawRows.push(['18H9011 1 O', 'PO 77123-EXPORT-SINGAPORE', 'PORT TANJUNG PRIOK 18500.00 FOB', '', '', '', 1500, 1800, '', '', '', '', '', '', '', '']);
   rawRows.push(['', '', '', '', '', '', '', '', 'LOG-P26-TRANSIT', 'P26-EXP-001', '', '', '', '', 500, 600]);
 
   // PO 3.2
-  rawRows.push(['ORD-2026-06', '01/08/2026 PO.77440-REGULAR', 'PORT TANJUNG PRIOK 18500.00 FOB', '', '', '', 2000, 2400, '', '', '', '', '', '', '', '']);
+  rawRows.push(['18H9144 1 O', '01/08/2026 PO.77440-REGULAR', 'PORT TANJUNG PRIOK 18500.00 FOB', '', '', '', 2000, 2400, '', '', '', '', '', '', '', '']);
 
   // TOTAL END
   rawRows.push(['TOTAL KESELURUHAN LAPORAN', '', '', '', '', '', 38500, 8950, '', '', '', '', '', '', 23000, 5125]);

@@ -12,12 +12,13 @@ export function generateWhatsAppSummary(data: ExtractedRecord[], maxItems: numbe
 
   const displayList = data.slice(0, maxItems);
   displayList.forEach((item, index) => {
+    const co = item.CO ? `[CO: ${item.CO}] ` : '';
     const artikel = item.Artikel || '-';
     const noPo = item['No PO'] || '-';
     const qtyPo = (item['QTY PO (pcs)'] || 0).toLocaleString('id-ID');
     const sisaOs = (item['Sisa OS (pcs)'] || 0).toLocaleString('id-ID');
 
-    text += `${index + 1}. [${artikel}] - [${noPo}]\n`;
+    text += `${index + 1}. ${co}[${artikel}] - [${noPo}]\n`;
     text += `   Order: ${qtyPo} pcs | Sisa Kirim: *${sisaOs}* pcs\n`;
   });
 

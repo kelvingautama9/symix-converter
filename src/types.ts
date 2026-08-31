@@ -1,4 +1,5 @@
 export interface ExtractedRecord {
+  CO: string;
   Artikel: string;
   'Item Description': string;
   'No PO': string;

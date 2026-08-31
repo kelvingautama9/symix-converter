@@ -53,7 +53,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           className="inline-flex items-center gap-2.5 px-6 py-2.5 bg-[#141414] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
         >
           <Download className="w-4 h-4 shrink-0" />
-          <span>Download Excel (11 Columns)</span>
+          <span>Download Excel (12 Columns)</span>
         </button>
 
         {/* Primary WhatsApp Share */}

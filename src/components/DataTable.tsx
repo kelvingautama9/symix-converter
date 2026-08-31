@@ -21,6 +21,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       const search = searchTerm.toLowerCase().trim();
       const matchSearch =
         !search ||
+        (item.CO && item.CO.toLowerCase().includes(search)) ||
         (item.Artikel && item.Artikel.toLowerCase().includes(search)) ||
         (item['Item Description'] && item['Item Description'].toLowerCase().includes(search)) ||
         (item['No PO'] && item['No PO'].toLowerCase().includes(search)) ||
@@ -168,11 +169,20 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
             <tr className="bg-[#141414] text-white text-[11px] font-mono font-bold uppercase tracking-wider">
               <th className="py-3 px-3 pl-4 border-r border-white/20">#</th>
               <th
+                onClick={() => handleSort('CO')}
+                className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>1. CO</span>
+                  <ChevronsUpDown className="w-3.5 h-3.5" />
+                </div>
+              </th>
+              <th
                 onClick={() => handleSort('Artikel')}
                 className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>1. Artikel</span>
+                  <span>2. Artikel</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -181,7 +191,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 cursor-pointer hover:bg-black transition-colors min-w-[220px] border-r border-white/20"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>2. Item Description</span>
+                  <span>3. Item Description</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -190,7 +200,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>3. No PO (Clean)</span>
+                  <span>4. No PO (Clean)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -199,7 +209,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>4. Substance</span>
+                  <span>5. Substance</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -208,7 +218,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>5. QTY PO (pcs)</span>
+                  <span>6. QTY PO (pcs)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -217,7 +227,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>6. Berat PO (KG)</span>
+                  <span>7. Berat PO (KG)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -226,7 +236,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>7. Stock (pcs)</span>
+                  <span>8. Stock (pcs)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -235,7 +245,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>8. Stock (kg)</span>
+                  <span>9. Stock (kg)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -244,7 +254,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 bg-[#FF6B35]"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>9. Sisa OS (pcs)</span>
+                  <span>10. Sisa OS (pcs)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -253,7 +263,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>10. Sisa OS (kg)</span>
+                  <span>11. Sisa OS (kg)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -262,7 +272,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black transition-colors"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>11. Harga</span>
+                  <span>12. Harga</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -271,7 +281,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           <tbody className="divide-y divide-[#141414]/15 font-mono text-xs">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={12} className="py-12 text-center text-[#141414]/60 font-sans font-medium">
+                <td colSpan={13} className="py-12 text-center text-[#141414]/60 font-sans font-medium">
                   Tidak ada data yang sesuai dengan pencarian atau filter.
                 </td>
               </tr>
@@ -282,11 +292,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
 
                 return (
                   <tr
-                    key={`${row.Artikel}-${row['No PO']}-${idx}`}
+                    key={`${row.CO}-${row.Artikel}-${row['No PO']}-${idx}`}
                     className="hover:bg-[#F0F0EE] transition-colors group"
                   >
                     <td className="py-2.5 px-3 pl-4 text-[#141414]/60 border-r border-[#141414]/10">
                       {globalIndex}
+                    </td>
+                    <td className="py-2.5 px-3 font-bold text-[#141414] border-r border-[#141414]/10">
+                      <span className="px-1.5 py-0.5 bg-[#F0F0EE] border border-[#141414] text-[#141414] text-[11px] font-mono">
+                        {row.CO || '-'}
+                      </span>
                     </td>
                     <td className="py-2.5 px-3 font-bold text-[#141414] border-r border-[#141414]/10">
                       <span className="px-1.5 py-0.5 bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[11px] font-mono">

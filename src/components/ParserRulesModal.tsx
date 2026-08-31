@@ -64,13 +64,14 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span className="w-5 h-5 bg-[#141414] text-white flex items-center justify-center font-mono text-xs">
                 2
               </span>
-              <span>Stage 2: Child Detection (Purchase Order)</span>
+              <span>Stage 2: Child Detection (CO & Purchase Order)</span>
             </div>
             <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
               Triggered when <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] text-[#141414]">row[1]</code> contains <code className="font-bold">"DAP"</code> or <code className="font-bold">"PO"</code>.
             </p>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
-              <li><strong>Clean PO String:</strong> Strips leading date prefixes (e.g. DD/MM/YY) from the PO number.</li>
+              <li><strong>CO Extraction:</strong> Captures Customer Order code (e.g. <code className="font-bold">18H8559 1 O</code>) from <code className="font-bold">row[0]</code> as Column A.</li>
+              <li><strong>Clean PO String:</strong> Strips leading date prefixes (e.g. DD/MM/YY) from the PO number in <code className="font-bold">row[1]</code>.</li>
               <li><strong>Price Extraction:</strong> Splits <code className="font-bold">row[2]</code> by whitespace to find floating point price units.</li>
               <li>Extracts <code className="font-bold">QTY PO (pcs)</code> from <code className="font-bold">row[6]</code> and <code className="font-bold">Berat PO (KG)</code> from <code className="font-bold">row[7]</code>.</li>
             </ul>
@@ -99,11 +100,12 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span className="w-5 h-5 bg-[#141414] text-white flex items-center justify-center font-mono text-xs">
                 4
               </span>
-              <span>Stage 4: Fallback & Master 11-Column Output</span>
+              <span>Stage 4: Fallback & Master 12-Column Output</span>
             </div>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
               <li>When encountering "TOTAL" or next Parent, flushes the active PO to final array.</li>
               <li><strong>Critical Fallback:</strong> If no delivery logs exist (<code className="font-bold">_has_delivery == false</code>), sets <code className="font-bold">Sisa OS = QTY PO</code> and <code className="font-bold">Sisa OS Kg = Berat PO</code>.</li>
+              <li><strong>Columns:</strong> CO, Artikel, Description, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Harga.</li>
             </ul>
           </div>
         </div>

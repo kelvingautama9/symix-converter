@@ -275,9 +275,9 @@ export default function App() {
                 <div className="p-5 bg-[#FF6B35] border-2 border-[#141414] text-white shadow-[2px_2px_0px_#141414] flex flex-col justify-between">
                   <div>
                     <span className="text-[11px] font-black uppercase tracking-wider text-white/90">Output Schema</span>
-                    <div className="text-3xl font-black font-mono mt-1 mb-1">11 COLs</div>
+                    <div className="text-3xl font-black font-mono mt-1 mb-1">12 COLs</div>
                     <p className="text-xs font-mono text-white/90 leading-relaxed">
-                      Strict ordering: Artikel, Desc, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Harga.
+                      Strict ordering: CO, Artikel, Desc, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Harga.
                     </p>
                   </div>
                   <div className="mt-3 text-[10px] font-mono uppercase text-white/80">
