@@ -2,5 +2,7 @@
   "name": "ERP Excel Data Converter",
   "description": "Client-side ERP Excel Data Converter and Parser for Stock and Order OS records.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

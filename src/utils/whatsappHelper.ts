@@ -17,9 +17,10 @@ export function generateWhatsAppSummary(data: ExtractedRecord[], maxItems: numbe
     const noPo = item['No PO'] || '-';
     const qtyPo = (item['QTY PO (pcs)'] || 0).toLocaleString('id-ID');
     const sisaOs = (item['Sisa OS (pcs)'] || 0).toLocaleString('id-ID');
+    const terkirim = ((item['Terkirim (PCS)'] !== undefined ? item['Terkirim (PCS)'] : Math.max(0, (item['QTY PO (pcs)'] || 0) - (item['Sisa OS (pcs)'] || 0)))).toLocaleString('id-ID');
 
     text += `${index + 1}. ${co}[${artikel}] - [${noPo}]\n`;
-    text += `   Order: ${qtyPo} pcs | Sisa Kirim: *${sisaOs}* pcs\n`;
+    text += `   Order: ${qtyPo} pcs | Terkirim: ${terkirim} pcs | Sisa: *${sisaOs}* pcs\n`;
   });
 
   if (data.length > maxItems) {
@@ -30,11 +31,13 @@ export function generateWhatsAppSummary(data: ExtractedRecord[], maxItems: numbe
   // Calculate totals for a helpful footer summary
   const totalQtyPcs = data.reduce((acc, curr) => acc + (curr['QTY PO (pcs)'] || 0), 0);
   const totalSisaPcs = data.reduce((acc, curr) => acc + (curr['Sisa OS (pcs)'] || 0), 0);
+  const totalTerkirimPcs = data.reduce((acc, curr) => acc + ((curr['Terkirim (PCS)'] !== undefined ? curr['Terkirim (PCS)'] : Math.max(0, (curr['QTY PO (pcs)'] || 0) - (curr['Sisa OS (pcs)'] || 0)))), 0);
   const totalItems = data.length;
 
   text += `\n📊 *Ringkasan Keseluruhan:*\n`;
   text += `• Total PO: ${totalItems} order\n`;
   text += `• Total Order: ${totalQtyPcs.toLocaleString('id-ID')} pcs\n`;
+  text += `• Total Terkirim: ${totalTerkirimPcs.toLocaleString('id-ID')} pcs\n`;
   text += `• Total Sisa Kirim: *${totalSisaPcs.toLocaleString('id-ID')}* pcs`;
 
   return text;

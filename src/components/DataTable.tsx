@@ -268,11 +268,29 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 </div>
               </th>
               <th
+                onClick={() => handleSort('Terkirim (PCS)')}
+                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 bg-[#2E7D32]"
+              >
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>12. Terkirim (PCS)</span>
+                  <ChevronsUpDown className="w-3.5 h-3.5" />
+                </div>
+              </th>
+              <th
+                onClick={() => handleSort('Terkirim (KG)')}
+                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+              >
+                <div className="flex items-center justify-end gap-1.5">
+                  <span>13. Terkirim (KG)</span>
+                  <ChevronsUpDown className="w-3.5 h-3.5" />
+                </div>
+              </th>
+              <th
                 onClick={() => handleSort('Harga')}
                 className="py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black transition-colors"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>12. Harga</span>
+                  <span>14. Harga</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -281,7 +299,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           <tbody className="divide-y divide-[#141414]/15 font-mono text-xs">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={13} className="py-12 text-center text-[#141414]/60 font-sans font-medium">
+                <td colSpan={15} className="py-12 text-center text-[#141414]/60 font-sans font-medium">
                   Tidak ada data yang sesuai dengan pencarian atau filter.
                 </td>
               </tr>
@@ -289,6 +307,8 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               paginatedData.map((row, idx) => {
                 const globalIndex = (currentPage - 1) * pageSize + idx + 1;
                 const isDeliveredPartial = row['Sisa OS (pcs)'] < row['QTY PO (pcs)'];
+                const terkirimPcs = row['Terkirim (PCS)'] !== undefined ? row['Terkirim (PCS)'] : Math.max(0, row['QTY PO (pcs)'] - row['Sisa OS (pcs)']);
+                const terkirimKg = row['Terkirim (KG)'] !== undefined ? row['Terkirim (KG)'] : Math.max(0, row['Berat PO (KG)'] - row['Sisa OS (kg)']);
 
                 return (
                   <tr
@@ -339,6 +359,12 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     </td>
                     <td className="py-2.5 px-3 text-right text-[#141414]/80 border-r border-[#141414]/10">
                       {row['Sisa OS (kg)'].toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold text-green-800 bg-green-50/60 border-r border-[#141414]/10">
+                      {terkirimPcs > 0 ? terkirimPcs.toLocaleString('id-ID') : '0'}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-[#141414]/80 border-r border-[#141414]/10">
+                      {terkirimKg > 0 ? terkirimKg.toLocaleString('id-ID') : '0'}
                     </td>
                     <td className="py-2.5 px-3 pr-4 text-right text-[#141414] font-bold">
                       {row.Harga > 0 ? `Rp ${row.Harga.toLocaleString('id-ID')}` : '-'}

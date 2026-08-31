@@ -13,13 +13,15 @@ export const EXCEL_COLUMNS = [
   'Stock (kg)',
   'Sisa OS (pcs)',
   'Sisa OS (kg)',
+  'Terkirim (PCS)',
+  'Terkirim (KG)',
   'Harga',
 ] as const;
 
 /**
  * Exports finalData to a formatted Excel file matching the exact requirements:
  * Row 1: Title "REKAPITULASI STOCK & ORDER (OS) CUSTOMER"
- * Row 4: Data headers (12 columns strictly ordered: CO, Artikel, Desc, No PO, ...)
+ * Row 4: Data headers (14 columns strictly ordered: CO, Artikel, Desc, No PO, ..., Sisa OS (kg), Terkirim (PCS), Terkirim (KG), Harga)
  * Row 5+: Data rows
  * Auto download: "Rekap_Customer_Terbaru.xlsx"
  */
@@ -54,6 +56,8 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
   let sumStockKg = 0;
   let sumSisaPcs = 0;
   let sumSisaKg = 0;
+  let sumTerkirimPcs = 0;
+  let sumTerkirimKg = 0;
 
   for (const item of data) {
     const qtyPcs = Number(item['QTY PO (pcs)']) || 0;
@@ -62,6 +66,8 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
     const stockKg = Number(item['Stock (kg)']) || 0;
     const sisaPcs = Number(item['Sisa OS (pcs)']) || 0;
     const sisaKg = Number(item['Sisa OS (kg)']) || 0;
+    const terkirimPcs = item['Terkirim (PCS)'] !== undefined ? Number(item['Terkirim (PCS)']) : Math.max(0, qtyPcs - sisaPcs);
+    const terkirimKg = item['Terkirim (KG)'] !== undefined ? Number(item['Terkirim (KG)']) : Math.max(0, beratKg - sisaKg);
     const harga = Number(item.Harga) || 0;
 
     sumQtyPcs += qtyPcs;
@@ -70,6 +76,8 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
     sumStockKg += stockKg;
     sumSisaPcs += sisaPcs;
     sumSisaKg += sisaKg;
+    sumTerkirimPcs += terkirimPcs;
+    sumTerkirimKg += terkirimKg;
 
     sheetData.push([
       item.CO || '',
@@ -83,6 +91,8 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
       stockKg,
       sisaPcs,
       sisaKg,
+      terkirimPcs,
+      terkirimKg,
       harga,
     ]);
   }
@@ -100,6 +110,8 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
     sumStockKg,
     sumSisaPcs,
     sumSisaKg,
+    sumTerkirimPcs,
+    sumTerkirimKg,
     '',
   ]);
 
@@ -118,13 +130,15 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
     { wch: 14 }, // Stock (kg)
     { wch: 15 }, // Sisa OS (pcs)
     { wch: 15 }, // Sisa OS (kg)
+    { wch: 16 }, // Terkirim (PCS)
+    { wch: 16 }, // Terkirim (KG)
     { wch: 14 }, // Harga
   ];
 
-  // Set merges for Title row (A1 to L1)
+  // Set merges for Title row (A1 to N1)
   worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } }, // Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } }, // Subtitle
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }, // Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } }, // Subtitle
     { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 4 } }, // Total label
   ];
 

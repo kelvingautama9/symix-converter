@@ -159,8 +159,10 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         const sisaKgRaw = r.length > 15 ? r[15] : null;
 
         const hasInitialDelivery = isNumericCell(sisaPcsRaw) || isNumericCell(sisaKgRaw);
+        const sisaPcsVal = isNumericCell(sisaPcsRaw) ? parseCleanInt(sisaPcsRaw) : 0;
+        const sisaKgVal = isNumericCell(sisaKgRaw) ? parseCleanInt(sisaKgRaw) : 0;
 
-        // Membangun struktur kerangka 12 Kolom (dengan CO di posisi pertama)
+        // Membangun struktur kerangka 14 Kolom (dengan CO di posisi pertama dan Terkirim di samping Sisa OS)
         currentPO = {
           CO: coNumber,
           Artikel: currentItemId,
@@ -171,8 +173,10 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           'Berat PO (KG)': qtyOrderKg,
           'Stock (pcs)': currentStockPcs,
           'Stock (kg)': currentStockKg,
-          'Sisa OS (pcs)': isNumericCell(sisaPcsRaw) ? parseCleanInt(sisaPcsRaw) : 0,
-          'Sisa OS (kg)': isNumericCell(sisaKgRaw) ? parseCleanInt(sisaKgRaw) : 0,
+          'Sisa OS (pcs)': sisaPcsVal,
+          'Sisa OS (kg)': sisaKgVal,
+          'Terkirim (PCS)': Math.max(0, qtyOrderPcs - sisaPcsVal),
+          'Terkirim (KG)': Math.max(0, qtyOrderKg - sisaKgVal),
           Harga: priceVal,
           _has_delivery: hasInitialDelivery,
         };
@@ -190,11 +194,15 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
       // OVERWRITE nilai sisa OS dengan angka yang paling baru/terbawah
       if (isNumericCell(sisaPcs)) {
-        currentPO['Sisa OS (pcs)'] = parseCleanInt(sisaPcs);
+        const pVal = parseCleanInt(sisaPcs);
+        currentPO['Sisa OS (pcs)'] = pVal;
+        currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - pVal);
         currentPO._has_delivery = true;
       }
       if (isNumericCell(sisaKg)) {
-        currentPO['Sisa OS (kg)'] = parseCleanInt(sisaKg);
+        const kVal = parseCleanInt(sisaKg);
+        currentPO['Sisa OS (kg)'] = kVal;
+        currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - kVal);
         currentPO._has_delivery = true;
       }
     }
@@ -204,6 +212,11 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         if (!currentPO._has_delivery) {
           currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
           currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
+          currentPO['Terkirim (PCS)'] = 0;
+          currentPO['Terkirim (KG)'] = 0;
+        } else {
+          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
+          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
         }
         rowsData.push(currentPO);
         currentPO = null;
@@ -216,13 +229,27 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     if (!currentPO._has_delivery) {
       currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
       currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
+      currentPO['Terkirim (PCS)'] = 0;
+      currentPO['Terkirim (KG)'] = 0;
+    } else {
+      currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
+      currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
     }
     rowsData.push(currentPO);
   }
 
   // Membersihkan metadata sebelum dikembalikan
   return rowsData.map((item) => {
-    const cleaned = { ...item };
+    const qtyPcs = item['QTY PO (pcs)'] || 0;
+    const qtyKg = item['Berat PO (KG)'] || 0;
+    const sisaPcs = item['Sisa OS (pcs)'] || 0;
+    const sisaKg = item['Sisa OS (kg)'] || 0;
+
+    const cleaned: ExtractedRecord = {
+      ...item,
+      'Terkirim (PCS)': Math.max(0, qtyPcs - sisaPcs),
+      'Terkirim (KG)': Math.max(0, qtyKg - sisaKg),
+    };
     delete cleaned._has_delivery;
     return cleaned;
   });
@@ -264,6 +291,8 @@ export function parseExcelBuffer(
   const totalStockKg = finalData.reduce((sum, d) => sum + (d['Stock (kg)'] || 0), 0);
   const totalSisaOSPcs = finalData.reduce((sum, d) => sum + (d['Sisa OS (pcs)'] || 0), 0);
   const totalSisaOSKg = finalData.reduce((sum, d) => sum + (d['Sisa OS (kg)'] || 0), 0);
+  const totalTerkirimPcs = finalData.reduce((sum, d) => sum + (d['Terkirim (PCS)'] || 0), 0);
+  const totalTerkirimKg = finalData.reduce((sum, d) => sum + (d['Terkirim (KG)'] || 0), 0);
   const totalValue = finalData.reduce((sum, d) => sum + (d['Sisa OS (pcs)'] || 0) * (d.Harga || 0), 0);
 
   const itemsWithDelivery = finalData.filter((d) => d['Sisa OS (pcs)'] < d['QTY PO (pcs)']).length;
@@ -282,6 +311,8 @@ export function parseExcelBuffer(
     totalStockKg,
     totalSisaOSPcs,
     totalSisaOSKg,
+    totalTerkirimPcs,
+    totalTerkirimKg,
     totalValue,
     itemsWithDelivery,
     itemsWithoutDelivery,

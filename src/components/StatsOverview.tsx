@@ -80,16 +80,19 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
       {/* 5. Progress Pengiriman */}
       <div id="stat-card-delivery-progress" className="bg-[#DEDEDE] border-2 border-[#141414] p-4 flex flex-col justify-between shadow-[2px_2px_0px_#141414]">
         <div className="flex items-center justify-between text-[#141414] mb-2">
-          <span className="text-[11px] font-black uppercase tracking-wider">Fulfillment</span>
+          <span className="text-[11px] font-black uppercase tracking-wider">Total Terkirim</span>
           <CheckCircle className="w-4 h-4 text-[#141414]" />
         </div>
         <div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-[#141414] tracking-tight">
-            {fulfillmentPct}%
+            {(summary.totalTerkirimPcs ?? (summary.totalQtyOrderPcs - summary.totalSisaOSPcs)).toLocaleString('id-ID')} <span className="text-xs font-normal text-[#141414]/60">pcs</span>
           </div>
-          <div className="w-full bg-white border border-[#141414] h-2.5 mt-2 overflow-hidden">
+          <p className="text-[11px] text-[#141414]/70 mt-1 font-mono">
+            {(summary.totalTerkirimKg ?? (summary.totalBeratOrderKg - summary.totalSisaOSKg)).toLocaleString('id-ID')} kg ({fulfillmentPct}%)
+          </p>
+          <div className="w-full bg-white border border-[#141414] h-2 mt-1.5 overflow-hidden">
             <div
-              className="bg-[#141414] h-full transition-all duration-500"
+              className="bg-[#2E7D32] h-full transition-all duration-500"
               style={{ width: `${Math.min(100, Math.max(0, fulfillmentPct))}%` }}
             />
           </div>

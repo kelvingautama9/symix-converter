@@ -10,6 +10,8 @@ export interface ExtractedRecord {
   'Stock (kg)': number;
   'Sisa OS (pcs)': number;
   'Sisa OS (kg)': number;
+  'Terkirim (PCS)': number;
+  'Terkirim (KG)': number;
   Harga: number;
   _has_delivery?: boolean;
 }
@@ -23,6 +25,8 @@ export interface ParseSummary {
   totalStockKg: number;
   totalSisaOSPcs: number;
   totalSisaOSKg: number;
+  totalTerkirimPcs: number;
+  totalTerkirimKg: number;
   totalValue: number;
   itemsWithDelivery: number;
   itemsWithoutDelivery: number;
