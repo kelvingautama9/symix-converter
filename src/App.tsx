@@ -174,7 +174,7 @@ export default function App() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#141414]">
-                  ERP DATA ENGINE // CLIENT EXCEL CONVERTER
+                  BlackEYE - ERP DATA ENGINE
                 </h1>
                 <span className="px-1.5 py-0.5 bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[10px] font-mono font-bold uppercase tracking-wider">
                   BROWSER_ONLY_V2.0

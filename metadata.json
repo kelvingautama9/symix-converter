@@ -1,5 +1,5 @@
 {
-  "name": "ERP Excel Data Converter",
+  "name": "BlackEYE - ERP DATA ENGINE",
   "description": "Client-side ERP Excel Data Converter and Parser for Stock and Order OS records.",
   "requestFramePermissions": [],
   "majorCapabilities": [
