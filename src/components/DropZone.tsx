@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { UploadCloud, FileSpreadsheet, Sparkles, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
-import { generateRawSampleERPWorkbook } from '../utils/sampleDataGenerator';
+import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface DropZoneProps {
   onFileLoaded: (buffer: ArrayBuffer, fileName: string) => void;
@@ -63,12 +62,6 @@ export const DropZone: React.FC<DropZoneProps> = ({
     }
   };
 
-  const handleLoadSample = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    const sample = generateRawSampleERPWorkbook();
-    onFileLoaded(sample.buffer, sample.filename);
-  };
-
   return (
     <div className="w-full h-full flex flex-col justify-between">
       <input
@@ -124,20 +117,10 @@ export const DropZone: React.FC<DropZoneProps> = ({
                 e.stopPropagation();
                 fileInputRef.current?.click();
               }}
-              className="inline-flex items-center gap-2 px-7 py-3 bg-[#141414] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-[#141414] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
             >
               <FileSpreadsheet className="w-4 h-4" />
               Browse Files
-            </button>
-
-            <button
-              type="button"
-              id="btn-load-sample"
-              onClick={handleLoadSample}
-              className="inline-flex items-center gap-2 px-5 py-3 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
-            >
-              <Sparkles className="w-4 h-4 text-[#FF6B35]" />
-              Load Sample ERP
             </button>
           </div>
 

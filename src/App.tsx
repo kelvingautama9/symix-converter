@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
 import { ExtractedRecord, ParseSummary } from './types';
 import { parseExcelBuffer } from './utils/parserEngine';
 import { exportToExcel } from './utils/excelExporter';
 import { shareToWhatsApp, generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
-import { generateRawSampleERPWorkbook } from './utils/sampleDataGenerator';
 import { DropZone } from './components/DropZone';
 import { StatsOverview } from './components/StatsOverview';
 import { ActionToolbar } from './components/ActionToolbar';
@@ -18,7 +17,6 @@ import {
   Cpu,
   Download,
   Share2,
-  Sparkles,
   Info,
   Layers,
   ShieldCheck,
@@ -41,16 +39,6 @@ export default function App() {
   const [isWAModalOpen, setIsWAModalOpen] = useState(false);
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-
-  // Auto load sample on first mount so the user immediately sees a functioning dashboard
-  useEffect(() => {
-    try {
-      const sample = generateRawSampleERPWorkbook();
-      handleFileLoaded(sample.buffer, sample.filename, false);
-    } catch (err) {
-      console.error('Initial sample load failed:', err);
-    }
-  }, []);
 
   const handleFileLoaded = (
     buffer: ArrayBuffer,
@@ -356,31 +344,18 @@ export default function App() {
               <div className="flex items-center gap-3 text-xs font-mono text-[#141414]/80">
                 <Info className="w-4 h-4 text-[#FF6B35] shrink-0" />
                 <span>
-                  Want to process another ERP sheet? Drag & drop a new file or reload sample data below.
+                  Ingin memproses file ERP lain? Klik tombol di samping untuk mengunggah file baru.
                 </span>
               </div>
               <div className="flex items-center gap-3 shrink-0">
                 <button
                   type="button"
-                  id="btn-bottom-try-sample"
-                  onClick={() => {
-                    const sample = generateRawSampleERPWorkbook();
-                    handleFileLoaded(sample.buffer, sample.filename, true);
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-[#FF6B35]" />
-                  <span>Reload Sample ERP</span>
-                </button>
-
-                <button
-                  type="button"
                   id="btn-bottom-reset"
                   onClick={handleReset}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-[#F0F0EE] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#141414] hover:bg-black text-white border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Upload New File</span>
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Upload File Baru</span>
                 </button>
               </div>
             </div>
