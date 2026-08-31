@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import * as XLSX from 'xlsx';
-import { ExtractedRecord, ParseSummary } from './types';
+import { ExtractedRecord, ParseSummary, ExcelExportScope } from './types';
 import { parseExcelBuffer } from './utils/parserEngine';
 import { exportToExcel } from './utils/excelExporter';
 import { shareToWhatsApp, generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
+import { haptic } from './utils/haptics';
 import { DropZone } from './components/DropZone';
 import { StatsOverview } from './components/StatsOverview';
 import { ActionToolbar } from './components/ActionToolbar';
@@ -50,6 +51,7 @@ export default function App() {
     setStatusMessage('Membaca & memproses hierarki data ERP...');
     setFileBuffer(buffer);
     setCurrentFileName(fileName);
+    haptic.medium();
 
     // Give UI a brief frame to show loading state smoothly
     setTimeout(() => {
@@ -71,6 +73,7 @@ export default function App() {
         setStatusMessage(
           `Success: ${parsedData.length} POs extracted dari ${parsedSummary.totalUniqueItems} artikel produk`
         );
+        haptic.success();
 
         if (triggerCelebration) {
           confetti({
@@ -82,6 +85,7 @@ export default function App() {
         }
       } catch (err: any) {
         console.error('Parsing error:', err);
+        haptic.error();
         setErrorMessage(err?.message || 'Terjadi kesalahan saat memproses file Excel.');
         setStatusMessage(null);
       } finally {
@@ -92,6 +96,7 @@ export default function App() {
 
   const handleSelectSheet = (sheetName: string) => {
     if (!fileBuffer || !currentFileName) return;
+    haptic.selection();
     setIsLoading(true);
     setTimeout(() => {
       try {
@@ -106,7 +111,9 @@ export default function App() {
         setStatusMessage(
           `Success: ${parsedData.length} POs extracted (Sheet: ${sheetName})`
         );
+        haptic.success();
       } catch (err: any) {
+        haptic.error();
         setErrorMessage(err?.message || 'Gagal membaca sheet.');
       } finally {
         setIsLoading(false);
@@ -114,27 +121,38 @@ export default function App() {
     }, 100);
   };
 
-  const handleDownloadExcel = () => {
+  const handleDownloadExcel = (scope: ExcelExportScope = 'ALL') => {
     if (!data || data.length === 0) return;
-    exportToExcel(data, 'Rekap_Customer_Terbaru.xlsx');
+    haptic.success();
+    let filename = 'Rekap_Customer_Terbaru.xlsx';
+    if (scope === 'OPEN_ONLY') {
+      filename = 'Rekap_Customer_CO_OPEN.xlsx';
+    } else if (scope === 'CLOSED_ONLY') {
+      filename = 'Rekap_Customer_CO_CLOSED.xlsx';
+    }
+    exportToExcel(data, filename, scope);
   };
 
   const handleOpenWhatsApp = () => {
     if (!data || data.length === 0) return;
+    haptic.medium();
     setIsWAModalOpen(true);
   };
 
   const handleCopyWhatsAppText = async () => {
     if (!data || data.length === 0) return;
+    haptic.light();
     const text = generateWhatsAppSummary(data);
     const success = await copyToClipboard(text);
     if (success) {
+      haptic.success();
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
   const handleReset = () => {
+    haptic.heavy();
     setData([]);
     setSummary(null);
     setRawWorkbook(null);
@@ -334,6 +352,8 @@ export default function App() {
               activeSheet={summary.activeSheetName}
               onSelectSheet={handleSelectSheet}
               totalRecords={data.length}
+              totalCOOpen={summary.totalCOOpen}
+              totalCOClosed={summary.totalCOClosed}
             />
 
             {/* Main Data Table */}

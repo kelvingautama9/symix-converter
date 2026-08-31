@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { UploadCloud, FileSpreadsheet, CheckCircle2, AlertCircle } from 'lucide-react';
+import { haptic } from '../utils/haptics';
 
 interface DropZoneProps {
   onFileLoaded: (buffer: ArrayBuffer, fileName: string) => void;
@@ -21,6 +22,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
     e.preventDefault();
     e.stopPropagation();
     setIsDragOver(true);
+    haptic.selection();
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -36,6 +38,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
 
   const processFile = (file: File) => {
     if (!file) return;
+    haptic.medium();
     const reader = new FileReader();
     reader.onload = (e) => {
       const buffer = e.target?.result as ArrayBuffer;
@@ -79,7 +82,10 @@ export const DropZone: React.FC<DropZoneProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          haptic.light();
+          fileInputRef.current?.click();
+        }}
         className={`relative group cursor-pointer transition-all duration-150 bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] p-8 md:p-12 flex flex-col justify-center items-center text-center ${
           isDragOver
             ? 'bg-[#E8F5E9] border-[#141414] scale-[0.995]'

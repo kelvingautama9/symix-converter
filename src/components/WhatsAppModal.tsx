@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ExtractedRecord } from '../types';
 import { generateWhatsAppSummary, shareToWhatsApp, copyToClipboard } from '../utils/whatsappHelper';
+import { haptic } from '../utils/haptics';
 import { X, Send, Copy, Check, MessageSquare } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -18,14 +19,17 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, d
   const summaryText = generateWhatsAppSummary(data);
 
   const handleCopy = async () => {
+    haptic.selection();
     const success = await copyToClipboard(summaryText);
     if (success) {
+      haptic.success();
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
   const handleSend = () => {
+    haptic.success();
     confetti({
       particleCount: 40,
       spread: 50,
@@ -35,11 +39,16 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, d
     shareToWhatsApp(data);
   };
 
+  const handleClose = () => {
+    haptic.light();
+    onClose();
+  };
+
   return (
     <div
       id="whatsapp-modal-backdrop"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         id="whatsapp-modal-dialog"
@@ -58,7 +67,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({ isOpen, onClose, d
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
           >
             <X className="w-4 h-4" />

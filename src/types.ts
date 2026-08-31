@@ -1,5 +1,8 @@
+export type CoStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
+
 export interface ExtractedRecord {
   CO: string;
+  coStatus?: CoStatus;
   Artikel: string;
   'Item Description': string;
   'No PO': string;
@@ -22,6 +25,8 @@ export interface ExtractedRecord {
 export interface ParseSummary {
   totalPOs: number;
   totalUniqueItems: number;
+  totalCOOpen: number;
+  totalCOClosed: number;
   totalQtyOrderPcs: number;
   totalBeratOrderKg: number;
   totalStockPcs: number;
@@ -42,3 +47,6 @@ export interface ParseSummary {
 }
 
 export type FilterStatus = 'ALL' | 'PARTIAL_DELIVERY' | 'FULL_PENDING' | 'STOCK_READY';
+export type CoFilterStatus = 'ALL' | 'OPEN' | 'CLOSED';
+export type ExcelExportScope = 'ALL' | 'OPEN_ONLY' | 'CLOSED_ONLY';
+

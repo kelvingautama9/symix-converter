@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Cpu, Layers, GitFork, ArrowDown, Database, CheckCircle2 } from 'lucide-react';
+import { haptic } from '../utils/haptics';
 
 interface ParserRulesModalProps {
   isOpen: boolean;
@@ -9,11 +10,16 @@ interface ParserRulesModalProps {
 export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    haptic.light();
+    onClose();
+  };
+
   return (
     <div
       id="rules-modal-backdrop"
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
         id="rules-modal-dialog"
@@ -32,7 +38,7 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="p-1.5 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
           >
             <X className="w-4 h-4" />
@@ -126,13 +132,31 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <li><strong>14 Kolom Standar:</strong> CO, Artikel, Description, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
             </ul>
           </div>
+
+          {/* Rule 6: CO Status (Open / Closed) Detection & Filter */}
+          <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414]">
+            <div className="flex items-center gap-2 text-[#141414] font-black uppercase tracking-tight text-xs mb-2">
+              <span className="w-5 h-5 bg-[#2563EB] text-white flex items-center justify-center font-mono text-xs">
+                6
+              </span>
+              <span>Stage 6: CO Status Detection (C = Closed, O = Open) & Filter/Export</span>
+            </div>
+            <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
+              Mendeteksi suffix status pada kode Customer Order (CO) kolom A.
+            </p>
+            <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
+              <li><strong className="text-emerald-700">Status O (Open):</strong> Menandakan Customer Order masih aktif / berjalan (contoh: <code className="font-bold">18H8550 1 O</code>).</li>
+              <li><strong className="text-zinc-700">Status C (Closed):</strong> Menandakan Customer Order telah selesai ditutup (contoh: <code className="font-bold">18H6941 5 C</code>).</li>
+              <li><strong>Filter Interaktif & Opsi Export:</strong> Menyediakan tab filter preview dan dropdown export Excel untuk Seluruh CO, Khusus CO Open, atau Khusus CO Closed.</li>
+            </ul>
+          </div>
         </div>
 
         {/* Footer */}
         <div className="p-4 border-t-2 border-[#141414] bg-white flex justify-end">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-5 py-2 bg-[#141414] hover:bg-black text-white text-xs font-bold uppercase tracking-wider border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
           >
             Close

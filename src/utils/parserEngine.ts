@@ -1,5 +1,30 @@
 import * as XLSX from 'xlsx';
-import { ExtractedRecord, ParseSummary } from '../types';
+import { ExtractedRecord, ParseSummary, CoStatus } from '../types';
+
+/**
+ * Detect CO Status from CO string (e.g., "18H6941 5 C" -> CLOSED, "18H8550 1 O" -> OPEN)
+ * C = Closed, O = Open
+ */
+export function parseCoStatus(coText: string | undefined | null): CoStatus {
+  if (!coText || typeof coText !== 'string') return 'UNKNOWN';
+  const clean = coText.trim().toUpperCase();
+  if (!clean || clean === '-') return 'UNKNOWN';
+
+  const tokens = clean.split(/\s+/);
+  const lastToken = tokens[tokens.length - 1];
+
+  if (lastToken === 'C' || lastToken === 'CLOSED') {
+    return 'CLOSED';
+  }
+  if (lastToken === 'O' || lastToken === '0' || lastToken === 'OPEN') {
+    return 'OPEN';
+  }
+
+  if (/\s+C$/i.test(clean)) return 'CLOSED';
+  if (/\s+[O0]$/i.test(clean)) return 'OPEN';
+
+  return 'UNKNOWN';
+}
 
 /**
  * Clean numeric string and convert to integer or 0
@@ -167,6 +192,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         // Membangun struktur kerangka 14 Kolom (dengan CO di posisi pertama dan Terkirim di samping Sisa OS)
         currentPO = {
           CO: coNumber,
+          coStatus: parseCoStatus(coNumber),
           Artikel: currentItemId,
           'Item Description': currentItemDesc,
           'No PO': cleanPoNo,
@@ -334,6 +360,8 @@ export function parseExcelBuffer(
 
   // Compute summary metrics
   const uniqueItems = new Set(finalData.map((d) => d.Artikel)).size;
+  const totalCOOpen = finalData.filter((d) => d.coStatus === 'OPEN').length;
+  const totalCOClosed = finalData.filter((d) => d.coStatus === 'CLOSED').length;
   const totalQtyOrderPcs = finalData.reduce((sum, d) => sum + (d['QTY PO (pcs)'] || 0), 0);
   const totalBeratOrderKg = finalData.reduce((sum, d) => sum + (d['Berat PO (KG)'] || 0), 0);
   const totalStockPcs = finalData.reduce((sum, d) => sum + (d['Stock (pcs)'] || 0), 0);
@@ -354,6 +382,8 @@ export function parseExcelBuffer(
   const summary: ParseSummary = {
     totalPOs: finalData.length,
     totalUniqueItems: uniqueItems,
+    totalCOOpen,
+    totalCOClosed,
     totalQtyOrderPcs,
     totalBeratOrderKg,
     totalStockPcs,

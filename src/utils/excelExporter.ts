@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ExtractedRecord } from '../types';
+import { ExtractedRecord, ExcelExportScope } from '../types';
 
 export const EXCEL_COLUMNS = [
   'CO',
@@ -19,29 +19,52 @@ export const EXCEL_COLUMNS = [
 ] as const;
 
 /**
- * Exports finalData to a formatted Excel file matching the exact requirements:
- * Row 1: Title "REKAPITULASI STOCK & ORDER (OS) CUSTOMER"
+ * Exports finalData to a formatted Excel file matching requirements:
+ * Row 1: Title "REKAPITULASI STOCK & ORDER (OS) CUSTOMER" + Scope indicator
  * Row 4: Data headers (14 columns strictly ordered: CO, Artikel, Desc, No PO, ..., Sisa OS (kg), Terkirim (PCS), Terkirim (KG), Harga)
  * Row 5+: Data rows
- * Auto download: "Rekap_Customer_Terbaru.xlsx"
+ * Supports exporting: ALL CO, CO OPEN ONLY, CO CLOSED ONLY
  */
-export function exportToExcel(data: ExtractedRecord[], customFileName: string = 'Rekap_Customer_Terbaru.xlsx'): void {
+export function exportToExcel(
+  data: ExtractedRecord[],
+  customFileName?: string,
+  scope: ExcelExportScope = 'ALL'
+): void {
   if (!data || data.length === 0) {
     throw new Error('Tidak ada data yang dapat diekspor.');
+  }
+
+  // Filter based on selected scope
+  let filteredData = data;
+  let scopeTitleSuffix = 'SELURUH CO';
+  let defaultFilePrefix = 'Rekap_Customer_Semua_CO';
+
+  if (scope === 'OPEN_ONLY') {
+    filteredData = data.filter((d) => d.coStatus === 'OPEN');
+    scopeTitleSuffix = 'KHUSUS CO OPEN (O)';
+    defaultFilePrefix = 'Rekap_Customer_CO_Open_Only';
+  } else if (scope === 'CLOSED_ONLY') {
+    filteredData = data.filter((d) => d.coStatus === 'CLOSED');
+    scopeTitleSuffix = 'KHUSUS CO CLOSED (C)';
+    defaultFilePrefix = 'Rekap_Customer_CO_Closed_Only';
+  }
+
+  if (filteredData.length === 0) {
+    throw new Error(`Tidak ada data dengan status CO "${scope === 'OPEN_ONLY' ? 'OPEN' : 'CLOSED'}" untuk diekspor.`);
   }
 
   // Prepare 2D matrix
   const sheetData: any[][] = [];
 
   // Row 1: Title (index 0)
-  sheetData.push(['REKAPITULASI STOCK & ORDER (OS) CUSTOMER']);
+  sheetData.push([`REKAPITULASI STOCK & ORDER (OS) CUSTOMER - [${scopeTitleSuffix}]`]);
 
   // Row 2: Subtitle / Timestamp (index 1)
   const nowStr = new Date().toLocaleString('id-ID', {
     dateStyle: 'medium',
     timeStyle: 'short',
   });
-  sheetData.push([`Tanggal Rekap: ${nowStr} | Total PO: ${data.length} Transaksi`]);
+  sheetData.push([`Tanggal Rekap: ${nowStr} | Total Record: ${filteredData.length} PO | Filter: ${scopeTitleSuffix}`]);
 
   // Row 3: Empty spacing row (index 2)
   sheetData.push([]);
@@ -59,7 +82,7 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
   let sumTerkirimPcs = 0;
   let sumTerkirimKg = 0;
 
-  for (const item of data) {
+  for (const item of filteredData) {
     const qtyPcs = Number(item['QTY PO (pcs)']) || 0;
     const beratKg = Number(item['Berat PO (KG)']) || 0;
     const stockPcs = Number(item['Stock (pcs)']) || 0;
@@ -119,7 +142,7 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
 
   // Set column widths for optimal legibility
   worksheet['!cols'] = [
-    { wch: 16 }, // CO
+    { wch: 18 }, // CO
     { wch: 18 }, // Artikel
     { wch: 38 }, // Item Description
     { wch: 28 }, // No PO
@@ -143,9 +166,12 @@ export function exportToExcel(data: ExtractedRecord[], customFileName: string = 
   ];
 
   const workbook = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(workbook, worksheet, 'Rekap OS & Stock');
+  const sheetName = scope === 'OPEN_ONLY' ? 'CO Open Only' : scope === 'CLOSED_ONLY' ? 'CO Closed Only' : 'Rekap Seluruh CO';
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
   // Trigger download
-  const outputFileName = customFileName.endsWith('.xlsx') ? customFileName : `${customFileName}.xlsx`;
+  const finalFileName = customFileName || `${defaultFilePrefix}.xlsx`;
+  const outputFileName = finalFileName.endsWith('.xlsx') ? finalFileName : `${finalFileName}.xlsx`;
   XLSX.writeFile(workbook, outputFileName);
 }
+

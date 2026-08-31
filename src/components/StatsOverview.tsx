@@ -23,9 +23,14 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
           <div className="text-2xl sm:text-3xl font-black font-mono text-[#141414] tracking-tight">
             {summary.totalPOs.toLocaleString('id-ID')}
           </div>
-          <p className="text-[11px] text-[#141414]/70 mt-1 font-mono">
-            <span className="font-bold text-[#141414]">{summary.totalUniqueItems}</span> Item SKU
-          </p>
+          <div className="flex flex-wrap items-center gap-1 mt-1.5 font-mono text-[10px]">
+            <span className="px-1 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-500 font-bold" title="Total CO yang masih Open (O)">
+              {summary.totalCOOpen || 0} Open
+            </span>
+            <span className="px-1 py-0.5 bg-zinc-100 text-zinc-700 border border-zinc-400 font-bold" title="Total CO yang sudah Closed (C)">
+              {summary.totalCOClosed || 0} Closed
+            </span>
+          </div>
         </div>
       </div>
 
