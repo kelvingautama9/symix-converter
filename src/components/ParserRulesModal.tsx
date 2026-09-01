@@ -121,14 +121,15 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span className="w-5 h-5 bg-[#22c55e] text-white flex items-center justify-center font-mono text-xs">
                 5
               </span>
-              <span>Stage 5: FIFO Sequential Stock Allocation (Anti Double-Stock)</span>
+              <span>Stage 5: FIFO Sequential Stock Allocation (Under 51 pcs Threshold)</span>
             </div>
             <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
-              Mencegah duplikasi stok untuk artikel/item yang memiliki lebih dari satu baris PO.
+              Mencegah duplikasi stok untuk artikel/item yang memiliki lebih dari satu baris PO dan menerapkan filter batas toleransi.
             </p>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
-              <li><strong>Alokasi Urutan Atas:</strong> Saldo stok gudang dialokasikan untuk memenuhi <code className="font-bold">Sisa OS</code> PO teratas terlebih dahulu: <code className="font-bold">Stock Ready = min(Sisa Stok, Sisa OS)</code>.</li>
-              <li><strong>Sisa Saldo Stok:</strong> Jika ada sisa saldo stok setelah mengisi PO teratas, diteruskan ke baris PO berikutnya di bawahnya.</li>
+              <li><strong>Kondisional Under 51 pcs:</strong> Jika Sisa OS suatu PO tersisa &lt; 51 pcs (misal 40 pcs), baris PO tersebut <strong>tidak diikutkan</strong> dalam perhitungan alokasi stok FIFO (<code className="font-bold">Stock = 0</code>) meskipun status CO-nya masih open.</li>
+              <li><strong>Alokasi Urutan Atas (FIFO):</strong> Saldo stok gudang dialokasikan untuk memenuhi <code className="font-bold">Sisa OS</code> PO teratas yang memenuhi syarat (Sisa OS &ge; 51 pcs): <code className="font-bold">Stock Ready = min(Sisa Stok, Sisa OS)</code>.</li>
+              <li><strong>Sisa Saldo Diteruskan:</strong> Sisa stok gudang diteruskan secara sekuensial ke baris PO berikutnya.</li>
               <li><strong>14 Kolom Standar:</strong> CO, Artikel, Description, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
             </ul>
           </div>
@@ -148,6 +149,24 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <li><strong className="text-emerald-700">Status O (Open):</strong> Menandakan Customer Order masih aktif / berjalan (contoh: <code className="font-bold">18H8550 1 O</code>).</li>
               <li><strong className="text-zinc-700">Status C (Closed):</strong> Menandakan Customer Order telah selesai ditutup (contoh: <code className="font-bold">18H6941 5 C</code>).</li>
               <li><strong>Filter Interaktif & Opsi Export:</strong> Menyediakan tab filter preview dan dropdown export Excel untuk Seluruh CO, Khusus CO Open, atau Khusus CO Closed.</li>
+            </ul>
+          </div>
+
+          {/* Rule 7: SYMIX ERP Pagination & Header Auto-Skip */}
+          <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414]">
+            <div className="flex items-center gap-2 text-[#141414] font-black uppercase tracking-tight text-xs mb-2">
+              <span className="w-5 h-5 bg-[#7C3AED] text-white flex items-center justify-center font-mono text-xs">
+                7
+              </span>
+              <span>Stage 7: SYMIX ERP Header & Pagination Auto-Skip (Anti-Splice Anomaly)</span>
+            </div>
+            <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
+              Mengabaikan header cetakan ERP (seperti <code className="font-bold">SYMIX 4.0R3.0</code>, <code className="font-bold">CO40-R</code>, <code className="font-bold">C/O No. L S</code>, baris pembatas <code className="font-bold">---------</code>) yang berulang di tengah data.
+            </p>
+            <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
+              <li><strong>Auto-Ignore Header:</strong> Baris header halaman dilewati otomatis tanpa memutus data PO yang sedang dibaca.</li>
+              <li><strong>Koneksi Surat Jalan Lintas Halaman:</strong> Jika baris pengiriman <code className="font-bold">P26xxx</code> terpotong oleh header halaman, surat jalan di halaman berikutnya tetap tersambung ke PO induk yang sama.</li>
+              <li><strong>Bebas Baris Anomali:</strong> Mencegah teks header seperti <code className="font-bold">C/O No. L S</code> terbaca sebagai order baru.</li>
             </ul>
           </div>
         </div>

@@ -27,6 +27,117 @@ export function parseCoStatus(coText: string | undefined | null): CoStatus {
 }
 
 /**
+ * Check if a row is an ERP page header, SYMIX banner, or table separator/column header that should be skipped.
+ */
+export function isIgnoredHeaderRow(r: any[]): boolean {
+  if (!r || r.length === 0) return true;
+
+  // 1. Check if entirely empty
+  const hasAnyContent = r.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
+  if (!hasAnyContent) return true;
+
+  const valA = getStr(r, 0).toUpperCase();
+  // Never ignore parent item records
+  if (valA.startsWith('SH-') || valA.startsWith('ST-')) {
+    return false;
+  }
+
+  // Join all cells in row for holistic keyword search
+  const fullRowStr = r
+    .map((c) => (c !== null && c !== undefined ? String(c).trim() : ''))
+    .filter((s) => s.length > 0)
+    .join(' ')
+    .toUpperCase();
+
+  // Never ignore TOTAL row (it closes current PO group)
+  if (fullRowStr.includes('TOTAL')) {
+    return false;
+  }
+
+  // Never ignore actual P26 delivery rows
+  if (
+    (getStr(r, 10).toUpperCase().includes('P26') ||
+      getStr(r, 9).toUpperCase().includes('P26') ||
+      getStr(r, 8).toUpperCase().includes('P26')) &&
+    !fullRowStr.includes('S/J NO') &&
+    !fullRowStr.includes('C/O NO')
+  ) {
+    return false;
+  }
+
+  // 2. Dash/separator line check (e.g., "--------- --------- ---------")
+  const nonDashChars = fullRowStr.replace(/[\s\-_=.]/g, '');
+  if (nonDashChars.length === 0) {
+    return true;
+  }
+
+  // 3. ERP / SYMIX software & pagination header check
+  if (
+    fullRowStr.includes('SYMIX') ||
+    fullRowStr.includes('CO40-R') ||
+    fullRowStr.includes('CO40') ||
+    fullRowStr.includes('REALISASI C/O') ||
+    fullRowStr.includes('REALISASI') ||
+    fullRowStr.includes('PAGE:') ||
+    fullRowStr.includes('PA GE:') ||
+    fullRowStr.includes('PAGE :')
+  ) {
+    return true;
+  }
+
+  // 4. Repeated Table Column Headers check
+  if (
+    fullRowStr.includes('C/O NO') ||
+    fullRowStr.includes('C/O NO.') ||
+    fullRowStr.includes('C/O NO. L S') ||
+    fullRowStr.includes('C/O DATE') ||
+    fullRowStr.includes('CUST P/O') ||
+    fullRowStr.includes('CUST PO') ||
+    fullRowStr.includes('CONTRACT PRICE') ||
+    fullRowStr.includes('PRICE SHIP TO') ||
+    fullRowStr.includes('QTY.ORDER') ||
+    fullRowStr.includes('DIV.SCHEDULE') ||
+    fullRowStr.includes('S/J NO') ||
+    fullRowStr.includes('S/J DATE') ||
+    fullRowStr.includes('QTY.SHIP') ||
+    fullRowStr.includes('---BALANCE---') ||
+    fullRowStr.includes('---QTY.ORDER---') ||
+    fullRowStr.includes('---DIV.SCHEDULE---') ||
+    fullRowStr.includes('---QTY.SHIP---')
+  ) {
+    return true;
+  }
+
+  // 5. Repeated Item Column Headers (e.g. "I t e m Description U/M Size Gramature Flute -----Stock")
+  if (
+    valA.startsWith('I T E M') ||
+    valA === 'ITEM' ||
+    (fullRowStr.includes('DESCRIPTION') && fullRowStr.includes('GRAMATURE')) ||
+    (fullRowStr.includes('U/M') && fullRowStr.includes('SIZE')) ||
+    fullRowStr.includes('---STOCK---') ||
+    fullRowStr.includes('---STOCK')
+  ) {
+    return true;
+  }
+
+  // 6. Sub-header unit rows (e.g. "PCS KG Date QTY PCS KG PCS KG")
+  const tokens = fullRowStr.split(/\s+/);
+  const isAllUnitTokens =
+    tokens.length > 0 &&
+    tokens.every(
+      (t) =>
+        ['PCS', 'KG', 'DATE', 'QTY', '---PCS---', '---KG---', 'U/M', 'SIZE', 'GRAMATURE', 'FLUTE', 'COMPANY', 'SHIP', 'TO', '-'].includes(
+          t
+        ) || /^[-_]+$/.test(t)
+    );
+  if (isAllUnitTokens && !tokens.includes('SH-') && !tokens.includes('ST-')) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Clean numeric string and convert to integer or 0
  */
 function parseCleanInt(val: any): number {
@@ -82,11 +193,6 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
   for (let idx = 0; idx < rawRows.length; idx++) {
     const r = rawRows[idx] || [];
 
-    const valA = getStr(r, 0);
-    const valB = getStr(r, 1);
-    const valC = getStr(r, 2);
-    const valD = getStr(r, 3);
-
     // Deteksi baris TOTAL yang bisa berada di kolom manapun
     let isTotal = false;
     for (let c = 0; c < r.length; c++) {
@@ -96,6 +202,35 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         break;
       }
     }
+
+    // TAHAP KHUSUS PENUTUP SUB-TOTAL (TOTAL)
+    if (isTotal) {
+      if (currentPO) {
+        if (!currentPO._has_delivery) {
+          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
+          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
+          currentPO['Terkirim (PCS)'] = 0;
+          currentPO['Terkirim (KG)'] = 0;
+        } else {
+          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
+          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
+        }
+        rowsData.push(currentPO);
+        currentPO = null;
+      }
+      continue;
+    }
+
+    // TAHAP FILTER HEADER ERP / SYMIX / DASH / REPEATED COLUMN HEADERS
+    // Langsung lewati tanpa mereset currentPO (agar pengiriman P26 yang terpotong header tetap masuk ke currentPO)
+    if (isIgnoredHeaderRow(r)) {
+      continue;
+    }
+
+    const valA = getStr(r, 0);
+    const valB = getStr(r, 1);
+    const valC = getStr(r, 2);
+    const valD = getStr(r, 3);
 
     // 1. TAHAP DETEKSI PARENT (BARIS ITEM CARTON/BOX: SH- atau ST-)
     if (valA.startsWith('SH-') || valA.startsWith('ST-')) {
@@ -135,7 +270,12 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     // 2. TAHAP DETEKSI CHILD (BARIS PURCHASE ORDER)
     else if (
       currentItemId &&
-      (valB.includes('DAP') || valB.includes('PO.') || valB.includes('PO ') || valB.includes('PO') || valB.split(/\s+/).length > 1) &&
+      (valB.includes('DAP') ||
+        valB.includes('PO.') ||
+        valB.includes('PO ') ||
+        valB.includes('PO') ||
+        valB.split(/\s+/).length > 1 ||
+        valA.length >= 4) &&
       !valA.startsWith('I t e m') &&
       !valA.startsWith('---') &&
       !valA.startsWith('Item') &&
@@ -213,28 +353,39 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         };
       }
     }
-    // 3. TAHAP DETEKSI SUB-CHILD (BARIS PENGIRIMAN / SISA OS TERBARU)
+    // 3. TAHAP DETEKSI SUB-CHILD (BARIS PENGIRIMAN / SISA OS TERBARU P26...)
     else if (
       currentPO &&
       (!r[0] || String(r[0]).trim() === '') &&
-      (!r[1] || String(r[1]).trim() === '') &&
-      (getStr(r, 10).includes('P26') || getStr(r, 9).includes('P26'))
+      (!r[1] || String(r[1]).trim() === '')
     ) {
-      const sisaPcs = r.length > 14 ? r[14] : null;
-      const sisaKg = r.length > 15 ? r[15] : null;
-
-      // OVERWRITE nilai sisa OS dengan angka yang paling baru/terbawah
-      if (isNumericCell(sisaPcs)) {
-        const pVal = parseCleanInt(sisaPcs);
-        currentPO['Sisa OS (pcs)'] = pVal;
-        currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - pVal);
-        currentPO._has_delivery = true;
+      // Cek apakah ada nomor surat jalan P26xxx di rentang kolom pengiriman
+      let hasDeliveryRecord = false;
+      for (let c = 6; c < Math.min(r.length, 14); c++) {
+        const cellVal = getStr(r, c).toUpperCase();
+        if (cellVal.startsWith('P26') || cellVal.startsWith('P25') || cellVal.startsWith('P27') || /P\d{6,}/i.test(cellVal)) {
+          hasDeliveryRecord = true;
+          break;
+        }
       }
-      if (isNumericCell(sisaKg)) {
-        const kVal = parseCleanInt(sisaKg);
-        currentPO['Sisa OS (kg)'] = kVal;
-        currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - kVal);
-        currentPO._has_delivery = true;
+
+      if (hasDeliveryRecord || getStr(r, 10).includes('P26') || getStr(r, 9).includes('P26')) {
+        const sisaPcs = r.length > 14 ? r[14] : null;
+        const sisaKg = r.length > 15 ? r[15] : null;
+
+        // OVERWRITE nilai sisa OS dengan angka yang paling baru/terbawah
+        if (isNumericCell(sisaPcs)) {
+          const pVal = parseCleanInt(sisaPcs);
+          currentPO['Sisa OS (pcs)'] = pVal;
+          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - pVal);
+          currentPO._has_delivery = true;
+        }
+        if (isNumericCell(sisaKg)) {
+          const kVal = parseCleanInt(sisaKg);
+          currentPO['Sisa OS (kg)'] = kVal;
+          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - kVal);
+          currentPO._has_delivery = true;
+        }
       }
     }
     // 4. TAHAP PENUTUP (FALLBACK & SAVING DATA)
@@ -271,7 +422,8 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
   // 5. TAHAP ALOKASI STOK BERURUTAN (FIFO / TOP-TO-BOTTOM ACCUMULATION PER ARTIKEL)
   // Menghindari duplikasi stok untuk artikel/item yang sama dengan beberapa baris PO.
-  // Stok dari parent dialokasikan ke Sisa OS PO dari urutan teratas terlebih dahulu.
+  // KONDISIONAL FIFO: Jika Sisa OS under 51 pcs (< 51 pcs), PO tersebut diabaikan dari alokasi FIFO stok (Stock = 0),
+  // sehingga saldo stok gudang dialokasikan sepenuhnya ke PO berikutnya yang Sisa OS >= 51 pcs.
   const parentStockMap = new Map<number, { remainingPcs: number; remainingKg: number }>();
 
   // Inisialisasi saldo stok awal per parent header
@@ -293,6 +445,13 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     if (stockState) {
       const sisaPcs = item['Sisa OS (pcs)'] || 0;
       const sisaKg = item['Sisa OS (kg)'] || 0;
+
+      // Kondisional: Sisa OS under 51 pcs (< 51 pcs) TIDAK diikutkan ke perhitungan FIFO stock (dianggap 0)
+      if (sisaPcs < 51) {
+        item['Stock (pcs)'] = 0;
+        item['Stock (kg)'] = 0;
+        continue;
+      }
 
       // Alokasi Stock (PCS):
       // Mengambil minimum antara sisa saldo stok gudang dan Sisa OS PO ini
