@@ -166,31 +166,31 @@ export default function App() {
     <div className="min-h-screen bg-[#F0F0EE] text-[#141414] font-sans selection:bg-[#FF6B35] selection:text-white pb-16">
       {/* Top Bento Header Bar */}
       <header className="border-b-2 border-[#141414] bg-white sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#141414] text-white border-2 border-[#141414] flex items-center justify-center shadow-[2px_2px_0px_#141414]">
-              <FileSpreadsheet className="w-5 h-5 text-white" />
+        <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#141414] text-white border-2 border-[#141414] flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#141414]">
+              <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#141414]">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h1 className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-[#141414] truncate">
                   BlackEYE - ERP DATA ENGINE
                 </h1>
-                <span className="px-1.5 py-0.5 bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[10px] font-mono font-bold uppercase tracking-wider">
-                  BROWSER_ONLY_V2.0
+                <span className="px-1.5 py-0.5 bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider shrink-0">
+                  BROWSER_V2.0
                 </span>
               </div>
-              <p className="text-[11px] font-mono text-[#141414]/70 hidden sm:block">
+              <p className="text-[10px] sm:text-[11px] font-mono text-[#141414]/70 hidden sm:block truncate">
                 Master Rekapitulasi Stock & Sisa Order Status (OS) Customer
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={() => setIsRulesModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-[#F0F0EE] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 bg-white hover:bg-[#F0F0EE] text-[#141414] border-2 border-[#141414] text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
             >
               <Cpu className="w-3.5 h-3.5 text-[#FF6B35]" />
               <span className="hidden sm:inline">Engine Rules</span>
@@ -201,18 +201,18 @@ export default function App() {
                 type="button"
                 id="header-btn-download"
                 onClick={handleDownloadExcel}
-                className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-[#141414] hover:bg-black text-white text-xs font-bold uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-1.5 bg-[#141414] hover:bg-black text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Download Excel</span>
+                <span className="hidden md:inline">Download Excel</span>
               </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Main Bento Container */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-5">
+      {/* Main Bento Container (Fluid with Max 1920px on Ultrawide & 24-32px Side Padding) */}
+      <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
         {/* Visual Status Indicator Bento Card */}
         {statusMessage && (
           <div

@@ -85,16 +85,16 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   };
 
   return (
-    <div id="action-toolbar" className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-4 p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414]">
+    <div id="action-toolbar" className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 sm:gap-4 p-3.5 sm:p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414]">
       {/* Left: Action Buttons */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
         {/* Split Button Excel Export with Scope Options */}
-        <div className="relative inline-flex" ref={exportDropdownRef}>
+        <div className="relative inline-flex flex-1 sm:flex-initial" ref={exportDropdownRef}>
           <button
             type="button"
             id="btn-download-excel"
             onClick={() => triggerExport('ALL')}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#141414] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-[#141414] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
             title="Download seluruh data ke Excel (14 Kolom)"
           >
             <Download className="w-4 h-4 shrink-0" />
@@ -108,7 +108,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               haptic.selection();
               setIsExportMenuOpen(!isExportMenuOpen);
             }}
-            className="inline-flex items-center justify-center px-2.5 py-2.5 bg-[#2A2A2A] hover:bg-[#141414] text-white font-bold text-xs border-y-2 border-r-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+            className="inline-flex items-center justify-center px-2.5 py-2.5 bg-[#2A2A2A] hover:bg-[#141414] text-white font-bold text-xs border-y-2 border-r-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
             title="Pilih opsi export Excel (All / Open Only / Closed Only)"
           >
             <ChevronDown className={`w-4 h-4 transition-transform duration-150 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
@@ -116,7 +116,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
 
           {/* Dropdown Menu */}
           {isExportMenuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-72 bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] z-50 py-1.5 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="absolute left-0 top-full mt-2 w-72 max-w-[90vw] bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] z-50 py-1.5 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
               <div className="px-3 py-1.5 border-b border-[#141414]/15 text-[10px] font-black uppercase tracking-wider text-[#141414]/60 font-mono">
                 Pilih Opsi Export Excel
               </div>
@@ -179,10 +179,10 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           type="button"
           id="btn-share-whatsapp"
           onClick={handleWhatsAppClick}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 bg-[#25D366] hover:bg-[#20ba59] text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
         >
-          <Share2 className="w-4 h-4 text-white" />
-          <span>Share Report to WhatsApp</span>
+          <Share2 className="w-4 h-4 text-white shrink-0" />
+          <span className="truncate">Share to WhatsApp</span>
         </button>
 
         {/* Copy Text Shortcut */}
@@ -190,34 +190,35 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           type="button"
           id="btn-copy-wa-text"
           onClick={handleCopyClick}
-          className="inline-flex items-center gap-2 px-4 py-2.5 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+          className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
           title="Salin teks template WhatsApp ke clipboard"
         >
           {isCopied ? (
             <>
-              <Check className="w-4 h-4 text-green-700" />
+              <Check className="w-4 h-4 text-green-700 shrink-0" />
               <span className="text-green-800">Copied!</span>
             </>
           ) : (
             <>
-              <Copy className="w-4 h-4 text-[#141414]" />
-              <span>Copy WA Text</span>
+              <Copy className="w-4 h-4 text-[#141414] shrink-0" />
+              <span className="hidden sm:inline">Copy WA Text</span>
+              <span className="sm:hidden">Copy WA</span>
             </>
           )}
         </button>
       </div>
 
       {/* Right: Auxiliary Controls */}
-      <div className="flex flex-wrap items-center gap-2.5">
+      <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
         {/* Multi-sheet selector if file contains multiple sheets */}
         {sheets && sheets.length > 1 && (
-          <div className="flex items-center gap-2 bg-[#F0F0EE] border-2 border-[#141414] px-3 py-1.5 text-xs font-mono">
-            <span className="text-[#141414]/70 font-bold uppercase">Sheet:</span>
+          <div className="flex items-center gap-2 bg-[#F0F0EE] border-2 border-[#141414] px-2.5 sm:px-3 py-1.5 text-xs font-mono min-h-[40px]">
+            <span className="text-[#141414]/70 font-bold uppercase text-[10px] sm:text-xs">Sheet:</span>
             <select
               id="sheet-selector"
               value={activeSheet}
               onChange={(e) => handleSheetChange(e.target.value)}
-              className="bg-transparent text-[#141414] font-bold focus:outline-none cursor-pointer"
+              className="bg-transparent text-[#141414] font-bold focus:outline-none cursor-pointer text-xs"
             >
               {sheets.map((sheet) => (
                 <option key={sheet} value={sheet} className="bg-white text-[#141414]">
@@ -233,10 +234,10 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           type="button"
           id="btn-view-rules"
           onClick={handleToggleDocClick}
-          className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#F0F0EE] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+          className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#F0F0EE] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[40px]"
         >
-          <BookOpen className="w-3.5 h-3.5 text-[#FF6B35]" />
-          <span>Parser Rules</span>
+          <BookOpen className="w-3.5 h-3.5 text-[#FF6B35] shrink-0" />
+          <span>Rules</span>
         </button>
 
         {/* Reset / Upload New */}
@@ -244,11 +245,12 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           type="button"
           id="btn-reset-file"
           onClick={handleResetClick}
-          className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#DEDEDE] hover:bg-[#c9c9c9] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+          className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#DEDEDE] hover:bg-[#c9c9c9] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[40px]"
           title="Upload file ERP lain"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Change File</span>
+          <RefreshCw className="w-3.5 h-3.5 shrink-0" />
+          <span className="hidden sm:inline">Change File</span>
+          <span className="sm:hidden">Reset</span>
         </button>
       </div>
     </div>

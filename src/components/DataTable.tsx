@@ -163,11 +163,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
   return (
     <div id="data-table-container" className="bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] overflow-hidden">
       {/* Table Controls Header */}
-      <div className="p-4 border-b-2 border-[#141414] flex flex-col gap-3.5 bg-[#F0F0EE]">
+      <div className="p-3.5 sm:p-4 border-b-2 border-[#141414] flex flex-col gap-3 bg-[#F0F0EE]">
         {/* Row 1: Search & CO Status Quick Tabs */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
           {/* Search */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 max-w-full lg:max-w-md">
             <Search className="w-4 h-4 text-[#141414] absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
@@ -178,13 +178,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 setCurrentPage(1);
               }}
               placeholder="Search PO, CO, Item, Description, Substance..."
-              className="w-full pl-9 pr-4 py-2 bg-white border-2 border-[#141414] text-xs font-mono text-[#141414] placeholder-[#141414]/40 focus:outline-none shadow-[1px_1px_0px_#141414]"
+              className="w-full pl-9 pr-4 py-2 bg-white border-2 border-[#141414] text-xs font-mono text-[#141414] placeholder-[#141414]/40 focus:outline-none shadow-[1px_1px_0px_#141414] min-h-[40px]"
             />
           </div>
 
           {/* Filter 1: CO Status (ALL / OPEN / CLOSED) */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-black uppercase tracking-wider text-[#141414] mr-1 flex items-center gap-1">
+            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#141414] mr-0.5 sm:mr-1 flex items-center gap-1">
               <Layers className="w-3.5 h-3.5 text-[#FF6B35]" />
               <span>Status CO:</span>
             </span>
@@ -192,7 +192,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               type="button"
               id="filter-co-all"
               onClick={() => handleCoFilterChange('ALL')}
-              className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] ${
+              className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[36px] flex items-center justify-center ${
                 coFilter === 'ALL'
                   ? 'bg-[#141414] text-white'
                   : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
@@ -204,7 +204,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               type="button"
               id="filter-co-open"
               onClick={() => handleCoFilterChange('OPEN')}
-              className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[36px] flex items-center gap-1.5 ${
                 coFilter === 'OPEN'
                   ? 'bg-[#2E7D32] text-white'
                   : 'bg-white text-[#2E7D32] hover:bg-emerald-50'
@@ -217,7 +217,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               type="button"
               id="filter-co-closed"
               onClick={() => handleCoFilterChange('CLOSED')}
-              className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] flex items-center gap-1.5 ${
+              className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[36px] flex items-center gap-1.5 ${
                 coFilter === 'CLOSED'
                   ? 'bg-[#555] text-white'
                   : 'bg-white text-[#555] hover:bg-[#EAEAEA]'
@@ -230,14 +230,14 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         </div>
 
         {/* Row 2: Delivery & Stock Secondary Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold uppercase tracking-wider pt-1 border-t border-[#141414]/15">
+        <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold uppercase tracking-wider pt-2 border-t border-[#141414]/15">
           <span className="text-[10px] font-black uppercase text-[#141414]/70 mr-1">
             Status Kirim:
           </span>
           <button
             type="button"
             onClick={() => handleDeliveryFilterChange('ALL')}
-            className={`px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[11px] shadow-[1px_1px_0px_#141414] ${
+            className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
               filterStatus === 'ALL'
                 ? 'bg-[#141414] text-white'
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
@@ -248,7 +248,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           <button
             type="button"
             onClick={() => handleDeliveryFilterChange('PARTIAL_DELIVERY')}
-            className={`px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[11px] shadow-[1px_1px_0px_#141414] ${
+            className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
               filterStatus === 'PARTIAL_DELIVERY'
                 ? 'bg-[#FF6B35] text-white'
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
@@ -259,7 +259,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           <button
             type="button"
             onClick={() => handleDeliveryFilterChange('FULL_PENDING')}
-            className={`px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[11px] shadow-[1px_1px_0px_#141414] ${
+            className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
               filterStatus === 'FULL_PENDING'
                 ? 'bg-[#DEDEDE] text-[#141414]'
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
@@ -270,7 +270,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           <button
             type="button"
             onClick={() => handleDeliveryFilterChange('STOCK_READY')}
-            className={`px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[11px] shadow-[1px_1px_0px_#141414] ${
+            className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
               filterStatus === 'STOCK_READY'
                 ? 'bg-[#25D366] text-white'
                 : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
@@ -281,15 +281,15 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* Table Scroll Area */}
-      <div className="overflow-x-auto">
+      {/* Table Scroll Area with Sticky Header */}
+      <div className="overflow-x-auto overflow-y-auto max-h-[68vh] sm:max-h-[72vh] lg:max-h-[78vh] relative overscroll-contain">
         <table id="erp-extracted-table" className="w-full text-left text-xs whitespace-nowrap border-collapse">
-          <thead>
+          <thead className="sticky top-0 z-20 shadow-[0_2px_4px_rgba(0,0,0,0.15)] bg-[#141414]">
             <tr className="bg-[#141414] text-white text-[11px] font-mono font-bold uppercase tracking-wider">
-              <th className="py-3 px-3 pl-4 border-r border-white/20">#</th>
+              <th className="sticky top-0 bg-[#141414] py-3 px-3 pl-4 border-r border-white/20 z-20">#</th>
               <th
                 onClick={() => handleSort('CO')}
-                className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 min-w-[160px]"
+                className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 min-w-[160px] z-20"
               >
                 <div className="flex items-center gap-1.5">
                   <span>1. CO (Customer Order)</span>
@@ -298,7 +298,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Artikel')}
-                className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center gap-1.5">
                   <span>2. Artikel</span>
@@ -307,7 +307,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Item Description')}
-                className="py-3 px-3 cursor-pointer hover:bg-black transition-colors min-w-[220px] border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors min-w-[220px] border-r border-white/20 z-20"
               >
                 <div className="flex items-center gap-1.5">
                   <span>3. Item Description</span>
@@ -316,7 +316,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('No PO')}
-                className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center gap-1.5">
                   <span>4. No PO (Clean)</span>
@@ -325,7 +325,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Substance')}
-                className="py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center gap-1.5">
                   <span>5. Substance</span>
@@ -334,7 +334,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('QTY PO (pcs)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>6. QTY PO (pcs)</span>
@@ -343,7 +343,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Berat PO (KG)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>7. Berat PO (KG)</span>
@@ -352,7 +352,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Stock (pcs)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>8. Stock (pcs)</span>
@@ -361,7 +361,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Stock (kg)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>9. Stock (kg)</span>
@@ -370,7 +370,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Sisa OS (pcs)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 bg-[#FF6B35]"
+                className="sticky top-0 py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/20 bg-[#FF6B35] z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>10. Sisa OS (pcs)</span>
@@ -379,7 +379,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Sisa OS (kg)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>11. Sisa OS (kg)</span>
@@ -388,7 +388,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Terkirim (PCS)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 bg-[#2E7D32]"
+                className="sticky top-0 py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/20 bg-[#2E7D32] z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>12. Terkirim (PCS)</span>
@@ -397,7 +397,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Terkirim (KG)')}
-                className="py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20"
+                className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>13. Terkirim (KG)</span>
@@ -406,7 +406,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </th>
               <th
                 onClick={() => handleSort('Harga')}
-                className="py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black transition-colors"
+                className="sticky top-0 bg-[#141414] py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black transition-colors z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
                   <span>14. Harga</span>
@@ -519,8 +519,8 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       </div>
 
       {/* Table Pagination Footer */}
-      <div className="p-4 border-t-2 border-[#141414] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#141414] font-mono bg-[#F0F0EE]">
-        <div>
+      <div className="p-3 sm:p-4 border-t-2 border-[#141414] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs text-[#141414] font-mono bg-[#F0F0EE]">
+        <div className="text-center sm:text-left text-[11px] sm:text-xs">
           {isUnlimited ? (
             <span>
               Menampilkan semua <span className="font-bold">{filteredData.length}</span> PO Records (Tanpa Limit)
@@ -534,13 +534,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center justify-between sm:justify-end gap-3 sm:gap-4">
           <div className="flex items-center gap-1.5">
             <span className="font-bold uppercase text-[10px]">Tampilkan:</span>
             <select
               value={pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className="bg-white border-2 border-[#141414] text-[#141414] font-bold px-2 py-1 text-xs focus:outline-none cursor-pointer"
+              className="bg-white border-2 border-[#141414] text-[#141414] font-bold px-2 py-1.5 text-xs focus:outline-none cursor-pointer min-h-[36px]"
             >
               <option value={0}>Semua Data (Unlimited)</option>
               <option value={25}>25 Baris</option>
@@ -554,23 +554,25 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           </div>
 
           {!isUnlimited && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                className="p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+                className="p-1.5 sm:p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+                aria-label="Halaman sebelumnya"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-2 font-bold font-mono">
+              <span className="px-2 font-bold font-mono text-[11px] sm:text-xs">
                 {currentPage} / {totalPages}
               </span>
               <button
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                className="p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+                className="p-1.5 sm:p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+                aria-label="Halaman berikutnya"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
