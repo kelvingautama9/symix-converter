@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx';
 import { ExtractedRecord, ExcelExportScope } from '../types';
+import { recalculateFIFOStock } from './parserEngine';
 
 export const EXCEL_COLUMNS = [
   'CO',
@@ -34,17 +35,20 @@ export function exportToExcel(
     throw new Error('Tidak ada data yang dapat diekspor.');
   }
 
+  // Dynamically recalculate FIFO stock according to the requested export scope
+  const scopedData = recalculateFIFOStock(data, scope);
+
   // Filter based on selected scope
-  let filteredData = data;
+  let filteredData = scopedData;
   let scopeTitleSuffix = 'SELURUH CO';
   let defaultFilePrefix = 'Rekap_Customer_Semua_CO';
 
   if (scope === 'OPEN_ONLY') {
-    filteredData = data.filter((d) => d.coStatus === 'OPEN');
+    filteredData = scopedData.filter((d) => d.coStatus === 'OPEN');
     scopeTitleSuffix = 'KHUSUS CO OPEN (O)';
     defaultFilePrefix = 'Rekap_Customer_CO_Open_Only';
   } else if (scope === 'CLOSED_ONLY') {
-    filteredData = data.filter((d) => d.coStatus === 'CLOSED');
+    filteredData = scopedData.filter((d) => d.coStatus === 'CLOSED');
     scopeTitleSuffix = 'KHUSUS CO CLOSED (C)';
     defaultFilePrefix = 'Rekap_Customer_CO_Closed_Only';
   }

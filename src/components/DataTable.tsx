@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { ExtractedRecord, FilterStatus, CoFilterStatus } from '../types';
 import { Search, ChevronLeft, ChevronRight, ChevronsUpDown, Filter, Layers, CheckCircle2, Clock } from 'lucide-react';
 import { haptic } from '../utils/haptics';
+import { recalculateFIFOStock } from '../utils/parserEngine';
 
 interface DataTableProps {
   data: ExtractedRecord[];
@@ -16,6 +17,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
   const [sortField, setSortField] = useState<keyof ExtractedRecord | null>(null);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
+  // Dynamically calculate FIFO stock based on current CO scope (ALL / OPEN / CLOSED)
+  const scopedData = useMemo(() => {
+    return recalculateFIFOStock(data, coFilter);
+  }, [data, coFilter]);
+
   // CO Counts
   const coCounts = useMemo(() => {
     let open = 0;
@@ -27,14 +33,14 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
     return { all: data.length, open, closed };
   }, [data]);
 
-  // Tab counts based on current CO filter
+  // Tab counts based on current CO filter and scoped FIFO stock
   const filterCounts = useMemo(() => {
     let partial = 0;
     let pending = 0;
     let stockReady = 0;
     let totalInCoScope = 0;
 
-    data.forEach((item) => {
+    scopedData.forEach((item) => {
       if (coFilter === 'OPEN' && item.coStatus !== 'OPEN') return;
       if (coFilter === 'CLOSED' && item.coStatus !== 'CLOSED') return;
 
@@ -50,11 +56,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
     });
 
     return { partial, pending, stockReady, all: totalInCoScope };
-  }, [data, coFilter]);
+  }, [scopedData, coFilter]);
 
   // Filter and search
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    return scopedData.filter((item) => {
       // 1. CO Status Filter
       if (coFilter === 'OPEN' && item.coStatus !== 'OPEN') return false;
       if (coFilter === 'CLOSED' && item.coStatus !== 'CLOSED') return false;
@@ -90,7 +96,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       }
       return true;
     });
-  }, [data, searchTerm, coFilter, filterStatus]);
+  }, [scopedData, searchTerm, coFilter, filterStatus]);
 
   // Sort
   const sortedData = useMemo(() => {

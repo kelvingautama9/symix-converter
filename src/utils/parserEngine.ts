@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ExtractedRecord, ParseSummary, CoStatus } from '../types';
+import { ExtractedRecord, ParseSummary, CoStatus, CoFilterStatus, ExcelExportScope } from '../types';
 
 /**
  * Detect CO Status from CO string (e.g., "18H6941 5 C" -> CLOSED, "18H8550 1 O" -> OPEN)
@@ -422,12 +422,51 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
   // 5. TAHAP ALOKASI STOK BERURUTAN (FIFO / TOP-TO-BOTTOM ACCUMULATION PER ARTIKEL)
   // Menghindari duplikasi stok untuk artikel/item yang sama dengan beberapa baris PO.
-  // KONDISIONAL FIFO: Jika Sisa OS under 51 pcs (< 51 pcs), PO tersebut diabaikan dari alokasi FIFO stok (Stock = 0),
-  // sehingga saldo stok gudang dialokasikan sepenuhnya ke PO berikutnya yang Sisa OS >= 51 pcs.
-  const parentStockMap = new Map<number, { remainingPcs: number; remainingKg: number }>();
+  // KONDISIONAL FIFO: Jika Sisa OS under 51 pcs (< 51 pcs), PO tersebut diabaikan dari alokasi FIFO stok (Stock = 0).
+  const allocated = recalculateFIFOStock(rowsData, 'ALL');
 
-  // Inisialisasi saldo stok awal per parent header
-  for (const item of rowsData) {
+  // Membersihkan metadata internal non-persistent sebelum dikembalikan
+  // (_parentIndex, _parentStockPcs, _parentStockKg tetap disimpan untuk dynamic recalculation saat user filter CO Open / Closed)
+  return allocated.map((item) => {
+    const qtyPcs = item['QTY PO (pcs)'] || 0;
+    const qtyKg = item['Berat PO (KG)'] || 0;
+    const sisaPcs = item['Sisa OS (pcs)'] || 0;
+    const sisaKg = item['Sisa OS (kg)'] || 0;
+
+    const cleaned: ExtractedRecord = {
+      ...item,
+      'Terkirim (PCS)': Math.max(0, qtyPcs - sisaPcs),
+      'Terkirim (KG)': Math.max(0, qtyKg - sisaKg),
+    };
+    delete cleaned._has_delivery;
+    return cleaned;
+  });
+}
+
+/**
+ * Recalculates FIFO stock allocation for records dynamically based on the active CO scope:
+ * - 'ALL': Allocates stock across both OPEN and CLOSED records in sequence.
+ * - 'OPEN' | 'OPEN_ONLY': Allocates total warehouse stock strictly across OPEN records in sequence (closed POs are skipped and don't consume stock).
+ * - 'CLOSED' | 'CLOSED_ONLY': Allocates total warehouse stock strictly across CLOSED records in sequence.
+ *
+ * Rules:
+ * 1. Under 51 pcs threshold: If Sisa OS < 51 pcs, stock is set to 0 and not deducted from warehouse inventory.
+ * 2. Sequential FIFO allocation per parent item (_parentIndex).
+ */
+export function recalculateFIFOStock(
+  records: ExtractedRecord[],
+  coScope: CoFilterStatus | ExcelExportScope = 'ALL'
+): ExtractedRecord[] {
+  if (!records || records.length === 0) return [];
+
+  const targetScope = coScope === 'OPEN_ONLY' ? 'OPEN' : coScope === 'CLOSED_ONLY' ? 'CLOSED' : coScope;
+
+  // Clone records to avoid mutating original objects
+  const cloned: ExtractedRecord[] = records.map((r) => ({ ...r }));
+
+  // Inisialisasi saldo stok awal per parent header (_parentIndex)
+  const parentStockMap = new Map<number, { remainingPcs: number; remainingKg: number }>();
+  for (const item of cloned) {
     const pIdx = item._parentIndex ?? 0;
     if (!parentStockMap.has(pIdx)) {
       parentStockMap.set(pIdx, {
@@ -437,10 +476,23 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     }
   }
 
-  // Alokasi berurutan dari atas ke bawah terhadap Sisa OS masing-masing PO
-  for (const item of rowsData) {
+  // Alokasi berurutan dari atas ke bawah
+  for (const item of cloned) {
     const pIdx = item._parentIndex ?? 0;
     const stockState = parentStockMap.get(pIdx);
+
+    // Jika filter scope OPEN aktif, PO berstatus non-OPEN tidak dialokasikan stok dan tidak mengurangi saldo stok gudang
+    if (targetScope === 'OPEN' && item.coStatus !== 'OPEN') {
+      item['Stock (pcs)'] = 0;
+      item['Stock (kg)'] = 0;
+      continue;
+    }
+    // Jika filter scope CLOSED aktif, PO berstatus non-CLOSED tidak dialokasikan stok dan tidak mengurangi saldo stok gudang
+    if (targetScope === 'CLOSED' && item.coStatus !== 'CLOSED') {
+      item['Stock (pcs)'] = 0;
+      item['Stock (kg)'] = 0;
+      continue;
+    }
 
     if (stockState) {
       const sisaPcs = item['Sisa OS (pcs)'] || 0;
@@ -469,24 +521,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     }
   }
 
-  // Membersihkan metadata internal sebelum dikembalikan
-  return rowsData.map((item) => {
-    const qtyPcs = item['QTY PO (pcs)'] || 0;
-    const qtyKg = item['Berat PO (KG)'] || 0;
-    const sisaPcs = item['Sisa OS (pcs)'] || 0;
-    const sisaKg = item['Sisa OS (kg)'] || 0;
-
-    const cleaned: ExtractedRecord = {
-      ...item,
-      'Terkirim (PCS)': Math.max(0, qtyPcs - sisaPcs),
-      'Terkirim (KG)': Math.max(0, qtyKg - sisaKg),
-    };
-    delete cleaned._has_delivery;
-    delete cleaned._parentIndex;
-    delete cleaned._parentStockPcs;
-    delete cleaned._parentStockKg;
-    return cleaned;
-  });
+  return cloned;
 }
 
 /**

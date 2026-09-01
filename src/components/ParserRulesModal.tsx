@@ -129,6 +129,7 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
               <li><strong>Kondisional Under 51 pcs:</strong> Jika Sisa OS suatu PO tersisa &lt; 51 pcs (misal 40 pcs), baris PO tersebut <strong>tidak diikutkan</strong> dalam perhitungan alokasi stok FIFO (<code className="font-bold">Stock = 0</code>) meskipun status CO-nya masih open.</li>
               <li><strong>Alokasi Urutan Atas (FIFO):</strong> Saldo stok gudang dialokasikan untuk memenuhi <code className="font-bold">Sisa OS</code> PO teratas yang memenuhi syarat (Sisa OS &ge; 51 pcs): <code className="font-bold">Stock Ready = min(Sisa Stok, Sisa OS)</code>.</li>
+              <li><strong>Dynamic Scope Realokasi (All vs Open Only):</strong> Jika difilter atau diexport dengan mode <code className="font-bold">Khusus CO Open</code>, baris CO Closed dilewati dari alokasi sehingga seluruh 100% saldo stok gudang dialokasikan langsung ke baris-baris PO yang masih Open.</li>
               <li><strong>Sisa Saldo Diteruskan:</strong> Sisa stok gudang diteruskan secara sekuensial ke baris PO berikutnya.</li>
               <li><strong>14 Kolom Standar:</strong> CO, Artikel, Description, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
             </ul>
