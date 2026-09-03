@@ -189,8 +189,13 @@ export default function App() {
       <header className="border-b-2 border-[#141414] bg-white sticky top-0 z-40">
         <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#141414] text-white border-2 border-[#141414] flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#141414]">
-              <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white border-2 border-[#141414] flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#141414] overflow-hidden p-0.5">
+              <img
+                src="/logo.jpg"
+                alt="BlackEYE Logo"
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
@@ -405,6 +410,20 @@ export default function App() {
           </div>
         )}
       </main>
+
+      {/* Footer Branding */}
+      <footer className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-[#141414]/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-[#141414]/60">
+        <div className="flex items-center gap-2">
+          <div className="w-5 h-5 bg-white border border-[#141414] overflow-hidden p-0.5 shadow-[1px_1px_0px_#141414]">
+            <img src="/logo.jpg" alt="BlackEYE" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+          </div>
+          <span className="font-bold text-[#141414]">BLACKEYE</span>
+          <span>• ERP DATA ENGINE BROWSER_V2.0</span>
+        </div>
+        <div className="text-[11px] text-[#141414]/60">
+          Master Rekapitulasi Stock & Sisa Order Status (OS) Customer
+        </div>
+      </footer>
 
       {/* Modals */}
       <WhatsAppModal

@@ -29,8 +29,13 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
         {/* Header */}
         <div className="p-4 sm:p-5 border-b-2 border-[#141414] flex items-center justify-between bg-[#F0F0EE]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#FF6B35] border-2 border-[#141414] flex items-center justify-center shadow-[2px_2px_0px_#141414]">
-              <Cpu className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 bg-white border-2 border-[#141414] flex items-center justify-center shadow-[2px_2px_0px_#141414] overflow-hidden p-0.5">
+              <img
+                src="/logo.jpg"
+                alt="BlackEYE Logo"
+                className="w-full h-full object-contain"
+                referrerPolicy="no-referrer"
+              />
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-black uppercase tracking-tight text-[#141414]">ERP Parser Engine Architecture</h3>
