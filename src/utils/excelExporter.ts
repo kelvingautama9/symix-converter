@@ -42,19 +42,43 @@ export function exportToExcel(
   let filteredData = scopedData;
   let scopeTitleSuffix = 'SELURUH CO';
   let defaultFilePrefix = 'Rekap_Customer_Semua_CO';
+  let sheetName = 'Rekap Seluruh CO';
 
   if (scope === 'OPEN_ONLY') {
     filteredData = scopedData.filter((d) => d.coStatus === 'OPEN');
     scopeTitleSuffix = 'KHUSUS CO OPEN (O)';
     defaultFilePrefix = 'Rekap_Customer_CO_Open_Only';
+    sheetName = 'CO Open Only';
   } else if (scope === 'CLOSED_ONLY') {
     filteredData = scopedData.filter((d) => d.coStatus === 'CLOSED');
     scopeTitleSuffix = 'KHUSUS CO CLOSED (C)';
     defaultFilePrefix = 'Rekap_Customer_CO_Closed_Only';
+    sheetName = 'CO Closed Only';
+  } else if (scope === 'STOCK_READY_ALL') {
+    filteredData = scopedData.filter((d) => (d['Stock (pcs)'] || 0) > 0);
+    scopeTitleSuffix = 'STOCK READY (SEMUA CO)';
+    defaultFilePrefix = 'Rekap_Customer_Stock_Ready_Semua_CO';
+    sheetName = 'Stock Ready (Semua CO)';
+  } else if (scope === 'STOCK_READY_OPEN') {
+    filteredData = scopedData.filter((d) => d.coStatus === 'OPEN' && (d['Stock (pcs)'] || 0) > 0);
+    scopeTitleSuffix = 'STOCK READY (KHUSUS CO OPEN)';
+    defaultFilePrefix = 'Rekap_Customer_Stock_Ready_CO_Open_Only';
+    sheetName = 'Stock Ready (CO Open)';
+  } else if (scope === 'STOCK_READY_CLOSED') {
+    filteredData = scopedData.filter((d) => d.coStatus === 'CLOSED' && (d['Stock (pcs)'] || 0) > 0);
+    scopeTitleSuffix = 'STOCK READY (KHUSUS CO CLOSED)';
+    defaultFilePrefix = 'Rekap_Customer_Stock_Ready_CO_Closed_Only';
+    sheetName = 'Stock Ready (CO Closed)';
   }
 
   if (filteredData.length === 0) {
-    throw new Error(`Tidak ada data dengan status CO "${scope === 'OPEN_ONLY' ? 'OPEN' : 'CLOSED'}" untuk diekspor.`);
+    let scopeDesc = 'kondisi filter yang dipilih';
+    if (scope === 'OPEN_ONLY') scopeDesc = 'status CO "OPEN"';
+    else if (scope === 'CLOSED_ONLY') scopeDesc = 'status CO "CLOSED"';
+    else if (scope === 'STOCK_READY_ALL') scopeDesc = 'kriteria "Stock Ready" (Semua CO)';
+    else if (scope === 'STOCK_READY_OPEN') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Open)';
+    else if (scope === 'STOCK_READY_CLOSED') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Closed)';
+    throw new Error(`Tidak ada data dengan ${scopeDesc} untuk diekspor.`);
   }
 
   // Prepare 2D matrix
@@ -170,7 +194,6 @@ export function exportToExcel(
   ];
 
   const workbook = XLSX.utils.book_new();
-  const sheetName = scope === 'OPEN_ONLY' ? 'CO Open Only' : scope === 'CLOSED_ONLY' ? 'CO Closed Only' : 'Rekap Seluruh CO';
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
   // Trigger download

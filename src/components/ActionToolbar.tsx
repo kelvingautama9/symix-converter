@@ -1,13 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Share2, Copy, RefreshCw, FileCode, Check, BookOpen, ChevronDown, Layers } from 'lucide-react';
+import { Download, Share2, Copy, RefreshCw, FileCode, Check, BookOpen, ChevronDown, Layers, Zap } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { haptic } from '../utils/haptics';
-import { ExcelExportScope } from '../types';
+import { ExcelExportScope, WhatsAppReportScope } from '../types';
 
 interface ActionToolbarProps {
   onDownloadExcel: (scope?: ExcelExportScope) => void;
-  onOpenWhatsApp: () => void;
-  onCopyWhatsAppText: () => void;
+  onOpenWhatsApp: (scope?: WhatsAppReportScope) => void;
+  onCopyWhatsAppText: (scope?: WhatsAppReportScope) => void;
   onReset: () => void;
   onToggleDoc: () => void;
   isCopied: boolean;
@@ -17,6 +17,8 @@ interface ActionToolbarProps {
   totalRecords: number;
   totalCOOpen?: number;
   totalCOClosed?: number;
+  totalStockReadyAll?: number;
+  totalStockReadyOpen?: number;
 }
 
 export const ActionToolbar: React.FC<ActionToolbarProps> = ({
@@ -32,15 +34,22 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   totalRecords,
   totalCOOpen = 0,
   totalCOClosed = 0,
+  totalStockReadyAll = 0,
+  totalStockReadyOpen = 0,
 }) => {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isCopyMenuOpen, setIsCopyMenuOpen] = useState(false);
   const exportDropdownRef = useRef<HTMLDivElement>(null);
+  const copyDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (exportDropdownRef.current && !exportDropdownRef.current.contains(event.target as Node)) {
         setIsExportMenuOpen(false);
+      }
+      if (copyDropdownRef.current && !copyDropdownRef.current.contains(event.target as Node)) {
+        setIsCopyMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -61,12 +70,13 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
 
   const handleWhatsAppClick = () => {
     haptic.medium();
-    onOpenWhatsApp();
+    onOpenWhatsApp('ALL');
   };
 
-  const handleCopyClick = () => {
+  const handleQuickCopy = (scope: WhatsAppReportScope = 'ALL') => {
+    setIsCopyMenuOpen(false);
     haptic.selection();
-    onCopyWhatsAppText();
+    onCopyWhatsAppText(scope);
   };
 
   const handleToggleDocClick = () => {
@@ -109,72 +119,117 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               setIsExportMenuOpen(!isExportMenuOpen);
             }}
             className="inline-flex items-center justify-center px-2.5 py-2.5 bg-[#2A2A2A] hover:bg-[#141414] text-white font-bold text-xs border-y-2 border-r-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
-            title="Pilih opsi export Excel (All / Open Only / Closed Only)"
+            title="Pilih opsi export Excel (All / Open Only / Stock Ready / Closed Only)"
           >
             <ChevronDown className={`w-4 h-4 transition-transform duration-150 ${isExportMenuOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {/* Dropdown Menu */}
+          {/* Dropdown Menu Excel */}
           {isExportMenuOpen && (
-            <div className="absolute left-0 top-full mt-2 w-72 max-w-[90vw] bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] z-50 py-1.5 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="absolute left-0 top-full mt-2 w-80 max-w-[90vw] bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] z-50 py-1.5 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
               <div className="px-3 py-1.5 border-b border-[#141414]/15 text-[10px] font-black uppercase tracking-wider text-[#141414]/60 font-mono">
                 Pilih Opsi Export Excel
               </div>
 
-              {/* 1. All */}
-              <button
-                type="button"
-                id="btn-export-all"
-                onClick={() => triggerExport('ALL')}
-                className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#141414] hover:bg-[#F0F0EE] flex items-center justify-between transition-colors cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <Download className="w-3.5 h-3.5 text-[#141414]" />
-                  <span>Export Seluruh CO</span>
-                </div>
-                <span className="px-1.5 py-0.5 bg-[#DEDEDE] text-[#141414] text-[10px] font-mono font-bold">
-                  {totalRecords} PO
-                </span>
-              </button>
+              {/* Standard Scopes */}
+              <div className="py-1">
+                {/* 1. All */}
+                <button
+                  type="button"
+                  id="btn-export-all"
+                  onClick={() => triggerExport('ALL')}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#141414] hover:bg-[#F0F0EE] flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Download className="w-3.5 h-3.5 text-[#141414]" />
+                    <span>Export Seluruh CO</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-[#DEDEDE] text-[#141414] text-[10px] font-mono font-bold">
+                    {totalRecords} PO
+                  </span>
+                </button>
 
-              {/* 2. Open Only */}
-              <button
-                type="button"
-                id="btn-export-open"
-                onClick={() => triggerExport('OPEN_ONLY')}
-                disabled={totalCOOpen === 0}
-                className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#2E7D32] hover:bg-emerald-50 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#2E7D32]" />
-                  <span>Export Khusus CO Open (O)</span>
-                </div>
-                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-500 text-[10px] font-mono font-bold">
-                  {totalCOOpen} PO
-                </span>
-              </button>
+                {/* 2. Open Only */}
+                <button
+                  type="button"
+                  id="btn-export-open"
+                  onClick={() => triggerExport('OPEN_ONLY')}
+                  disabled={totalCOOpen === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#2E7D32] hover:bg-emerald-50 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#2E7D32]" />
+                    <span>Export Khusus CO Open (O)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-500 text-[10px] font-mono font-bold">
+                    {totalCOOpen} PO
+                  </span>
+                </button>
 
-              {/* 3. Closed Only */}
-              <button
-                type="button"
-                id="btn-export-closed"
-                onClick={() => triggerExport('CLOSED_ONLY')}
-                disabled={totalCOClosed === 0}
-                className="w-full text-left px-3.5 py-2.5 text-xs font-bold text-[#555] hover:bg-zinc-100 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-[#555]" />
-                  <span>Export Khusus CO Closed (C)</span>
+                {/* 3. Closed Only */}
+                <button
+                  type="button"
+                  id="btn-export-closed"
+                  onClick={() => triggerExport('CLOSED_ONLY')}
+                  disabled={totalCOClosed === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#555] hover:bg-zinc-100 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#555]" />
+                    <span>Export Khusus CO Closed (C)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-zinc-200 text-zinc-800 border border-zinc-400 text-[10px] font-mono font-bold">
+                    {totalCOClosed} PO
+                  </span>
+                </button>
+              </div>
+
+              {/* Stock Ready Section */}
+              <div className="border-t border-[#141414]/15 pt-1.5 pb-1 bg-amber-50/40">
+                <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#FF6B35] font-mono flex items-center gap-1">
+                  <Zap className="w-3 h-3 fill-current" />
+                  <span>Filter Stock Ready (Siap Kirim)</span>
                 </div>
-                <span className="px-1.5 py-0.5 bg-zinc-200 text-zinc-800 border border-zinc-400 text-[10px] font-mono font-bold">
-                  {totalCOClosed} PO
-                </span>
-              </button>
+
+                {/* 4. Stock Ready All */}
+                <button
+                  type="button"
+                  id="btn-export-stock-ready-all"
+                  onClick={() => triggerExport('STOCK_READY_ALL')}
+                  disabled={totalStockReadyAll === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#FF6B35] hover:bg-orange-100/70 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 fill-current" />
+                    <span>Stock Ready Saja (Semua CO)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-orange-100 text-orange-900 border border-orange-400 text-[10px] font-mono font-bold">
+                    {totalStockReadyAll} PO
+                  </span>
+                </button>
+
+                {/* 5. Stock Ready Open Only */}
+                <button
+                  type="button"
+                  id="btn-export-stock-ready-open"
+                  onClick={() => triggerExport('STOCK_READY_OPEN')}
+                  disabled={totalStockReadyOpen === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100/80 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 fill-current text-emerald-600" />
+                    <span>Stock Ready (Khusus CO Open)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-500 text-[10px] font-mono font-bold">
+                    {totalStockReadyOpen} PO
+                  </span>
+                </button>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Primary WhatsApp Share */}
+        {/* Primary WhatsApp Share (Opens full modal generator) */}
         <button
           type="button"
           id="btn-share-whatsapp"
@@ -185,27 +240,113 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           <span className="truncate">Share to WhatsApp</span>
         </button>
 
-        {/* Copy Text Shortcut */}
-        <button
-          type="button"
-          id="btn-copy-wa-text"
-          onClick={handleCopyClick}
-          className="inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
-          title="Salin teks template WhatsApp ke clipboard"
-        >
-          {isCopied ? (
-            <>
-              <Check className="w-4 h-4 text-green-700 shrink-0" />
-              <span className="text-green-800">Copied!</span>
-            </>
-          ) : (
-            <>
-              <Copy className="w-4 h-4 text-[#141414] shrink-0" />
-              <span className="hidden sm:inline">Copy WA Text</span>
-              <span className="sm:hidden">Copy WA</span>
-            </>
+        {/* Split Button Copy WA Text with Quick Scope Options */}
+        <div className="relative inline-flex flex-1 sm:flex-initial" ref={copyDropdownRef}>
+          <button
+            type="button"
+            id="btn-copy-wa-text"
+            onClick={() => handleQuickCopy('ALL')}
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
+            title="Salin teks template WhatsApp ke clipboard"
+          >
+            {isCopied ? (
+              <>
+                <Check className="w-4 h-4 text-green-700 shrink-0" />
+                <span className="text-green-800">Copied!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 text-[#141414] shrink-0" />
+                <span className="hidden sm:inline">Copy WA Text</span>
+                <span className="sm:hidden">Copy WA</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            id="btn-toggle-copy-menu"
+            onClick={() => {
+              haptic.selection();
+              setIsCopyMenuOpen(!isCopyMenuOpen);
+            }}
+            className="inline-flex items-center justify-center px-2 py-2.5 bg-[#C8C8C8] hover:bg-[#b5b5b5] text-[#141414] font-bold text-xs border-y-2 border-r-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
+            title="Pilih opsi format Copy WhatsApp"
+          >
+            <ChevronDown className={`w-4 h-4 transition-transform duration-150 ${isCopyMenuOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          {/* Dropdown Menu Copy WA */}
+          {isCopyMenuOpen && (
+            <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-72 max-w-[90vw] bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] z-50 py-1.5 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
+              <div className="px-3 py-1.5 border-b border-[#141414]/15 text-[10px] font-black uppercase tracking-wider text-[#141414]/60 font-mono">
+                Pilih Format Salin Teks WA
+              </div>
+
+              <div className="py-1">
+                <button
+                  type="button"
+                  onClick={() => handleQuickCopy('ALL')}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#141414] hover:bg-[#F0F0EE] flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Semua CO ({totalRecords})</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickCopy('OPEN_ONLY')}
+                  disabled={totalCOOpen === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#2E7D32] hover:bg-emerald-50 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#2E7D32]" />
+                    <span>Copy Khusus CO Open ({totalCOOpen})</span>
+                  </div>
+                </button>
+              </div>
+
+              <div className="border-t border-[#141414]/15 pt-1.5 pb-1 bg-amber-50/40">
+                <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#FF6B35] font-mono flex items-center gap-1">
+                  <Zap className="w-3 h-3 fill-current" />
+                  <span>Format Khusus Stock Ready</span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickCopy('STOCK_READY_ALL')}
+                  disabled={totalStockReadyAll === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#FF6B35] hover:bg-orange-100/70 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 fill-current" />
+                    <span>Copy Stock Ready (Semua)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-orange-100 text-orange-900 border border-orange-400 text-[10px] font-mono font-bold">
+                    {totalStockReadyAll}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleQuickCopy('STOCK_READY_OPEN')}
+                  disabled={totalStockReadyOpen === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100/80 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3.5 h-3.5 fill-current text-emerald-600" />
+                    <span>Copy Stock Ready (CO Open)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-500 text-[10px] font-mono font-bold">
+                    {totalStockReadyOpen}
+                  </span>
+                </button>
+              </div>
+            </div>
           )}
-        </button>
+        </div>
       </div>
 
       {/* Right: Auxiliary Controls */}

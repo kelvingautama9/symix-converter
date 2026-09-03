@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { ExtractedRecord, ParseSummary, ExcelExportScope } from './types';
-import { parseExcelBuffer } from './utils/parserEngine';
+import { ExtractedRecord, ParseSummary, ExcelExportScope, WhatsAppReportScope } from './types';
+import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
 import { exportToExcel } from './utils/excelExporter';
 import { shareToWhatsApp, generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
 import { haptic } from './utils/haptics';
@@ -38,8 +38,22 @@ export default function App() {
 
   // Modals & UI state
   const [isWAModalOpen, setIsWAModalOpen] = useState(false);
+  const [waModalInitialScope, setWaModalInitialScope] = useState<WhatsAppReportScope>('ALL');
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+
+  // Dynamically compute Stock Ready counts for toolbar dropdowns matching FIFO logic
+  const totalStockReadyAll = useMemo(() => {
+    if (!data || data.length === 0) return 0;
+    const scoped = recalculateFIFOStock(data, 'ALL');
+    return scoped.filter((d) => (d['Stock (pcs)'] || 0) > 0).length;
+  }, [data]);
+
+  const totalStockReadyOpen = useMemo(() => {
+    if (!data || data.length === 0) return 0;
+    const scoped = recalculateFIFOStock(data, 'OPEN');
+    return scoped.filter((d) => d.coStatus === 'OPEN' && (d['Stock (pcs)'] || 0) > 0).length;
+  }, [data]);
 
   const handleFileLoaded = (
     buffer: ArrayBuffer,
@@ -129,20 +143,27 @@ export default function App() {
       filename = 'Rekap_Customer_CO_OPEN.xlsx';
     } else if (scope === 'CLOSED_ONLY') {
       filename = 'Rekap_Customer_CO_CLOSED.xlsx';
+    } else if (scope === 'STOCK_READY_ALL') {
+      filename = 'Rekap_Customer_STOCK_READY_SEMUA_CO.xlsx';
+    } else if (scope === 'STOCK_READY_OPEN') {
+      filename = 'Rekap_Customer_STOCK_READY_CO_OPEN.xlsx';
+    } else if (scope === 'STOCK_READY_CLOSED') {
+      filename = 'Rekap_Customer_STOCK_READY_CO_CLOSED.xlsx';
     }
     exportToExcel(data, filename, scope);
   };
 
-  const handleOpenWhatsApp = () => {
+  const handleOpenWhatsApp = (scope: WhatsAppReportScope = 'ALL') => {
     if (!data || data.length === 0) return;
     haptic.medium();
+    setWaModalInitialScope(scope);
     setIsWAModalOpen(true);
   };
 
-  const handleCopyWhatsAppText = async () => {
+  const handleCopyWhatsAppText = async (scope: WhatsAppReportScope = 'ALL') => {
     if (!data || data.length === 0) return;
     haptic.light();
-    const text = generateWhatsAppSummary(data);
+    const text = generateWhatsAppSummary(data, scope);
     const success = await copyToClipboard(text);
     if (success) {
       haptic.success();
@@ -354,6 +375,8 @@ export default function App() {
               totalRecords={data.length}
               totalCOOpen={summary.totalCOOpen}
               totalCOClosed={summary.totalCOClosed}
+              totalStockReadyAll={totalStockReadyAll}
+              totalStockReadyOpen={totalStockReadyOpen}
             />
 
             {/* Main Data Table */}
@@ -388,6 +411,7 @@ export default function App() {
         isOpen={isWAModalOpen}
         onClose={() => setIsWAModalOpen(false)}
         data={data}
+        initialScope={waModalInitialScope}
       />
 
       <ParserRulesModal

@@ -445,9 +445,9 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
 /**
  * Recalculates FIFO stock allocation for records dynamically based on the active CO scope:
- * - 'ALL': Allocates stock across both OPEN and CLOSED records in sequence.
- * - 'OPEN' | 'OPEN_ONLY': Allocates total warehouse stock strictly across OPEN records in sequence (closed POs are skipped and don't consume stock).
- * - 'CLOSED' | 'CLOSED_ONLY': Allocates total warehouse stock strictly across CLOSED records in sequence.
+ * - 'ALL' | 'STOCK_READY_ALL': Allocates stock across both OPEN and CLOSED records in sequence.
+ * - 'OPEN' | 'OPEN_ONLY' | 'STOCK_READY_OPEN': Allocates total warehouse stock strictly across OPEN records in sequence (closed POs are skipped and don't consume stock).
+ * - 'CLOSED' | 'CLOSED_ONLY' | 'STOCK_READY_CLOSED': Allocates total warehouse stock strictly across CLOSED records in sequence.
  *
  * Rules:
  * 1. Under 51 pcs threshold: If Sisa OS < 51 pcs, stock is set to 0 and not deducted from warehouse inventory.
@@ -459,7 +459,12 @@ export function recalculateFIFOStock(
 ): ExtractedRecord[] {
   if (!records || records.length === 0) return [];
 
-  const targetScope = coScope === 'OPEN_ONLY' ? 'OPEN' : coScope === 'CLOSED_ONLY' ? 'CLOSED' : coScope;
+  const targetScope =
+    coScope === 'OPEN_ONLY' || coScope === 'OPEN' || coScope === 'STOCK_READY_OPEN'
+      ? 'OPEN'
+      : coScope === 'CLOSED_ONLY' || coScope === 'CLOSED' || coScope === 'STOCK_READY_CLOSED'
+      ? 'CLOSED'
+      : 'ALL';
 
   // Clone records to avoid mutating original objects
   const cloned: ExtractedRecord[] = records.map((r) => ({ ...r }));

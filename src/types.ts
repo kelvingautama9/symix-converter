@@ -48,5 +48,19 @@ export interface ParseSummary {
 
 export type FilterStatus = 'ALL' | 'PARTIAL_DELIVERY' | 'FULL_PENDING' | 'STOCK_READY';
 export type CoFilterStatus = 'ALL' | 'OPEN' | 'CLOSED';
-export type ExcelExportScope = 'ALL' | 'OPEN_ONLY' | 'CLOSED_ONLY';
+export type ExcelExportScope =
+  | 'ALL'
+  | 'OPEN_ONLY'
+  | 'CLOSED_ONLY'
+  | 'STOCK_READY_ALL'
+  | 'STOCK_READY_OPEN'
+  | 'STOCK_READY_CLOSED';
+
+export type WhatsAppReportScope =
+  | 'ALL'
+  | 'OPEN_ONLY'
+  | 'CLOSED_ONLY'
+  | 'STOCK_READY_ALL'
+  | 'STOCK_READY_OPEN'
+  | 'STOCK_READY_CLOSED';
 
