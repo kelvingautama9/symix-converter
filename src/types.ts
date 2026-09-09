@@ -5,6 +5,7 @@ export interface ExtractedRecord {
   coStatus?: CoStatus;
   Artikel: string;
   'Item Description': string;
+  'Tanggal Input PO': string;
   'No PO': string;
   Substance: string;
   'QTY PO (pcs)': number;

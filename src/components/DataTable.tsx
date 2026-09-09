@@ -72,6 +72,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         (item.CO && item.CO.toLowerCase().includes(search)) ||
         (item.Artikel && item.Artikel.toLowerCase().includes(search)) ||
         (item['Item Description'] && item['Item Description'].toLowerCase().includes(search)) ||
+        (item['Tanggal Input PO'] && item['Tanggal Input PO'].toLowerCase().includes(search)) ||
         (item['No PO'] && item['No PO'].toLowerCase().includes(search)) ||
         (item.Substance && item.Substance.toLowerCase().includes(search)) ||
         (search === 'open' && item.coStatus === 'OPEN') ||
@@ -315,11 +316,20 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 </div>
               </th>
               <th
+                onClick={() => handleSort('Tanggal Input PO')}
+                className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 min-w-[140px] z-20"
+              >
+                <div className="flex items-center gap-1.5">
+                  <span>4. Tanggal Input PO</span>
+                  <ChevronsUpDown className="w-3.5 h-3.5" />
+                </div>
+              </th>
+              <th
                 onClick={() => handleSort('No PO')}
                 className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>4. No PO (Clean)</span>
+                  <span>5. No PO (Clean)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -328,7 +338,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center gap-1.5">
-                  <span>5. Substance</span>
+                  <span>6. Substance</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -337,7 +347,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>6. QTY PO (pcs)</span>
+                  <span>7. QTY PO (pcs)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -346,7 +356,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>7. Berat PO (KG)</span>
+                  <span>8. Berat PO (KG)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -355,7 +365,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>8. Stock (pcs)</span>
+                  <span>9. Stock (pcs)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -364,7 +374,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>9. Stock (kg)</span>
+                  <span>10. Stock (kg)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -373,7 +383,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/20 bg-[#FF6B35] z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>10. Sisa OS (pcs)</span>
+                  <span>11. Sisa OS (pcs)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -382,7 +392,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>11. Sisa OS (kg)</span>
+                  <span>12. Sisa OS (kg)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -391,7 +401,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/20 bg-[#2E7D32] z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>12. Terkirim (PCS)</span>
+                  <span>13. Terkirim (PCS)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -400,7 +410,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20 z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>13. Terkirim (KG)</span>
+                  <span>14. Terkirim (KG)</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -409,7 +419,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 className="sticky top-0 bg-[#141414] py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black transition-colors z-20"
               >
                 <div className="flex items-center justify-end gap-1.5">
-                  <span>14. Harga</span>
+                  <span>15. Harga</span>
                   <ChevronsUpDown className="w-3.5 h-3.5" />
                 </div>
               </th>
@@ -418,7 +428,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           <tbody className="divide-y divide-[#141414]/15 font-mono text-xs">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={15} className="py-12 text-center text-[#141414]/60 font-sans font-medium">
+                <td colSpan={16} className="py-12 text-center text-[#141414]/60 font-sans font-medium">
                   Tidak ada data yang sesuai dengan filter Status CO atau pencarian saat ini.
                 </td>
               </tr>
@@ -471,6 +481,15 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     </td>
                     <td className="py-2.5 px-3 text-[#141414] font-sans font-medium whitespace-normal max-w-xs line-clamp-1 group-hover:line-clamp-none border-r border-[#141414]/10">
                       {row['Item Description']}
+                    </td>
+                    <td className="py-2.5 px-3 text-[#141414] font-mono border-r border-[#141414]/10">
+                      {row['Tanggal Input PO'] && row['Tanggal Input PO'] !== '-' ? (
+                        <span className="px-1.5 py-0.5 bg-[#F0F0EE] border border-[#141414]/40 text-[#141414] text-[11px] font-mono font-medium whitespace-nowrap">
+                          {row['Tanggal Input PO']}
+                        </span>
+                      ) : (
+                        <span className="text-[#141414]/40">-</span>
+                      )}
                     </td>
                     <td className="py-2.5 px-3 font-bold text-[#141414] border-r border-[#141414]/10">
                       {row['No PO']}

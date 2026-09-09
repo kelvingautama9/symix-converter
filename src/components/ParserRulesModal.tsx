@@ -82,7 +82,7 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
             </p>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
               <li><strong>CO Extraction:</strong> Captures Customer Order code (e.g. <code className="font-bold">18H8559 1 O</code>) from <code className="font-bold">row[0]</code> as Column A.</li>
-              <li><strong>Clean PO String:</strong> Strips leading date prefixes (e.g. DD/MM/YY) from the PO number in <code className="font-bold">row[1]</code>.</li>
+              <li><strong>Tanggal Input PO & Clean PO:</strong> Extracts historical input date (e.g. <code className="font-bold">26/08/2026</code>) and strips it cleanly from PO number (e.g. <code className="font-bold">PO/MB/2026/08/0236</code>) from <code className="font-bold">row[1]</code>.</li>
               <li><strong>Price Extraction:</strong> Splits <code className="font-bold">row[2]</code> by whitespace to find floating point price units.</li>
               <li>Extracts <code className="font-bold">QTY PO (pcs)</code> from <code className="font-bold">row[6]</code> and <code className="font-bold">Berat PO (KG)</code> from <code className="font-bold">row[7]</code>.</li>
             </ul>
@@ -136,7 +136,7 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <li><strong>Alokasi Urutan Atas (FIFO):</strong> Saldo stok gudang dialokasikan untuk memenuhi <code className="font-bold">Sisa OS</code> PO teratas yang memenuhi syarat (Sisa OS &ge; 51 pcs): <code className="font-bold">Stock Ready = min(Sisa Stok, Sisa OS)</code>.</li>
               <li><strong>Dynamic Scope Realokasi (All vs Open Only):</strong> Jika difilter atau diexport dengan mode <code className="font-bold">Khusus CO Open</code>, baris CO Closed dilewati dari alokasi sehingga seluruh 100% saldo stok gudang dialokasikan langsung ke baris-baris PO yang masih Open.</li>
               <li><strong>Sisa Saldo Diteruskan:</strong> Sisa stok gudang diteruskan secara sekuensial ke baris PO berikutnya.</li>
-              <li><strong>14 Kolom Standar:</strong> CO, Artikel, Description, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
+              <li><strong>15 Kolom Standar:</strong> CO, Artikel, Item Description, Tanggal Input PO, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
             </ul>
           </div>
 

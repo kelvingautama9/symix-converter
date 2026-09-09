@@ -6,6 +6,7 @@ export const EXCEL_COLUMNS = [
   'CO',
   'Artikel',
   'Item Description',
+  'Tanggal Input PO',
   'No PO',
   'Substance',
   'QTY PO (pcs)',
@@ -22,7 +23,7 @@ export const EXCEL_COLUMNS = [
 /**
  * Exports finalData to a formatted Excel file matching requirements:
  * Row 1: Title "REKAPITULASI STOCK & ORDER (OS) CUSTOMER" + Scope indicator
- * Row 4: Data headers (14 columns strictly ordered: CO, Artikel, Desc, No PO, ..., Sisa OS (kg), Terkirim (PCS), Terkirim (KG), Harga)
+ * Row 4: Data headers (15 columns strictly ordered: CO, Artikel, Desc, Tanggal Input PO, No PO, ..., Sisa OS (kg), Terkirim (PCS), Terkirim (KG), Harga)
  * Row 5+: Data rows
  * Supports exporting: ALL CO, CO OPEN ONLY, CO CLOSED ONLY
  */
@@ -134,6 +135,7 @@ export function exportToExcel(
       item.CO || '',
       item.Artikel || '',
       item['Item Description'] || '',
+      item['Tanggal Input PO'] || '-',
       item['No PO'] || '',
       item.Substance || '',
       qtyPcs,
@@ -155,6 +157,7 @@ export function exportToExcel(
     '',
     '',
     '',
+    '',
     sumQtyPcs,
     sumBeratKg,
     sumStockPcs,
@@ -168,11 +171,12 @@ export function exportToExcel(
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
-  // Set column widths for optimal legibility
+  // Set column widths for optimal legibility (15 columns)
   worksheet['!cols'] = [
     { wch: 18 }, // CO
     { wch: 18 }, // Artikel
     { wch: 38 }, // Item Description
+    { wch: 18 }, // Tanggal Input PO
     { wch: 28 }, // No PO
     { wch: 16 }, // Substance
     { wch: 15 }, // QTY PO (pcs)
@@ -186,11 +190,11 @@ export function exportToExcel(
     { wch: 14 }, // Harga
   ];
 
-  // Set merges for Title row (A1 to N1)
+  // Set merges for Title row (A1 to O1, index 0 to 14)
   worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 13 } }, // Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 13 } }, // Subtitle
-    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 4 } }, // Total label
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } }, // Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } }, // Subtitle
+    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 5 } }, // Total label
   ];
 
   const workbook = XLSX.utils.book_new();

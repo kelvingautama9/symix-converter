@@ -295,11 +295,21 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         // Ekstraksi Data CO (Customer Order No dari Kolom A)
         const coNumber = valA ? valA.replace(/\s+/g, ' ').trim() : '-';
 
-        // Membersihkan Nomor PO (Menghilangkan Tanggal)
-        const partsB = valB.split(' ');
-        let cleanPoNo = valB;
-        if (partsB.length > 1 && (partsB[0].includes('/') || partsB[0].includes('-'))) {
-          cleanPoNo = partsB.slice(1).join(' ');
+        // Mengekstrak Tanggal Input PO & Membersihkan Nomor PO
+        let poDate = '-';
+        let cleanPoNo = valB ? valB.trim() : '-';
+
+        // Deteksi jika diawali format tanggal (misal: 26/08/2026 PO/MB/2026/08/0236)
+        const dateMatch = valB.match(/^(\d{1,4}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+(.+)$/);
+        if (dateMatch) {
+          poDate = dateMatch[1].trim();
+          cleanPoNo = dateMatch[2].trim();
+        } else {
+          const partsB = valB.split(/\s+/);
+          if (partsB.length > 1 && (partsB[0].includes('/') || partsB[0].includes('-')) && /\d/.test(partsB[0])) {
+            poDate = partsB[0].trim();
+            cleanPoNo = partsB.slice(1).join(' ').trim();
+          }
         }
 
         // Mengekstrak Harga dari teks gabungan alamat gudang
@@ -329,12 +339,13 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         const sisaPcsVal = isNumericCell(sisaPcsRaw) ? parseCleanInt(sisaPcsRaw) : 0;
         const sisaKgVal = isNumericCell(sisaKgRaw) ? parseCleanInt(sisaKgRaw) : 0;
 
-        // Membangun struktur kerangka 14 Kolom (dengan CO di posisi pertama dan Terkirim di samping Sisa OS)
+        // Membangun struktur kerangka 15 Kolom (dengan Tanggal Input PO sebelum No PO)
         currentPO = {
           CO: coNumber,
           coStatus: parseCoStatus(coNumber),
           Artikel: currentItemId,
           'Item Description': currentItemDesc,
+          'Tanggal Input PO': poDate,
           'No PO': cleanPoNo,
           Substance: currentSubstance,
           'QTY PO (pcs)': qtyOrderPcs,
