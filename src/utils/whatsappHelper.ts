@@ -153,4 +153,6 @@ export function shareToWhatsApp(
   window.open(waUrl, '_blank', 'noopener,noreferrer');
 }
 
+export { shareExcelFileToWhatsApp, type ShareExcelResult } from './excelExporter';
+
 

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { ExtractedRecord, ParseSummary, ExcelExportScope, WhatsAppReportScope } from './types';
 import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
-import { exportToExcel } from './utils/excelExporter';
+import { exportToExcel, shareExcelFileToWhatsApp } from './utils/excelExporter';
 import { shareToWhatsApp, generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
 import { haptic } from './utils/haptics';
 import { DropZone } from './components/DropZone';
@@ -151,6 +151,44 @@ export default function App() {
       filename = 'Rekap_Customer_STOCK_READY_CO_CLOSED.xlsx';
     }
     exportToExcel(data, filename, scope);
+  };
+
+  const handleShareExcelWhatsApp = async (scope: ExcelExportScope = 'ALL') => {
+    if (!data || data.length === 0) return;
+    haptic.medium();
+    try {
+      let filename = 'Rekap_Customer_Terbaru.xlsx';
+      if (scope === 'OPEN_ONLY') {
+        filename = 'Rekap_Customer_CO_OPEN.xlsx';
+      } else if (scope === 'CLOSED_ONLY') {
+        filename = 'Rekap_Customer_CO_CLOSED.xlsx';
+      } else if (scope === 'STOCK_READY_ALL') {
+        filename = 'Rekap_Customer_STOCK_READY_SEMUA_CO.xlsx';
+      } else if (scope === 'STOCK_READY_OPEN') {
+        filename = 'Rekap_Customer_STOCK_READY_CO_OPEN.xlsx';
+      } else if (scope === 'STOCK_READY_CLOSED') {
+        filename = 'Rekap_Customer_STOCK_READY_CO_CLOSED.xlsx';
+      }
+
+      const result = await shareExcelFileToWhatsApp(data, scope, filename);
+      if (result.success) {
+        haptic.success();
+        confetti({
+          particleCount: 50,
+          spread: 60,
+          origin: { y: 0.8 },
+          colors: ['#128C7E', '#25D366', '#FF6B35', '#141414'],
+        });
+        setStatusMessage(result.message);
+        setTimeout(() => setStatusMessage(null), 6000);
+      } else if (result.method !== 'cancelled') {
+        setStatusMessage(result.message);
+      }
+    } catch (err: any) {
+      console.error('Error sharing Excel via WhatsApp:', err);
+      haptic.error();
+      setErrorMessage(err?.message || 'Gagal membagikan file Excel via WhatsApp.');
+    }
   };
 
   const handleOpenWhatsApp = (scope: WhatsAppReportScope = 'ALL') => {
@@ -307,9 +345,9 @@ export default function App() {
                 <div className="p-5 bg-[#FF6B35] border-2 border-[#141414] text-white shadow-[2px_2px_0px_#141414] flex flex-col justify-between">
                   <div>
                     <span className="text-[11px] font-black uppercase tracking-wider text-white/90">Output Schema</span>
-                    <div className="text-3xl font-black font-mono mt-1 mb-1">14 COLs</div>
+                    <div className="text-3xl font-black font-mono mt-1 mb-1">15 COLs</div>
                     <p className="text-xs font-mono text-white/90 leading-relaxed">
-                      Strict ordering: CO, Artikel, Desc, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (pcs/kg), Harga.
+                      Strict ordering: CO, Artikel, Desc, Tanggal Input PO, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (pcs/kg), Harga.
                     </p>
                   </div>
                   <div className="mt-3 text-[10px] font-mono uppercase text-white/80">
@@ -369,6 +407,7 @@ export default function App() {
             {/* Action Buttons Bento Toolbar */}
             <ActionToolbar
               onDownloadExcel={handleDownloadExcel}
+              onShareExcelWhatsApp={handleShareExcelWhatsApp}
               onOpenWhatsApp={handleOpenWhatsApp}
               onCopyWhatsAppText={handleCopyWhatsAppText}
               onReset={handleReset}

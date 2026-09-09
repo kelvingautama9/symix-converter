@@ -154,7 +154,8 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
               <li><strong className="text-emerald-700">Status O (Open):</strong> Menandakan Customer Order masih aktif / berjalan (contoh: <code className="font-bold">18H8550 1 O</code>).</li>
               <li><strong className="text-zinc-700">Status C (Closed):</strong> Menandakan Customer Order telah selesai ditutup (contoh: <code className="font-bold">18H6941 5 C</code>).</li>
-              <li><strong>Filter Interaktif & Opsi Export:</strong> Menyediakan tab filter preview dan dropdown export Excel untuk Seluruh CO, Khusus CO Open, atau Khusus CO Closed.</li>
+              <li><strong>Filter Interaktif & Opsi Export:</strong> Menyediakan tab filter preview dan dropdown export Excel untuk Seluruh CO, Khusus CO Open, Khusus CO Closed, maupun Stock Ready.</li>
+              <li><strong>Direct Excel Share to WhatsApp:</strong> Mendukung pengiriman langsung file Excel (.xlsx) via WhatsApp (attachment otomatis di perangkat mobile / auto-download + buka WhatsApp di desktop) dengan filter scope terpilih.</li>
             </ul>
           </div>
 

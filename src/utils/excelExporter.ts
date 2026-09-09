@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx';
 import { ExtractedRecord, ExcelExportScope } from '../types';
 import { recalculateFIFOStock } from './parserEngine';
+import { generateWhatsAppSummary } from './whatsappHelper';
 
 export const EXCEL_COLUMNS = [
   'CO',
@@ -20,18 +21,30 @@ export const EXCEL_COLUMNS = [
   'Harga',
 ] as const;
 
+export interface GenerateExcelResult {
+  workbook: XLSX.WorkBook;
+  outputFileName: string;
+  blob: Blob;
+  file: File;
+  scopeTitleSuffix: string;
+  recordCount: number;
+}
+
+export interface ShareExcelResult {
+  success: boolean;
+  method: 'web-share' | 'download-and-web' | 'cancelled';
+  fileName: string;
+  message: string;
+}
+
 /**
- * Exports finalData to a formatted Excel file matching requirements:
- * Row 1: Title "REKAPITULASI STOCK & ORDER (OS) CUSTOMER" + Scope indicator
- * Row 4: Data headers (15 columns strictly ordered: CO, Artikel, Desc, Tanggal Input PO, No PO, ..., Sisa OS (kg), Terkirim (PCS), Terkirim (KG), Harga)
- * Row 5+: Data rows
- * Supports exporting: ALL CO, CO OPEN ONLY, CO CLOSED ONLY
+ * Builds the complete formatted Excel workbook, Blob, and File object in memory
  */
-export function exportToExcel(
+export function generateExcelBlobAndFile(
   data: ExtractedRecord[],
   customFileName?: string,
   scope: ExcelExportScope = 'ALL'
-): void {
+): GenerateExcelResult {
   if (!data || data.length === 0) {
     throw new Error('Tidak ada data yang dapat diekspor.');
   }
@@ -98,7 +111,7 @@ export function exportToExcel(
   // Row 3: Empty spacing row (index 2)
   sheetData.push([]);
 
-  // Row 4: Data headers start at row 4 (index 3)
+  // Row 4: Data headers start at row 4 (index 3) - 15 columns strictly ordered
   sheetData.push([...EXCEL_COLUMNS]);
 
   // Row 5+: Data rows (index 4+)
@@ -200,9 +213,104 @@ export function exportToExcel(
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-  // Trigger download
   const finalFileName = customFileName || `${defaultFilePrefix}.xlsx`;
   const outputFileName = finalFileName.endsWith('.xlsx') ? finalFileName : `${finalFileName}.xlsx`;
+
+  // Write workbook to array buffer
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const blob = new Blob([excelBuffer], { type: mimeType });
+  const file = new File([blob], outputFileName, { type: mimeType });
+
+  return {
+    workbook,
+    outputFileName,
+    blob,
+    file,
+    scopeTitleSuffix,
+    recordCount: filteredData.length,
+  };
+}
+
+/**
+ * Exports finalData to a formatted Excel file and downloads it locally
+ */
+export function exportToExcel(
+  data: ExtractedRecord[],
+  customFileName?: string,
+  scope: ExcelExportScope = 'ALL'
+): void {
+  const { workbook, outputFileName } = generateExcelBlobAndFile(data, customFileName, scope);
   XLSX.writeFile(workbook, outputFileName);
 }
 
+/**
+ * Shares the generated Excel file directly to WhatsApp:
+ * - On supported devices (Mobile / Web Share API L2): Direct native share with the .xlsx file attached!
+ * - On desktop browsers: Automatically downloads the .xlsx file and opens WhatsApp Web with the summary text
+ *   and instructions to attach the file.
+ */
+export async function shareExcelFileToWhatsApp(
+  data: ExtractedRecord[],
+  scope: ExcelExportScope = 'ALL',
+  customFileName?: string
+): Promise<ShareExcelResult> {
+  const { blob, file, outputFileName, recordCount } = generateExcelBlobAndFile(data, customFileName, scope);
+  const summaryText = generateWhatsAppSummary(data, scope as any);
+
+  // Check if Web Share API with files is available on this browser/device
+  const canShareFiles =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [file] });
+
+  if (canShareFiles) {
+    try {
+      await navigator.share({
+        files: [file],
+        title: `Rekap OS Customer (${recordCount} PO)`,
+        text: summaryText,
+      });
+      return {
+        success: true,
+        method: 'web-share',
+        fileName: outputFileName,
+        message: `File Excel "${outputFileName}" berhasil dibagikan via WhatsApp!`,
+      };
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        return {
+          success: false,
+          method: 'cancelled',
+          fileName: outputFileName,
+          message: 'Berbagi file dibatalkan.',
+        };
+      }
+      console.warn('Web Share failed, fallback to automatic download + WhatsApp Web...', err);
+    }
+  }
+
+  // Fallback for desktop or browsers without native file share:
+  // 1. Trigger instant download of the file to Downloads folder
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = outputFileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  // 2. Open WhatsApp (wa.me) with summary text and an attachment reminder
+  const attachNotice = `\n\n*(Catatan: File Excel "${outputFileName}" telah otomatis terunduh ke perangkat Anda. Silakan lampirkan (attach 📎) file tersebut ke chat WhatsApp ini)*`;
+  const encodedText = encodeURIComponent(summaryText + attachNotice);
+  const waUrl = `https://wa.me/?text=${encodedText}`;
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+  return {
+    success: true,
+    method: 'download-and-web',
+    fileName: outputFileName,
+    message: `File "${outputFileName}" otomatis diunduh & WhatsApp dibuka. Silakan lampirkan file ke chat.`,
+  };
+}

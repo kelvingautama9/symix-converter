@@ -1,11 +1,12 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Share2, Copy, RefreshCw, FileCode, Check, BookOpen, ChevronDown, Layers, Zap } from 'lucide-react';
+import { Download, Share2, Copy, RefreshCw, FileCode, Check, BookOpen, ChevronDown, Layers, Zap, FileSpreadsheet } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { haptic } from '../utils/haptics';
 import { ExcelExportScope, WhatsAppReportScope } from '../types';
 
 interface ActionToolbarProps {
   onDownloadExcel: (scope?: ExcelExportScope) => void;
+  onShareExcelWhatsApp: (scope?: ExcelExportScope) => void;
   onOpenWhatsApp: (scope?: WhatsAppReportScope) => void;
   onCopyWhatsAppText: (scope?: WhatsAppReportScope) => void;
   onReset: () => void;
@@ -23,6 +24,7 @@ interface ActionToolbarProps {
 
 export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   onDownloadExcel,
+  onShareExcelWhatsApp,
   onOpenWhatsApp,
   onCopyWhatsAppText,
   onReset,
@@ -66,6 +68,12 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
       colors: ['#141414', '#FF6B35', '#25D366', '#DEDEDE'],
     });
     onDownloadExcel(scope);
+  };
+
+  const triggerShareExcel = (scope: ExcelExportScope = 'ALL') => {
+    setIsExportMenuOpen(false);
+    haptic.medium();
+    onShareExcelWhatsApp(scope);
   };
 
   const handleWhatsAppClick = () => {
@@ -225,9 +233,76 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                   </span>
                 </button>
               </div>
+
+              {/* Direct Excel Share to WhatsApp Section */}
+              <div className="border-t border-[#141414]/15 pt-1.5 pb-1 bg-emerald-50/70">
+                <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-900 font-mono flex items-center gap-1.5">
+                  <FileSpreadsheet className="w-3 h-3 text-[#128C7E]" />
+                  <span>Kirim File Excel Langsung via WA</span>
+                </div>
+
+                <button
+                  type="button"
+                  id="btn-share-excel-all-dropdown"
+                  onClick={() => triggerShareExcel('ALL')}
+                  className="w-full text-left px-3.5 py-1.5 text-xs font-bold text-[#141414] hover:bg-emerald-100 flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Share2 className="w-3 h-3 text-[#25D366]" />
+                    <span>Kirim File Excel (Semua CO)</span>
+                  </div>
+                  <span className="px-1.5 py-0.2 bg-white text-[#141414] border border-[#141414]/30 text-[10px] font-mono font-bold">
+                    {totalRecords} PO
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-share-excel-open-dropdown"
+                  onClick={() => triggerShareExcel('OPEN_ONLY')}
+                  disabled={totalCOOpen === 0}
+                  className="w-full text-left px-3.5 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#2E7D32]" />
+                    <span>Kirim File Excel (CO Open)</span>
+                  </div>
+                  <span className="px-1.5 py-0.2 bg-white text-emerald-800 border border-emerald-400 text-[10px] font-mono font-bold">
+                    {totalCOOpen} PO
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="btn-share-excel-stock-ready-dropdown"
+                  onClick={() => triggerShareExcel('STOCK_READY_ALL')}
+                  disabled={totalStockReadyAll === 0}
+                  className="w-full text-left px-3.5 py-1.5 text-xs font-bold text-[#FF6B35] hover:bg-orange-100 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-3 h-3 fill-current text-[#FF6B35]" />
+                    <span>Kirim File Excel (Stock Ready)</span>
+                  </div>
+                  <span className="px-1.5 py-0.2 bg-white text-orange-900 border border-orange-300 text-[10px] font-mono font-bold">
+                    {totalStockReadyAll} PO
+                  </span>
+                </button>
+              </div>
             </div>
           )}
         </div>
+
+        {/* Quick Action: Direct Share Excel File to WhatsApp */}
+        <button
+          type="button"
+          id="btn-toolbar-share-excel-wa"
+          onClick={() => triggerShareExcel('ALL')}
+          className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 sm:px-4.5 py-2.5 bg-[#128C7E] hover:bg-[#075E54] text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
+          title="Kirim file Excel (.xlsx) langsung via WhatsApp"
+        >
+          <FileSpreadsheet className="w-4 h-4 shrink-0 text-[#25D366]" />
+          <span className="truncate">Kirim Excel ke WA</span>
+        </button>
 
         {/* Primary WhatsApp Share (Opens full modal generator) */}
         <button
