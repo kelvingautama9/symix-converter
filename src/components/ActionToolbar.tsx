@@ -7,7 +7,7 @@ import { ExcelExportScope, WhatsAppReportScope } from '../types';
 interface ActionToolbarProps {
   onDownloadExcel: (scope?: ExcelExportScope) => void;
   onShareExcelWhatsApp: (scope?: ExcelExportScope) => void;
-  onOpenWhatsApp: (scope?: WhatsAppReportScope) => void;
+  onOpenWhatsApp: (scope?: WhatsAppReportScope, mode?: 'EXCEL_FILE' | 'TEXT_SUMMARY') => void;
   onCopyWhatsAppText: (scope?: WhatsAppReportScope) => void;
   onReset: () => void;
   onToggleDoc: () => void;
@@ -320,9 +320,9 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           <button
             type="button"
             id="btn-copy-wa-text"
-            onClick={() => handleQuickCopy('ALL')}
+            onClick={() => handleQuickCopy(totalStockReadyAll > 0 ? 'STOCK_READY_ALL' : 'ALL')}
             className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-3.5 sm:px-4 py-2.5 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
-            title="Salin teks template WhatsApp ke clipboard"
+            title="Salin teks template WhatsApp clean ke clipboard"
           >
             {isCopied ? (
               <>
@@ -353,69 +353,95 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
 
           {/* Dropdown Menu Copy WA */}
           {isCopyMenuOpen && (
-            <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-72 max-w-[90vw] bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] z-50 py-1.5 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
+            <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2 w-80 max-w-[90vw] bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] z-50 py-1.5 font-sans animate-in fade-in slide-in-from-top-1 duration-150">
               <div className="px-3 py-1.5 border-b border-[#141414]/15 text-[10px] font-black uppercase tracking-wider text-[#141414]/60 font-mono">
-                Pilih Format Salin Teks WA
+                Pilih Format Salin Teks WA (Clean Template)
               </div>
 
-              <div className="py-1">
-                <button
-                  type="button"
-                  onClick={() => handleQuickCopy('ALL')}
-                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#141414] hover:bg-[#F0F0EE] flex items-center justify-between transition-colors cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <Copy className="w-3.5 h-3.5" />
-                    <span>Copy Semua CO ({totalRecords})</span>
-                  </div>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleQuickCopy('OPEN_ONLY')}
-                  disabled={totalCOOpen === 0}
-                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#2E7D32] hover:bg-emerald-50 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#2E7D32]" />
-                    <span>Copy Khusus CO Open ({totalCOOpen})</span>
-                  </div>
-                </button>
-              </div>
-
-              <div className="border-t border-[#141414]/15 pt-1.5 pb-1 bg-amber-50/40">
+              {/* Stock Ready (Clean Template) Options */}
+              <div className="py-1 bg-amber-50/40">
                 <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#FF6B35] font-mono flex items-center gap-1">
                   <Zap className="w-3 h-3 fill-current" />
-                  <span>Format Khusus Stock Ready</span>
+                  <span>Format Update Stock Ready (Utama)</span>
                 </div>
 
                 <button
                   type="button"
+                  id="dropdown-copy-stock-ready-all"
                   onClick={() => handleQuickCopy('STOCK_READY_ALL')}
                   disabled={totalStockReadyAll === 0}
-                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#FF6B35] hover:bg-orange-100/70 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#FF6B35] hover:bg-orange-100/80 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <Zap className="w-3.5 h-3.5 fill-current" />
-                    <span>Copy Stock Ready (Semua)</span>
+                    <div>
+                      <span className="block">Copy Stock Ready (Semua)</span>
+                      <span className="text-[10px] font-mono font-normal text-orange-950/70">
+                        &gt; (CO)-(Art) ukuran = stock (kg)
+                      </span>
+                    </div>
                   </div>
-                  <span className="px-1.5 py-0.5 bg-orange-100 text-orange-900 border border-orange-400 text-[10px] font-mono font-bold">
+                  <span className="px-1.5 py-0.5 bg-orange-100 text-orange-900 border border-orange-400 text-[10px] font-mono font-bold shrink-0">
                     {totalStockReadyAll}
                   </span>
                 </button>
 
                 <button
                   type="button"
+                  id="dropdown-copy-stock-ready-open"
                   onClick={() => handleQuickCopy('STOCK_READY_OPEN')}
                   disabled={totalStockReadyOpen === 0}
                   className="w-full text-left px-3.5 py-2 text-xs font-bold text-emerald-800 hover:bg-emerald-100/80 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <Zap className="w-3.5 h-3.5 fill-current text-emerald-600" />
-                    <span>Copy Stock Ready (CO Open)</span>
+                    <div>
+                      <span className="block">Copy Stock Ready (CO Open)</span>
+                      <span className="text-[10px] font-mono font-normal text-emerald-950/70">
+                        Khusus PO status Open
+                      </span>
+                    </div>
                   </div>
-                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-500 text-[10px] font-mono font-bold">
+                  <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-900 border border-emerald-500 text-[10px] font-mono font-bold shrink-0">
                     {totalStockReadyOpen}
+                  </span>
+                </button>
+              </div>
+
+              {/* Sisa OS Options */}
+              <div className="border-t border-[#141414]/15 py-1">
+                <div className="px-3 py-1 text-[10px] font-black uppercase tracking-wider text-[#141414]/60 font-mono">
+                  Format Sisa OS (Clean)
+                </div>
+
+                <button
+                  type="button"
+                  id="dropdown-copy-sisa-os-open"
+                  onClick={() => handleQuickCopy('OPEN_ONLY')}
+                  disabled={totalCOOpen === 0}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#2E7D32] hover:bg-emerald-50 flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-[#2E7D32]" />
+                    <span>Copy Sisa OS (Khusus CO Open)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-emerald-50 text-emerald-800 border border-emerald-400 text-[10px] font-mono font-bold shrink-0">
+                    {totalCOOpen}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="dropdown-copy-sisa-os-all"
+                  onClick={() => handleQuickCopy('ALL')}
+                  className="w-full text-left px-3.5 py-2 text-xs font-bold text-[#141414] hover:bg-[#F0F0EE] flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Semua CO (Sisa OS / Stock)</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-gray-100 text-gray-800 border border-gray-400 text-[10px] font-mono font-bold shrink-0">
+                    {totalRecords}
                   </span>
                 </button>
               </div>

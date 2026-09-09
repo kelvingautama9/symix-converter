@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
 import { ExtractedRecord, ParseSummary, ExcelExportScope, WhatsAppReportScope } from './types';
 import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
-import { exportToExcel, shareExcelFileToWhatsApp } from './utils/excelExporter';
+import { exportToExcel, shareExcelFileToWhatsApp, getExportFileName } from './utils/excelExporter';
 import { shareToWhatsApp, generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
 import { haptic } from './utils/haptics';
 import { DropZone } from './components/DropZone';
@@ -39,6 +39,7 @@ export default function App() {
   // Modals & UI state
   const [isWAModalOpen, setIsWAModalOpen] = useState(false);
   const [waModalInitialScope, setWaModalInitialScope] = useState<WhatsAppReportScope>('ALL');
+  const [waModalInitialMode, setWaModalInitialMode] = useState<'EXCEL_FILE' | 'TEXT_SUMMARY'>('EXCEL_FILE');
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
@@ -138,18 +139,7 @@ export default function App() {
   const handleDownloadExcel = (scope: ExcelExportScope = 'ALL') => {
     if (!data || data.length === 0) return;
     haptic.success();
-    let filename = 'Rekap_Customer_Terbaru.xlsx';
-    if (scope === 'OPEN_ONLY') {
-      filename = 'Rekap_Customer_CO_OPEN.xlsx';
-    } else if (scope === 'CLOSED_ONLY') {
-      filename = 'Rekap_Customer_CO_CLOSED.xlsx';
-    } else if (scope === 'STOCK_READY_ALL') {
-      filename = 'Rekap_Customer_STOCK_READY_SEMUA_CO.xlsx';
-    } else if (scope === 'STOCK_READY_OPEN') {
-      filename = 'Rekap_Customer_STOCK_READY_CO_OPEN.xlsx';
-    } else if (scope === 'STOCK_READY_CLOSED') {
-      filename = 'Rekap_Customer_STOCK_READY_CO_CLOSED.xlsx';
-    }
+    const filename = getExportFileName(currentFileName, scope);
     exportToExcel(data, filename, scope);
   };
 
@@ -157,19 +147,7 @@ export default function App() {
     if (!data || data.length === 0) return;
     haptic.medium();
     try {
-      let filename = 'Rekap_Customer_Terbaru.xlsx';
-      if (scope === 'OPEN_ONLY') {
-        filename = 'Rekap_Customer_CO_OPEN.xlsx';
-      } else if (scope === 'CLOSED_ONLY') {
-        filename = 'Rekap_Customer_CO_CLOSED.xlsx';
-      } else if (scope === 'STOCK_READY_ALL') {
-        filename = 'Rekap_Customer_STOCK_READY_SEMUA_CO.xlsx';
-      } else if (scope === 'STOCK_READY_OPEN') {
-        filename = 'Rekap_Customer_STOCK_READY_CO_OPEN.xlsx';
-      } else if (scope === 'STOCK_READY_CLOSED') {
-        filename = 'Rekap_Customer_STOCK_READY_CO_CLOSED.xlsx';
-      }
-
+      const filename = getExportFileName(currentFileName, scope);
       const result = await shareExcelFileToWhatsApp(data, scope, filename);
       if (result.success) {
         haptic.success();
@@ -191,10 +169,14 @@ export default function App() {
     }
   };
 
-  const handleOpenWhatsApp = (scope: WhatsAppReportScope = 'ALL') => {
+  const handleOpenWhatsApp = (
+    scope: WhatsAppReportScope = 'ALL',
+    mode: 'EXCEL_FILE' | 'TEXT_SUMMARY' = 'EXCEL_FILE'
+  ) => {
     if (!data || data.length === 0) return;
     haptic.medium();
     setWaModalInitialScope(scope);
+    setWaModalInitialMode(mode);
     setIsWAModalOpen(true);
   };
 
@@ -469,7 +451,9 @@ export default function App() {
         isOpen={isWAModalOpen}
         onClose={() => setIsWAModalOpen(false)}
         data={data}
+        currentFileName={currentFileName}
         initialScope={waModalInitialScope}
+        initialMode={waModalInitialMode}
       />
 
       <ParserRulesModal

@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx';
 import { ExtractedRecord, ExcelExportScope } from '../types';
 import { recalculateFIFOStock } from './parserEngine';
-import { generateWhatsAppSummary } from './whatsappHelper';
 
 export const EXCEL_COLUMNS = [
   'CO',
@@ -35,6 +34,51 @@ export interface ShareExcelResult {
   method: 'web-share' | 'download-and-web' | 'cancelled';
   fileName: string;
   message: string;
+}
+
+/**
+ * Resolves the export filename based on the uploaded file's original name and requested scope.
+ * E.g., if uploaded file is "jirec.xls":
+ * - 'ALL' -> "jirec.xlsx"
+ * - 'OPEN_ONLY' -> "jirec_CO_OPEN.xlsx"
+ * - 'CLOSED_ONLY' -> "jirec_CO_CLOSED.xlsx"
+ * - 'STOCK_READY_ALL' -> "jirec_STOCK_READY_SEMUA_CO.xlsx"
+ * - 'STOCK_READY_OPEN' -> "jirec_STOCK_READY_CO_OPEN.xlsx"
+ * - 'STOCK_READY_CLOSED' -> "jirec_STOCK_READY_CO_CLOSED.xlsx"
+ *
+ * If no uploaded filename is provided, defaults to "Rekap_Customer.xlsx".
+ */
+export function getExportFileName(
+  uploadedFileName?: string | null,
+  scope: ExcelExportScope | string = 'ALL'
+): string {
+  let baseName = 'Rekap_Customer';
+  if (uploadedFileName) {
+    let clean = uploadedFileName.trim();
+    // Strip any directory path segments if present
+    clean = clean.split(/[/\\]/).pop() || clean;
+    // Strip extension (e.g. .xls, .xlsx, .csv)
+    const stripped = clean.replace(/\.[^/.]+$/, '');
+    if (stripped) {
+      baseName = stripped;
+    }
+  }
+
+  switch (scope) {
+    case 'OPEN_ONLY':
+      return `${baseName}_CO_OPEN.xlsx`;
+    case 'CLOSED_ONLY':
+      return `${baseName}_CO_CLOSED.xlsx`;
+    case 'STOCK_READY_ALL':
+      return `${baseName}_STOCK_READY_SEMUA_CO.xlsx`;
+    case 'STOCK_READY_OPEN':
+      return `${baseName}_STOCK_READY_CO_OPEN.xlsx`;
+    case 'STOCK_READY_CLOSED':
+      return `${baseName}_STOCK_READY_CO_CLOSED.xlsx`;
+    case 'ALL':
+    default:
+      return `${baseName}.xlsx`;
+  }
 }
 
 /**
@@ -246,17 +290,16 @@ export function exportToExcel(
 
 /**
  * Shares the generated Excel file directly to WhatsApp:
- * - On supported devices (Mobile / Web Share API L2): Direct native share with the .xlsx file attached!
- * - On desktop browsers: Automatically downloads the .xlsx file and opens WhatsApp Web with the summary text
- *   and instructions to attach the file.
+ * - Strictly ONLY the .xlsx file is shared ("tanpa ketikan").
+ * - On supported devices (Mobile / Web Share API L2): Direct native share with the .xlsx file attached (no text caption).
+ * - On desktop browsers: Automatically downloads the .xlsx file and opens WhatsApp with no prefilled text.
  */
 export async function shareExcelFileToWhatsApp(
   data: ExtractedRecord[],
   scope: ExcelExportScope = 'ALL',
   customFileName?: string
 ): Promise<ShareExcelResult> {
-  const { blob, file, outputFileName, recordCount } = generateExcelBlobAndFile(data, customFileName, scope);
-  const summaryText = generateWhatsAppSummary(data, scope as any);
+  const { blob, file, outputFileName } = generateExcelBlobAndFile(data, customFileName, scope);
 
   // Check if Web Share API with files is available on this browser/device
   const canShareFiles =
@@ -266,16 +309,15 @@ export async function shareExcelFileToWhatsApp(
 
   if (canShareFiles) {
     try {
+      // Pass ONLY the file document — strictly no text / no caption ("tanpa ketikan")
       await navigator.share({
         files: [file],
-        title: `Rekap OS Customer (${recordCount} PO)`,
-        text: summaryText,
       });
       return {
         success: true,
         method: 'web-share',
         fileName: outputFileName,
-        message: `File Excel "${outputFileName}" berhasil dibagikan via WhatsApp!`,
+        message: `File Excel "${outputFileName}" berhasil dibagikan langsung (hanya file .xlsx)!`,
       };
     } catch (err: any) {
       if (err?.name === 'AbortError') {
@@ -286,7 +328,7 @@ export async function shareExcelFileToWhatsApp(
           message: 'Berbagi file dibatalkan.',
         };
       }
-      console.warn('Web Share failed, fallback to automatic download + WhatsApp Web...', err);
+      console.warn('Web Share failed or blocked, fallback to download + WhatsApp without text...', err);
     }
   }
 
@@ -301,16 +343,15 @@ export async function shareExcelFileToWhatsApp(
   document.body.removeChild(anchor);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-  // 2. Open WhatsApp (wa.me) with summary text and an attachment reminder
-  const attachNotice = `\n\n*(Catatan: File Excel "${outputFileName}" telah otomatis terunduh ke perangkat Anda. Silakan lampirkan (attach 📎) file tersebut ke chat WhatsApp ini)*`;
-  const encodedText = encodeURIComponent(summaryText + attachNotice);
-  const waUrl = `https://wa.me/?text=${encodedText}`;
+  // 2. Open WhatsApp directly with NO text parameters ("tanpa ketikan")
+  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  const waUrl = isMobile ? 'https://wa.me/' : 'https://web.whatsapp.com/';
   window.open(waUrl, '_blank', 'noopener,noreferrer');
 
   return {
     success: true,
     method: 'download-and-web',
     fileName: outputFileName,
-    message: `File "${outputFileName}" otomatis diunduh & WhatsApp dibuka. Silakan lampirkan file ke chat.`,
+    message: `File "${outputFileName}" berhasil diunduh & WhatsApp dibuka (hanya file .xlsx, tanpa ketikan). Silakan lampirkan file ke chat.`,
   };
 }
