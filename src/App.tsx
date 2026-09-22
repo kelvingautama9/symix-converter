@@ -78,7 +78,7 @@ export default function App() {
 
         if (!parsedData || parsedData.length === 0) {
           throw new Error(
-            'Tidak ada data Purchase Order (SH-/ST- dan DAP/PO) yang valid ditemukan pada sheet ini. Pastikan format file sesuai struktur ERP.'
+            'Tidak ada data Purchase Order (SH-/ST-/BX-/DC- dan DAP/PO) yang valid ditemukan pada sheet ini. Pastikan format file sesuai struktur ERP.'
           );
         }
 
@@ -305,7 +305,7 @@ export default function App() {
                     </div>
                     <ul className="text-xs font-mono space-y-1.5 text-[#141414]/90 mt-3">
                       <li className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#141414]">✓</span> Detect Parent [SH-/ST-]
+                        <span className="font-bold text-[#141414]">✓</span> Detect Parent [SH-/ST-/BX-/DC-]
                       </li>
                       <li className="flex items-center gap-1.5">
                         <span className="font-bold text-[#141414]">✓</span> Clean Date Prefixes from PO

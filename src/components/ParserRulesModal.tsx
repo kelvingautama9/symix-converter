@@ -61,7 +61,7 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span>Stage 1: Parent Detection (Article Item)</span>
             </div>
             <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
-              Triggered when <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] text-[#141414]">row[0]</code> starts with <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] font-bold text-[#141414]">"SH-"</code> or <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] font-bold text-[#141414]">"ST-"</code>.
+              Triggered when <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] text-[#141414]">row[0]</code> starts with <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] font-bold text-[#141414]">"SH-"</code>, <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] font-bold text-[#141414]">"ST-"</code>, <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] font-bold text-[#141414]">"BX-"</code>, or <code className="bg-[#DEDEDE] px-1 py-0.5 border border-[#141414] font-bold text-[#141414]">"DC-"</code>.
             </p>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
               <li>Stores <code className="font-bold">row[0]</code> as <strong>Artikel</strong>, <code className="font-bold">row[1]</code> as <strong>Description</strong>, and <code className="font-bold">row[3]</code> as <strong>Substance</strong>.</li>

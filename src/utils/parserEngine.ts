@@ -27,6 +27,21 @@ export function parseCoStatus(coText: string | undefined | null): CoStatus {
 }
 
 /**
+ * Check if row[0] represents a parent Article Item:
+ * Triggered when row[0] starts with "SH-" or "ST-" or "BX-" or "DC-"
+ */
+export function isParentArticleItem(val: string | undefined | null): boolean {
+  if (!val) return false;
+  const upper = String(val).trim().toUpperCase();
+  return (
+    upper.startsWith('SH-') ||
+    upper.startsWith('ST-') ||
+    upper.startsWith('BX-') ||
+    upper.startsWith('DC-')
+  );
+}
+
+/**
  * Check if a row is an ERP page header, SYMIX banner, or table separator/column header that should be skipped.
  */
 export function isIgnoredHeaderRow(r: any[]): boolean {
@@ -36,9 +51,9 @@ export function isIgnoredHeaderRow(r: any[]): boolean {
   const hasAnyContent = r.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
   if (!hasAnyContent) return true;
 
-  const valA = getStr(r, 0).toUpperCase();
-  // Never ignore parent item records
-  if (valA.startsWith('SH-') || valA.startsWith('ST-')) {
+  const valA = getStr(r, 0);
+  // Never ignore parent item records (SH-, ST-, BX-, DC-)
+  if (isParentArticleItem(valA)) {
     return false;
   }
 
@@ -130,7 +145,10 @@ export function isIgnoredHeaderRow(r: any[]): boolean {
           t
         ) || /^[-_]+$/.test(t)
     );
-  if (isAllUnitTokens && !tokens.includes('SH-') && !tokens.includes('ST-')) {
+  if (
+    isAllUnitTokens &&
+    !tokens.some((t) => isParentArticleItem(t))
+  ) {
     return true;
   }
 
@@ -232,8 +250,8 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     const valC = getStr(r, 2);
     const valD = getStr(r, 3);
 
-    // 1. TAHAP DETEKSI PARENT (BARIS ITEM CARTON/BOX: SH- atau ST-)
-    if (valA.startsWith('SH-') || valA.startsWith('ST-')) {
+    // 1. TAHAP DETEKSI PARENT (BARIS ITEM CARTON/BOX: SH-, ST-, BX-, atau DC-)
+    if (isParentArticleItem(valA)) {
       if (currentPO) {
         if (!currentPO._has_delivery) {
           currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
@@ -280,8 +298,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
       !valA.startsWith('---') &&
       !valA.startsWith('Item') &&
       !valA.startsWith('TOTAL') &&
-      !valA.startsWith('SH-') &&
-      !valA.startsWith('ST-')
+      !isParentArticleItem(valA)
     ) {
       if ((valA.length > 0 || valB.length > 3) && !valA.includes('Gramature') && !valA.includes('Stock')) {
         if (currentPO) {
