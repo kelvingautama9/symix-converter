@@ -55,6 +55,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastFailedQuery, setLastFailedQuery] = useState<string | null>(null);
   const [showKeyModal, setShowKeyModal] = useState(false);
   const [customApiKey, setCustomApiKey] = useState<string>(() => {
     return typeof window !== 'undefined' ? localStorage.getItem('blackeye_gemini_key') || '' : '';
@@ -177,11 +178,22 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       };
 
       setMessages((prev) => [...prev, modelMessage]);
+      setLastFailedQuery(null);
       haptic.success();
     } catch (err: any) {
       console.error('Chat error:', err);
       haptic.error();
-      setErrorMessage(err?.message || 'Terjadi gangguan saat menghubungi AI.');
+      setLastFailedQuery(query);
+
+      let msg = err?.message || 'Terjadi gangguan saat menghubungi AI.';
+      if (typeof msg === 'string') {
+        if (msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
+          msg = 'Server Google Gemini sedang mengalami lonjakan antrean trafik (503). Silakan tekan tombol "Coba Lagi" di bawah.';
+        } else if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
+          msg = 'Batas kuota harian atau frekuensi request tercapai. Silakan tunggu sebentar lalu coba lagi.';
+        }
+      }
+      setErrorMessage(msg);
     } finally {
       setIsLoading(false);
     }
@@ -407,7 +419,18 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                   <AlertTriangle className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
                   <div className="flex-1">
                     <strong className="block mb-1 text-red-900">Perhatian:</strong>
-                    <div className="leading-relaxed">{errorMessage}</div>
+                    <div className="leading-relaxed mb-2">{errorMessage}</div>
+                    {lastFailedQuery && (
+                      <button
+                        type="button"
+                        onClick={() => handleSendMessage(lastFailedQuery)}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-red-800 hover:bg-red-900 text-white font-bold text-[11px] border border-red-950 shadow-[1px_1px_0px_#141414] transition-colors cursor-pointer"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        <span>Coba Lagi</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

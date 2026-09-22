@@ -98,22 +98,21 @@ ${records.length > sampleLimit ? `\n*(Catatan: Menampilkan ${sampleLimit} dari t
     }
 
     const systemInstruction = `
-Anda adalah "BlackEYE AI Assistant", asisten cerdas spesialis analisa data ERP SYMIX, PPIC, dan Logistik Pergudangan untuk konverter data Excel.
+Anda adalah "BlackEYE AI Assistant", asisten data ERP SYMIX, PPIC, dan Logistik Pergudangan.
 
-TUGAS UTAMA:
-1. Membaca dan menganalisis data hasil konversi Excel yang diberikan di bagian DATA KONTEKS.
-2. Menjawab pertanyaan pengguna terkait:
-   - Status Customer Order (CO): status OPEN (O) vs CLOSED (C).
-   - Kode Artikel: SH- (Sheet), ST- (Sheet / Standard), BX- (Box), DC- (Die-cut).
-   - Stok Ready: ketersediaan stock barang jadi di gudang untuk pemenuhan PO.
-   - Sisa OS (Order Status): sisa pesanan yang belum terkirim dalam unit pcs dan kg (tonase).
-   - Pengiriman (Terkirim): jumlah barang yang sudah dikirimkan via Surat Jalan (P26).
-   - Harga dan No Purchase Order (PO).
-3. Jika pengguna meminta rekapitulasi atau perbandingan, sajikan dalam format teks yang rapi, profesional, dan gunakan tabel Markdown atau poin ringkas bila diperlukan.
-4. Bersikap ramah, ringkas, solutif, dan gunakan Bahasa Indonesia yang baik dan profesional.
-5. Jika pengguna menanyakan sesuatu di luar data yang diunggah, jawablah dengan sopan berdasarkan pengetahuan umum industri manufaktur/packaging atau sarankan untuk mengunggah file yang sesuai.
+PEDOMAN PENTING & GAYA JAWABAN (HEMAT TOKEN):
+1. **TO THE POINT & SINGKAT**: Jawab langsung ke inti pertanyaan atau data angka yang ditanyakan. Jangan ada basa-basi pembuka ("Tentu saya akan membantu...", "Berdasarkan data yang Anda berikan...") ataupun penutup klise ("Semoga membantu...").
+2. **MAKSIMAL 2-4 KALIMAT** atau 1 tabel ringkas, kecuali jika pengguna secara eksplisit meminta penjelasan panjang atau rincian lengkap.
+3. **FORMAT DATA**: Gunakan poin ringkas (bullet points) atau tabel Markdown kecil yang rapi untuk angka/kuantitas.
+4. **DOMAIN DATA**:
+   - Status Customer Order (CO): OPEN (O) vs CLOSED (C).
+   - Kategori Artikel: SH- (Sheet), ST- (Standard sheet), BX- (Box), DC- (Die-cut).
+   - Stok Ready: ketersediaan stock gudang untuk pemenuhan PO.
+   - Sisa OS: sisa pesanan belum terkirim (pcs & kg/tonase).
+   - Terkirim: akumulasi kirim Surat Jalan (P26).
+5. Jika data yang ditanyakan tidak ditemukan pada file, jawab singkat: "Data [nama/kode] tidak ditemukan pada tabel yang diunggah."
 
-DATA KONTEKS SAAT INI:
+DATA KONTEKS:
 ${datasetContextText}
 `;
 
@@ -137,16 +136,42 @@ ${datasetContextText}
       parts: [{ text: message }],
     });
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents,
-      config: {
-        systemInstruction,
-        temperature: 0.2, // low temperature for analytical accuracy
-      },
-    });
+    // Multi-model fallback chain to handle Google server load spikes (503 / 429)
+    const candidateModels = [
+      'gemini-2.5-flash',
+      'gemini-3.8-flash',
+      'gemini-3.1-flash-lite',
+      'gemini-flash-latest',
+    ];
 
-    const replyText = response.text || 'Maaf, saya tidak dapat memproses jawaban saat ini.';
+    let lastError: any = null;
+    let replyText = '';
+
+    for (const modelName of candidateModels) {
+      try {
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents,
+          config: {
+            systemInstruction,
+            temperature: 0.2, // low temperature for analytical accuracy
+            maxOutputTokens: 800, // batasan output agar hemat token dan tidak bertele-tele
+          },
+        });
+
+        if (response && response.text) {
+          replyText = response.text;
+          break; // successfully got response, exit loop
+        }
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Model ${modelName} failed (${err?.message || err}), switching to next fallback...`);
+      }
+    }
+
+    if (!replyText) {
+      throw lastError || new Error('Semua model AI sedang sibuk. Silakan coba kembali.');
+    }
 
     return res.status(200).json({
       success: true,
@@ -154,9 +179,21 @@ ${datasetContextText}
     });
   } catch (error: any) {
     console.error('Error in /api/chat Gemini processing:', error);
+
+    let friendlyMessage = error?.message || 'Terjadi kesalahan saat memproses pertanyaan dengan AI.';
+
+    // Clean up raw JSON error messages from upstream Google API
+    if (typeof friendlyMessage === 'string') {
+      if (friendlyMessage.includes('503') || friendlyMessage.includes('high demand') || friendlyMessage.includes('UNAVAILABLE')) {
+        friendlyMessage = 'Server Google AI sedang mengalami lonjakan trafik sementara (503). Silakan klik tombol "Coba Lagi" atau ulangi sesaat lagi.';
+      } else if (friendlyMessage.includes('429') || friendlyMessage.includes('RESOURCE_EXHAUSTED')) {
+        friendlyMessage = 'Batas kuota gratis harian tercapai atau terlalu cepat mengirim pesan. Silakan tunggu 30 detik lalu coba lagi.';
+      }
+    }
+
     return res.status(500).json({
       error: 'GEMINI_PROCESSING_ERROR',
-      message: error?.message || 'Terjadi kesalahan saat memproses pertanyaan dengan AI.',
+      message: friendlyMessage,
     });
   }
 }
