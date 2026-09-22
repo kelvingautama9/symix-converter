@@ -71,6 +71,7 @@ Total PO Status CLOSED: ${summary.closedCount || records.filter((r: any) => r.co
 Total Tonase Sisa OS: ${summary.totalSisaKg ? (summary.totalSisaKg / 1000).toFixed(2) + ' Ton (' + summary.totalSisaKg.toLocaleString() + ' kg)' : '-'}
 Total Pcs Sisa OS: ${summary.totalSisaPcs ? summary.totalSisaPcs.toLocaleString() + ' Pcs' : '-'}
 Total Stok Gudang: ${summary.totalStockPcs ? summary.totalStockPcs.toLocaleString() + ' Pcs (' + (summary.totalStockKg || 0).toLocaleString() + ' kg)' : '-'}
+Estimasi Valuasi Sisa OS: ${summary.totalValue ? 'Rp ' + summary.totalValue.toLocaleString('id-ID') : '-'}
 
 Daftar Data Record PO (Format JSON Singkat):
 ${JSON.stringify(
@@ -118,8 +119,13 @@ PEDOMAN FORMAT JAWABAN (WAJIB DIIKUTI):
        • Stok Ready: 520 pcs (156 kg)
        • Sisa OS: 520 pcs
        • Status: OPEN
-4. **ANGKA & NOTASI**:
+4. **ANGKA, MATA UANG & NOTASI**:
    - Tampilkan angka dalam format ribuan yang jelas (misal: 10.100 pcs, 2.411 kg).
+   - Format Penyingkatan Rupiah Indonesia (JANGAN gunakan 'M' untuk Juta!):
+     • RB = Ribu (misal: Rp 500 RB)
+     • JT = Juta (misal: Rp 268.4 JT)
+     • M = Miliar (misal: Rp 1.5 M)
+     • T = Triliun (misal: Rp 2.1 T)
    - Kategori Artikel: SH- (Sheet), ST- (Standard sheet), BX- (Box), DC- (Die-cut).
 5. Jika data yang ditanyakan tidak ditemukan pada file, jawab singkat: "Data [nama/kode] tidak ditemukan pada tabel yang diunggah."
 

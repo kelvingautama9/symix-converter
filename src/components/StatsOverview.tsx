@@ -6,6 +6,28 @@ interface StatsOverviewProps {
   summary: ParseSummary;
 }
 
+const formatIndonesianCurrency = (value: number): string => {
+  if (!value || isNaN(value) || value <= 0) return 'Rp 0';
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000_000) {
+    const formatted = (value / 1_000_000_000_000).toFixed(1).replace(/\.0$/, '');
+    return `Rp ${formatted}T`;
+  }
+  if (abs >= 1_000_000_000) {
+    const formatted = (value / 1_000_000_000).toFixed(1).replace(/\.0$/, '');
+    return `Rp ${formatted}M`;
+  }
+  if (abs >= 1_000_000) {
+    const formatted = (value / 1_000_000).toFixed(1).replace(/\.0$/, '');
+    return `Rp ${formatted}JT`;
+  }
+  if (abs >= 1_000) {
+    const formatted = (value / 1_000).toFixed(1).replace(/\.0$/, '');
+    return `Rp ${formatted}RB`;
+  }
+  return `Rp ${value.toLocaleString('id-ID')}`;
+};
+
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
   const fulfillmentPct = summary.totalQtyOrderPcs > 0
     ? Math.round(((summary.totalQtyOrderPcs - summary.totalSisaOSPcs) / summary.totalQtyOrderPcs) * 100)
@@ -112,9 +134,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         </div>
         <div>
           <div className="text-lg sm:text-2xl font-black font-mono text-[#141414] tracking-tight truncate" title={`Rp ${summary.totalValue.toLocaleString('id-ID')}`}>
-            {summary.totalValue > 0
-              ? `Rp ${(summary.totalValue / 1_000_000).toFixed(1)}M`
-              : 'Rp 0'}
+            {formatIndonesianCurrency(summary.totalValue)}
           </div>
           <p className="text-[10px] sm:text-[11px] text-[#141414]/70 mt-1 font-mono truncate">
             {summary.itemsWithDelivery} item parsial
