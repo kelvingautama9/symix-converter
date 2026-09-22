@@ -455,7 +455,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
   // Membersihkan metadata internal non-persistent sebelum dikembalikan
   // (_parentIndex, _parentStockPcs, _parentStockKg tetap disimpan untuk dynamic recalculation saat user filter CO Open / Closed)
-  return allocated.map((item) => {
+  return allocated.map((item, idx) => {
     const qtyPcs = item['QTY PO (pcs)'] || 0;
     const qtyKg = item['Berat PO (KG)'] || 0;
     const sisaPcs = item['Sisa OS (pcs)'] || 0;
@@ -463,6 +463,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
     const cleaned: ExtractedRecord = {
       ...item,
+      id: item.id || `po_rec_${idx + 1}`,
       'Terkirim (PCS)': Math.max(0, qtyPcs - sisaPcs),
       'Terkirim (KG)': Math.max(0, qtyKg - sisaKg),
     };

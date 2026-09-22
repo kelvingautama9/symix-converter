@@ -37,7 +37,7 @@ interface AIChatDrawerProps {
   currentFileName: string | null;
 }
 
-type ChatSizeMode = 'compact' | 'wide' | 'fullscreen';
+type ChatSizeMode = 'mini' | 'compact' | 'wide' | 'fullscreen';
 
 export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   isOpen,
@@ -75,6 +75,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeftState, setScrollLeftState] = useState(0);
+  const hasDraggedRef = useRef(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -99,23 +100,38 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   const updateScrollButtons = () => {
     if (quickPromptsRef.current) {
       const { scrollLeft, scrollWidth, clientWidth } = quickPromptsRef.current;
-      setCanScrollLeft(scrollLeft > 6);
-      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 6);
+      setCanScrollLeft(scrollLeft > 4);
+      setCanScrollRight(scrollLeft + clientWidth < scrollWidth - 4);
     }
   };
 
   useEffect(() => {
     if (isOpen) {
-      setTimeout(updateScrollButtons, 200);
+      const timer = setTimeout(updateScrollButtons, 150);
+      window.addEventListener('resize', updateScrollButtons);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('resize', updateScrollButtons);
+      };
     }
   }, [isOpen, sizeMode]);
 
   const handleScrollCarousel = (direction: 'left' | 'right') => {
     if (quickPromptsRef.current) {
       haptic.light();
-      const distance = direction === 'left' ? -220 : 220;
+      const distance = direction === 'left' ? -240 : 240;
       quickPromptsRef.current.scrollBy({ left: distance, behavior: 'smooth' });
-      setTimeout(updateScrollButtons, 250);
+      setTimeout(updateScrollButtons, 260);
+    }
+  };
+
+  const handleWheelCarousel = (e: React.WheelEvent) => {
+    if (quickPromptsRef.current) {
+      const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+      if (delta !== 0) {
+        quickPromptsRef.current.scrollLeft += delta;
+        updateScrollButtons();
+      }
     }
   };
 
@@ -123,15 +139,18 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   const handleMouseDownCarousel = (e: React.MouseEvent) => {
     if (!quickPromptsRef.current) return;
     setIsDragging(true);
+    hasDraggedRef.current = false;
     setStartX(e.pageX - quickPromptsRef.current.offsetLeft);
     setScrollLeftState(quickPromptsRef.current.scrollLeft);
   };
 
   const handleMouseMoveCarousel = (e: React.MouseEvent) => {
     if (!isDragging || !quickPromptsRef.current) return;
-    e.preventDefault();
     const x = e.pageX - quickPromptsRef.current.offsetLeft;
     const walk = (x - startX) * 1.5;
+    if (Math.abs(walk) > 4) {
+      hasDraggedRef.current = true;
+    }
     quickPromptsRef.current.scrollLeft = scrollLeftState - walk;
     updateScrollButtons();
   };
@@ -304,10 +323,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       case 'fullscreen':
         return 'fixed inset-0 sm:inset-3 z-50 w-full sm:w-[calc(100vw-24px)] h-full sm:h-[calc(100vh-24px)] max-w-full sm:border-2 border-[#141414] shadow-2xl';
       case 'wide':
-        return 'fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 w-full sm:w-[860px] md:w-[940px] h-[94vh] sm:h-[760px] max-h-[96vh] sm:border-2 border-[#141414] sm:shadow-[8px_8px_0px_#141414]';
+        return 'fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 w-full sm:w-[860px] md:w-[960px] h-[94vh] sm:h-[780px] max-h-[96vh] sm:border-2 border-[#141414] sm:shadow-[8px_8px_0px_#141414]';
+      case 'mini':
+        return 'fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 w-full sm:w-[390px] h-[55vh] sm:h-[460px] max-h-[85vh] sm:border-2 border-[#141414] sm:shadow-[4px_4px_0px_#141414]';
       case 'compact':
       default:
-        return 'fixed bottom-0 right-0 sm:bottom-5 sm:right-5 z-50 w-full sm:w-[480px] h-[92vh] sm:h-[650px] max-h-[95vh] sm:border-2 border-[#141414] sm:shadow-[6px_6px_0px_#141414]';
+        return 'fixed bottom-0 right-0 sm:bottom-5 sm:right-5 z-50 w-full sm:w-[500px] h-[90vh] sm:h-[650px] max-h-[95vh] sm:border-2 border-[#141414] sm:shadow-[6px_6px_0px_#141414]';
     }
   };
 
@@ -374,6 +395,22 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               <div className="hidden sm:flex items-center bg-white/10 border border-white/20 p-0.5 mr-1">
                 <button
                   type="button"
+                  id="btn-size-mini"
+                  onClick={() => {
+                    haptic.light();
+                    setSizeMode('mini');
+                  }}
+                  className={`px-1.5 py-1 text-[10px] font-mono font-bold uppercase transition-colors ${
+                    sizeMode === 'mini'
+                      ? 'bg-white text-[#141414] shadow-sm'
+                      : 'text-white/70 hover:text-white'
+                  }`}
+                  title="Perkecil Ukuran (Mini 390px)"
+                >
+                  Mini
+                </button>
+                <button
+                  type="button"
                   id="btn-size-compact"
                   onClick={() => {
                     haptic.light();
@@ -427,18 +464,33 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 </button>
               </div>
 
-              {/* Mobile Quick Maximize Button */}
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.light();
-                  setSizeMode(sizeMode === 'fullscreen' ? 'compact' : 'fullscreen');
-                }}
-                className="sm:hidden p-1.5 text-white/70 hover:text-white"
-                title="Layar Penuh"
-              >
-                {sizeMode === 'fullscreen' ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-              </button>
+              {/* Mobile Quick Size Buttons */}
+              <div className="sm:hidden flex items-center bg-white/10 border border-white/20 p-0.5 mr-0.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.light();
+                    setSizeMode(sizeMode === 'mini' ? 'compact' : 'mini');
+                  }}
+                  className={`px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase ${
+                    sizeMode === 'mini' ? 'bg-white text-[#141414]' : 'text-white/80'
+                  }`}
+                  title="Toggle Ukuran Mini"
+                >
+                  {sizeMode === 'mini' ? 'Norm' : 'Mini'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.light();
+                    setSizeMode(sizeMode === 'fullscreen' ? 'compact' : 'fullscreen');
+                  }}
+                  className={`p-1 ${sizeMode === 'fullscreen' ? 'bg-white text-[#141414]' : 'text-white/80'}`}
+                  title="Layar Penuh"
+                >
+                  {sizeMode === 'fullscreen' ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
 
               <button
                 type="button"
@@ -583,7 +635,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                     )}
 
                     {/* Markdown Content with full GFM Table Support */}
-                    <div className="markdown-content font-sans text-xs break-words overflow-x-hidden">
+                    <div className="markdown-content font-sans text-xs break-words overflow-x-auto">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -727,31 +779,33 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Quick Prompts Carousel with Left/Right Arrows & Drag to Scroll */}
-          <div className="relative bg-white border-t border-[#141414]/20 px-1 py-2 flex items-center shrink-0">
+          {/* Quick Prompts Carousel with Left/Right Arrows, Wheel & Touch Pan */}
+          <div className="relative bg-white border-t border-[#141414]/20 px-1.5 py-2 flex items-center gap-1.5 shrink-0">
             {/* Left Scroll Button */}
             <button
               type="button"
               onClick={() => handleScrollCarousel('left')}
               disabled={!canScrollLeft}
-              className={`p-1 text-[#141414] hover:bg-[#EAEAEA] border border-[#141414]/30 rounded-none shrink-0 transition-opacity ${
-                canScrollLeft ? 'opacity-100 cursor-pointer' : 'opacity-20 cursor-not-allowed'
+              className={`p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center text-[#141414] hover:bg-[#FF6B35] hover:text-white border-2 border-[#141414] rounded-none shrink-0 transition-all shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
+                canScrollLeft ? 'opacity-100 cursor-pointer bg-white' : 'opacity-25 cursor-not-allowed bg-[#EAEAEA]'
               }`}
-              title="Geser ke kiri"
+              title="Geser opsi pertanyaan ke kiri"
+              aria-label="Geser pertanyaan ke kiri"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
 
-            {/* Scrollable Container with Grab & Drag */}
+            {/* Scrollable Container with Grab & Drag & Wheel & Touch */}
             <div
               ref={quickPromptsRef}
               onScroll={updateScrollButtons}
+              onWheel={handleWheelCarousel}
               onMouseDown={handleMouseDownCarousel}
               onMouseMove={handleMouseMoveCarousel}
               onMouseUp={handleMouseUpOrLeaveCarousel}
               onMouseLeave={handleMouseUpOrLeaveCarousel}
-              className={`flex-1 flex gap-1.5 overflow-x-auto px-2 select-none scroll-smooth ${
-                isDragging ? 'cursor-grabbing' : 'cursor-grab'
+              className={`flex-1 flex gap-2 overflow-x-auto px-1 py-0.5 select-none touch-pan-x ${
+                isDragging ? 'cursor-grabbing' : 'cursor-grab scroll-smooth'
               }`}
               style={{ scrollbarWidth: 'thin' }}
             >
@@ -759,9 +813,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 <button
                   key={idx}
                   type="button"
-                  onClick={() => handleSendMessage(prompt)}
+                  onClick={() => {
+                    if (hasDraggedRef.current) return;
+                    handleSendMessage(prompt);
+                  }}
                   disabled={isLoading}
-                  className="whitespace-nowrap px-3 py-1.5 text-[11px] font-mono font-bold bg-[#EAEAEA] hover:bg-[#DEDEDE] text-[#141414] border border-[#141414] transition-colors cursor-pointer shrink-0 disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#141414]"
+                  className="whitespace-nowrap px-3 py-1.5 text-[11px] font-mono font-bold bg-[#F0F0EE] hover:bg-[#DEDEDE] text-[#141414] border-2 border-[#141414] transition-all cursor-pointer shrink-0 disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#141414]"
                 >
                   {prompt}
                 </button>
@@ -773,10 +830,11 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               type="button"
               onClick={() => handleScrollCarousel('right')}
               disabled={!canScrollRight}
-              className={`p-1 text-[#141414] hover:bg-[#EAEAEA] border border-[#141414]/30 rounded-none shrink-0 transition-opacity ${
-                canScrollRight ? 'opacity-100 cursor-pointer' : 'opacity-20 cursor-not-allowed'
+              className={`p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center text-[#141414] hover:bg-[#FF6B35] hover:text-white border-2 border-[#141414] rounded-none shrink-0 transition-all shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
+                canScrollRight ? 'opacity-100 cursor-pointer bg-white' : 'opacity-25 cursor-not-allowed bg-[#EAEAEA]'
               }`}
-              title="Geser ke kanan"
+              title="Geser opsi pertanyaan ke kanan"
+              aria-label="Geser pertanyaan ke kanan"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </button>

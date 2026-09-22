@@ -1,6 +1,7 @@
 export type CoStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
 
 export interface ExtractedRecord {
+  id?: string;
   CO: string;
   coStatus?: CoStatus;
   Artikel: string;

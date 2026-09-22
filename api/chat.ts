@@ -128,6 +128,8 @@ PEDOMAN FORMAT JAWABAN (WAJIB DIIKUTI):
      • T = Triliun (misal: Rp 2.1 T)
    - Kategori Artikel: SH- (Sheet), ST- (Standard sheet), BX- (Box), DC- (Die-cut).
 5. Jika data yang ditanyakan tidak ditemukan pada file, jawab singkat: "Data [nama/kode] tidak ditemukan pada tabel yang diunggah."
+6. **INTEGRITAS DATA LENGKAP**:
+   - Di antarmuka web, pengguna memiliki fitur kustomisasi untuk menyembunyikan (*hide*) Row/Kolom data tertentu (seperti 1. CO, 2. Artikel, 3. Item Description, dst) di layar untuk kenyamanan visual. Namun, kamu (AI Chatbot) tetap memiliki akses penuh terhadap seluruh data record PO asli. Jangan pernah menganggap data terhapus; jawablah dengan lengkap berdasarkan seluruh data konteks yang disediakan.
 
 DATA KONTEKS:
 ${datasetContextText}
