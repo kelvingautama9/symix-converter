@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Download, Share2, Copy, RefreshCw, FileCode, Check, BookOpen, ChevronDown, Layers, Zap, FileSpreadsheet } from 'lucide-react';
+import { Download, Share2, Copy, RefreshCw, FileCode, Check, BookOpen, ChevronDown, Layers, Zap, FileSpreadsheet, Bot, Sparkles } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { haptic } from '../utils/haptics';
 import { ExcelExportScope, WhatsAppReportScope } from '../types';
@@ -11,6 +11,7 @@ interface ActionToolbarProps {
   onCopyWhatsAppText: (scope?: WhatsAppReportScope) => void;
   onReset: () => void;
   onToggleDoc: () => void;
+  onOpenAIChat?: () => void;
   isCopied: boolean;
   sheets: string[];
   activeSheet: string;
@@ -29,6 +30,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   onCopyWhatsAppText,
   onReset,
   onToggleDoc,
+  onOpenAIChat,
   isCopied,
   sheets,
   activeSheet,
@@ -469,6 +471,24 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               ))}
             </select>
           </div>
+        )}
+
+        {/* AI Chatbot Assistant */}
+        {onOpenAIChat && (
+          <button
+            type="button"
+            id="btn-toolbar-ai-chat"
+            onClick={() => {
+              haptic.medium();
+              onOpenAIChat();
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-[#141414] hover:bg-[#252525] text-white border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[40px]"
+            title="Tanya AI Chatbot tentang data ini"
+          >
+            <Bot className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="hidden sm:inline">AI Chat</span>
+            <Sparkles className="w-3 h-3 text-amber-400 -ml-0.5" />
+          </button>
         )}
 
         {/* View Parser Engine Logic Rules */}

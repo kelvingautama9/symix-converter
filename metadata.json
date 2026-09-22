@@ -1,6 +1,6 @@
 {
   "name": "BlackEYE - ERP DATA ENGINE",
-  "description": "Client-side ERP Excel Data Converter and Parser for Stock and Order OS records.",
+  "description": "Client-side ERP Excel Data Converter and Parser for Stock and Order OS records with Gemini AI Assistant.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

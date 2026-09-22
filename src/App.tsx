@@ -11,6 +11,7 @@ import { ActionToolbar } from './components/ActionToolbar';
 import { DataTable } from './components/DataTable';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { ParserRulesModal } from './components/ParserRulesModal';
+import { AIChatDrawer } from './components/AIChatDrawer';
 import {
   FileSpreadsheet,
   CheckCircle2,
@@ -23,6 +24,8 @@ import {
   ShieldCheck,
   RefreshCw,
   ExternalLink,
+  Bot,
+  Sparkles,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
@@ -41,6 +44,7 @@ export default function App() {
   const [waModalInitialScope, setWaModalInitialScope] = useState<WhatsAppReportScope>('ALL');
   const [waModalInitialMode, setWaModalInitialMode] = useState<'EXCEL_FILE' | 'TEXT_SUMMARY'>('EXCEL_FILE');
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
+  const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
   // Dynamically compute Stock Ready counts for toolbar dropdowns matching FIFO logic
@@ -235,6 +239,21 @@ export default function App() {
           <div className="flex items-center gap-2 shrink-0">
             <button
               type="button"
+              id="header-btn-ai-chat"
+              onClick={() => {
+                haptic.medium();
+                setIsAIChatOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 bg-[#141414] hover:bg-[#252525] text-white border-2 border-[#141414] text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
+              title="Buka AI Chatbot Asisten"
+            >
+              <Bot className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden sm:inline">AI Chatbot</span>
+              <Sparkles className="w-3 h-3 text-amber-400" />
+            </button>
+
+            <button
+              type="button"
               onClick={() => setIsRulesModalOpen(true)}
               className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 bg-white hover:bg-[#F0F0EE] text-[#141414] border-2 border-[#141414] text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
             >
@@ -246,7 +265,7 @@ export default function App() {
               <button
                 type="button"
                 id="header-btn-download"
-                onClick={handleDownloadExcel}
+                onClick={() => handleDownloadExcel()}
                 className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-1.5 bg-[#141414] hover:bg-black text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
               >
                 <Download className="w-3.5 h-3.5" />
@@ -394,6 +413,7 @@ export default function App() {
               onCopyWhatsAppText={handleCopyWhatsAppText}
               onReset={handleReset}
               onToggleDoc={() => setIsRulesModalOpen(true)}
+              onOpenAIChat={() => setIsAIChatOpen(true)}
               isCopied={isCopied}
               sheets={summary.sheetNames}
               activeSheet={summary.activeSheetName}
@@ -459,6 +479,15 @@ export default function App() {
       <ParserRulesModal
         isOpen={isRulesModalOpen}
         onClose={() => setIsRulesModalOpen(false)}
+      />
+
+      <AIChatDrawer
+        isOpen={isAIChatOpen}
+        onClose={() => setIsAIChatOpen(false)}
+        onOpen={() => setIsAIChatOpen(true)}
+        data={data.length > 0 ? data : null}
+        summary={summary}
+        currentFileName={currentFileName}
       />
     </div>
   );
