@@ -7,6 +7,7 @@ import { shareToWhatsApp, generateWhatsAppSummary, copyToClipboard } from './uti
 import { haptic } from './utils/haptics';
 import { DropZone } from './components/DropZone';
 import { StatsOverview } from './components/StatsOverview';
+import { DeliveryPieChart } from './components/DeliveryPieChart';
 import { ActionToolbar } from './components/ActionToolbar';
 import { DataTable } from './components/DataTable';
 import { WhatsAppModal } from './components/WhatsAppModal';
@@ -404,6 +405,9 @@ export default function App() {
           <div className="space-y-5 animate-fade-in">
             {/* Top Bento Stats Overview */}
             <StatsOverview summary={summary} />
+
+            {/* Delivery Ratio Pie Chart: Total Terkirim vs Sisa OS */}
+            <DeliveryPieChart summary={summary} />
 
             {/* Action Buttons Bento Toolbar */}
             <ActionToolbar
