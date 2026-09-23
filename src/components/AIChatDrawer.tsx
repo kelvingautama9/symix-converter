@@ -52,7 +52,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       id: 'welcome',
       role: 'model',
       content:
-        'Halo! Saya **BlackEYE AI Assistant**. Saya dapat membaca dan menganalisis data hasil konversi Excel Anda secara langsung.\n\nAnda dapat menanyakan rekap status CO, detail ukuran tiap artikel, sisa tonase OS, ketersediaan stok ready gudang, atau perbandingan artikel packaging (`SH-`, `ST-`, `BX-`, `DC-`).',
+        'Halo! Saya **BlackEYE AI Assistant**. Saya siap membantu membaca dan menganalisis data hasil konversi ERP Anda secara langsung.\n\nSilakan tanyakan rekap status CO, detail ukuran tiap artikel, sisa tonase OS, ketersediaan stok ready gudang, atau pilih salah satu saran cepat di bawah.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -588,7 +588,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           )}
 
           {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4 bg-gradient-to-b from-[#F5F6F7]/50 via-[#E7EAED]/30 to-[#F2F4F6]/50 backdrop-blur-lg">
+          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-5 bg-gradient-to-b from-[#F5F6F7]/50 via-[#E7EAED]/30 to-[#F2F4F6]/50 backdrop-blur-lg">
             {messages.map((msg) => {
               const isUser = msg.role === 'user';
               return (
@@ -596,26 +596,70 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                   key={msg.id}
                   className={`flex flex-col ${isUser ? 'items-end' : 'items-start w-full'}`}
                 >
-                  <div
-                    className={`${
-                      isUser
-                        ? 'max-w-[85%] bg-gradient-to-b from-[#1F83B4] to-[#19719C] text-white rounded-2xl rounded-tr-xs p-3.5 shadow-md shadow-[#19719C]/20 border border-white/30'
-                        : 'w-full max-w-full bg-white/75 backdrop-blur-xl rounded-2xl rounded-tl-xs p-4 text-[#000013] shadow-[0_4px_16px_rgba(0,0,19,0.04)] border border-white/90'
-                    } text-xs leading-relaxed`}
-                  >
-                    {!isUser && (
-                      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-zinc-200/50 text-[11px] font-semibold text-[#19719C]">
+                  {isUser ? (
+                    /* User Bubble Chat (preserved as requested) */
+                    <div className="max-w-[85%] bg-gradient-to-b from-[#1F83B4] to-[#19719C] text-white rounded-2xl rounded-tr-xs p-3.5 shadow-md shadow-[#19719C]/20 border border-white/30 text-xs leading-relaxed">
+                      <div className="markdown-content font-sans text-xs break-words text-white">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            code: ({ className, children, ...props }: any) => {
+                              const match = /language-(\w+)/.exec(className || '');
+                              const isBlock = match || (typeof children === 'string' && children.includes('\n'));
+                              if (!isBlock) {
+                                return (
+                                  <code
+                                    className="bg-white/25 border border-white/35 text-white px-1.5 py-0.5 rounded-md font-mono text-[11px] font-semibold"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </code>
+                                );
+                              }
+                              return (
+                                <pre className="my-2 p-2.5 rounded-lg bg-zinc-900/90 text-emerald-300 font-mono text-xs overflow-x-auto">
+                                  <code {...props}>{children}</code>
+                                </pre>
+                              );
+                            },
+                            p: ({ ...props }) => (
+                              <p className="mb-2 last:mb-0 leading-relaxed font-sans text-white" {...props} />
+                            ),
+                            ul: ({ ...props }) => (
+                              <ul className="list-disc pl-5 mb-2 space-y-1 font-sans text-white" {...props} />
+                            ),
+                            ol: ({ ...props }) => (
+                              <ol className="list-decimal pl-5 mb-2 space-y-1 font-sans text-white" {...props} />
+                            ),
+                            li: ({ ...props }) => <li className="leading-relaxed" {...props} />,
+                            strong: ({ ...props }) => <strong className="font-bold text-white" {...props} />,
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
+                      <div className="text-[9px] font-mono mt-1.5 text-right text-white/80">
+                        {msg.timestamp}
+                      </div>
+                    </div>
+                  ) : (
+                    /* AI Assistant Response: Minimalist layout without bubble chat, maximum width */
+                    <div className="w-full text-xs leading-relaxed py-1">
+                      {/* Minimalist Assistant Header */}
+                      <div className="flex items-center justify-between gap-2 mb-2.5 pb-1.5 border-b border-zinc-200/60 text-[11px] font-semibold text-[#19719C]">
                         <div className="flex items-center gap-1.5">
                           <div className="w-5 h-5 rounded-md bg-[#83B3CA]/20 text-[#19719C] flex items-center justify-center">
                             <Bot className="w-3.5 h-3.5" />
                           </div>
-                          <span>BLACKEYE ASSISTANT</span>
+                          <span className="tracking-wider uppercase text-[11px] font-semibold">
+                            BlackEYE Assistant
+                          </span>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => handleCopyMessage(msg.id, msg.content)}
-                            className="liquid-glass-clear px-2 py-0.5 text-[10px] cursor-pointer flex items-center gap-1"
+                            className="liquid-glass-clear px-2 py-0.5 text-[10px] cursor-pointer flex items-center gap-1 hover:text-[#19719C] transition-colors"
                             title="Salin jawaban"
                           >
                             {copiedMessageId === msg.id ? (
@@ -632,141 +676,99 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                           </button>
                         </div>
                       </div>
-                    )}
 
-                    {/* Markdown Content with full GFM Table Support */}
-                    <div
-                      className={`markdown-content font-sans text-xs break-words overflow-x-auto ${
-                        isUser ? 'text-white' : 'text-[#000013]'
-                      }`}
-                    >
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          table: ({ ...props }) => (
-                            <div className="my-3 overflow-x-auto rounded-xl border border-white/80 shadow-xs bg-white/80 backdrop-blur-md max-w-full">
-                              <table
-                                className="w-full text-left border-collapse font-mono text-[11px] tabular-nums"
+                      {/* Markdown Content - Spans full width with zero side bubble restriction */}
+                      <div className="markdown-content font-sans text-xs break-words overflow-x-auto text-[#000013]">
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{
+                            table: ({ ...props }) => (
+                              <div className="my-3 overflow-x-auto rounded-xl border border-zinc-200/80 shadow-2xs bg-white/90 backdrop-blur-md max-w-full">
+                                <table
+                                  className="w-full text-left border-collapse font-mono text-[11px] tabular-nums"
+                                  {...props}
+                                />
+                              </div>
+                            ),
+                            thead: ({ ...props }) => (
+                              <thead className="bg-[#19719C] text-white border-b border-[#145d82]" {...props} />
+                            ),
+                            th: ({ ...props }) => (
+                              <th
+                                className="px-3 py-2 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap text-white"
                                 {...props}
                               />
-                            </div>
-                          ),
-                          thead: ({ ...props }) => (
-                            <thead className="bg-[#19719C] text-white border-b border-[#145d82]" {...props} />
-                          ),
-                          th: ({ ...props }) => (
-                            <th
-                              className="px-3 py-2 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap text-white"
-                              {...props}
-                            />
-                          ),
-                          tbody: ({ ...props }) => (
-                            <tbody className="divide-y divide-zinc-200/50 bg-white/50" {...props} />
-                          ),
-                          tr: ({ ...props }) => (
-                            <tr
-                              className="hover:bg-[#83B3CA]/10 transition-colors even:bg-white/30"
-                              {...props}
-                            />
-                          ),
-                          td: ({ ...props }) => (
-                            <td
-                              className="px-3 py-1.5 whitespace-nowrap font-mono text-[11px] text-[#000013]"
-                              {...props}
-                            />
-                          ),
-                          code: ({ inline, className, children, ...props }: any) => {
-                            if (inline) {
+                            ),
+                            tbody: ({ ...props }) => (
+                              <tbody className="divide-y divide-zinc-200/50 bg-white/70" {...props} />
+                            ),
+                            tr: ({ ...props }) => (
+                              <tr
+                                className="hover:bg-[#83B3CA]/10 transition-colors even:bg-white/40"
+                                {...props}
+                              />
+                            ),
+                            td: ({ ...props }) => (
+                              <td
+                                className="px-3 py-1.5 whitespace-nowrap font-mono text-[11px] text-[#000013]"
+                                {...props}
+                              />
+                            ),
+                            code: ({ className, children, ...props }: any) => {
+                              const match = /language-(\w+)/.exec(className || '');
+                              const isBlock = match || (typeof children === 'string' && children.includes('\n'));
+                              if (!isBlock) {
+                                return (
+                                  <code
+                                    className="bg-[#83B3CA]/15 border border-[#83B3CA]/30 text-[#19719C] px-1.5 py-0.5 rounded-md font-mono text-[11px] font-semibold"
+                                    {...props}
+                                  >
+                                    {children}
+                                  </code>
+                                );
+                              }
                               return (
-                                <code
-                                  className={`${
-                                    isUser
-                                      ? 'bg-white/25 border border-white/35 text-white'
-                                      : 'bg-[#83B3CA]/15 border border-[#83B3CA]/30 text-[#19719C]'
-                                  } px-1.5 py-0.5 rounded-md font-mono text-[11px] font-semibold`}
-                                  {...props}
-                                >
-                                  {children}
-                                </code>
+                                <pre className="my-2.5 p-3 rounded-xl bg-zinc-900/95 text-emerald-400 font-mono text-xs border border-white/10 shadow-inner overflow-x-auto">
+                                  <code {...props}>{children}</code>
+                                </pre>
                               );
-                            }
-                            return (
-                              <pre className="my-2.5 p-3.5 rounded-xl bg-zinc-900/95 text-emerald-400 font-mono text-xs border border-white/10 shadow-inner overflow-x-auto">
-                                <code {...props}>{children}</code>
-                              </pre>
-                            );
-                          },
-                          p: ({ ...props }) => (
-                            <p
-                              className={`mb-2 last:mb-0 leading-relaxed font-sans ${
-                                isUser ? 'text-white' : ''
-                              }`}
-                              {...props}
-                            />
-                          ),
-                          ul: ({ ...props }) => (
-                            <ul
-                              className={`list-disc pl-5 mb-2 space-y-1 font-sans ${
-                                isUser ? 'text-white' : ''
-                              }`}
-                              {...props}
-                            />
-                          ),
-                          ol: ({ ...props }) => (
-                            <ol
-                              className={`list-decimal pl-5 mb-2 space-y-1 font-sans ${
-                                isUser ? 'text-white' : ''
-                              }`}
-                              {...props}
-                            />
-                          ),
-                          li: ({ ...props }) => <li className="leading-relaxed" {...props} />,
-                          strong: ({ ...props }) => (
-                            <strong
-                              className={`font-bold ${isUser ? 'text-white' : 'text-[#000013]'}`}
-                              {...props}
-                            />
-                          ),
-                          h1: ({ ...props }) => (
-                            <h1
-                              className={`text-sm font-bold uppercase mt-2.5 mb-1 pb-1 border-b ${
-                                isUser
-                                  ? 'border-white/30 text-white'
-                                  : 'border-zinc-200/60 text-[#000013]'
-                              }`}
-                              {...props}
-                            />
-                          ),
-                          h2: ({ ...props }) => (
-                            <h2
-                              className={`text-xs font-bold uppercase mt-2 mb-1 ${
-                                isUser ? 'text-white' : 'text-[#000013]'
-                              }`}
-                              {...props}
-                            />
-                          ),
-                          h3: ({ ...props }) => (
-                            <h3
-                              className={`text-xs font-semibold uppercase mt-1.5 mb-1 ${
-                                isUser ? 'text-white' : 'text-[#000013]'
-                              }`}
-                              {...props}
-                            />
-                          ),
-                        }}
-                      >
-                        {msg.content}
-                      </ReactMarkdown>
-                    </div>
+                            },
+                            p: ({ ...props }) => (
+                              <p className="mb-2 last:mb-0 leading-relaxed font-sans text-[#000013]" {...props} />
+                            ),
+                            ul: ({ ...props }) => (
+                              <ul className="list-disc pl-5 mb-2 space-y-1 font-sans text-[#000013]" {...props} />
+                            ),
+                            ol: ({ ...props }) => (
+                              <ol className="list-decimal pl-5 mb-2 space-y-1 font-sans text-[#000013]" {...props} />
+                            ),
+                            li: ({ ...props }) => <li className="leading-relaxed" {...props} />,
+                            strong: ({ ...props }) => (
+                              <strong className="font-bold text-[#000013]" {...props} />
+                            ),
+                            h1: ({ ...props }) => (
+                              <h1
+                                className="text-sm font-bold uppercase mt-2.5 mb-1 pb-1 border-b border-zinc-200/60 text-[#000013]"
+                                {...props}
+                              />
+                            ),
+                            h2: ({ ...props }) => (
+                              <h2 className="text-xs font-bold uppercase mt-2 mb-1 text-[#000013]" {...props} />
+                            ),
+                            h3: ({ ...props }) => (
+                              <h3 className="text-xs font-semibold uppercase mt-1.5 mb-1 text-[#000013]" {...props} />
+                            ),
+                          }}
+                        >
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
 
-                    <div
-                      className={`text-[9px] font-mono mt-1.5 text-right ${
-                        isUser ? 'text-white/80' : 'text-[#5C5C68]'
-                      }`}
-                    >
-                      {msg.timestamp}
+                      <div className="text-[10px] font-mono mt-2 text-right text-[#5C5C68]">
+                        {msg.timestamp}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               );
             })}
