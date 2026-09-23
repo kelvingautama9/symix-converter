@@ -111,12 +111,12 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span className="w-5 h-5 bg-[#141414] text-white flex items-center justify-center font-mono text-xs">
                 4
               </span>
-              <span>Stage 4: Fallback & Terkirim Calculation</span>
+              <span>Stage 4: Fallback & Delivered (Terkirim) Calculation</span>
             </div>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
-              <li>When encountering "TOTAL" or next Parent, flushes the active PO to final array.</li>
-              <li><strong>Critical Fallback:</strong> If no delivery logs exist (<code className="font-bold">_has_delivery == false</code>), sets <code className="font-bold">Sisa OS = QTY PO</code> and <code className="font-bold">Sisa OS Kg = Berat PO</code>.</li>
-              <li><strong>Terkirim Calculation:</strong> <code className="font-bold">Terkirim (PCS) = QTY PO (pcs) - Sisa OS (pcs)</code> dan <code className="font-bold">Terkirim (KG) = Berat PO (KG) - Sisa OS (kg)</code>.</li>
+              <li>When encountering "TOTAL" or the next Parent article, flushes the active PO to the finalized dataset.</li>
+              <li><strong>Critical Fallback:</strong> If no delivery logs exist (<code className="font-bold">_has_delivery == false</code>), automatically defaults <code className="font-bold">Sisa OS = QTY PO</code> and <code className="font-bold">Sisa OS Kg = Berat PO</code>.</li>
+              <li><strong>Delivered (Terkirim) Calculation:</strong> <code className="font-bold">Terkirim (PCS) = QTY PO (pcs) - Sisa OS (pcs)</code> and <code className="font-bold">Terkirim (KG) = Berat PO (KG) - Sisa OS (kg)</code>.</li>
             </ul>
           </div>
 
@@ -126,17 +126,17 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span className="w-5 h-5 bg-[#22c55e] text-white flex items-center justify-center font-mono text-xs">
                 5
               </span>
-              <span>Stage 5: FIFO Sequential Stock Allocation (Under 51 pcs Threshold)</span>
+              <span>Stage 5: FIFO Sequential Stock Allocation (&lt; 51 pcs Threshold)</span>
             </div>
             <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
-              Mencegah duplikasi stok untuk artikel/item yang memiliki lebih dari satu baris PO dan menerapkan filter batas toleransi.
+              Prevents stock duplication across multiple PO lines under the same article item and enforces the minimum tolerance threshold.
             </p>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
-              <li><strong>Kondisional Under 51 pcs:</strong> Jika Sisa OS suatu PO tersisa &lt; 51 pcs (misal 40 pcs), baris PO tersebut <strong>tidak diikutkan</strong> dalam perhitungan alokasi stok FIFO (<code className="font-bold">Stock = 0</code>) meskipun status CO-nya masih open.</li>
-              <li><strong>Alokasi Urutan Atas (FIFO):</strong> Saldo stok gudang dialokasikan untuk memenuhi <code className="font-bold">Sisa OS</code> PO teratas yang memenuhi syarat (Sisa OS &ge; 51 pcs): <code className="font-bold">Stock Ready = min(Sisa Stok, Sisa OS)</code>.</li>
-              <li><strong>Dynamic Scope Realokasi (All vs Open Only):</strong> Jika difilter atau diexport dengan mode <code className="font-bold">Khusus CO Open</code>, baris CO Closed dilewati dari alokasi sehingga seluruh 100% saldo stok gudang dialokasikan langsung ke baris-baris PO yang masih Open.</li>
-              <li><strong>Sisa Saldo Diteruskan:</strong> Sisa stok gudang diteruskan secara sekuensial ke baris PO berikutnya.</li>
-              <li><strong>15 Kolom Standar:</strong> CO, Artikel, Item Description, Tanggal Input PO, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
+              <li><strong>Under 51 pcs Threshold:</strong> If a PO has remaining OS &lt; 51 pcs (e.g. 40 pcs), this PO line is <strong>excluded</strong> from FIFO stock allocation (<code className="font-bold">Stock = 0</code>) even if its CO status is still Open.</li>
+              <li><strong>Top-Down Allocation (FIFO):</strong> Available warehouse inventory is assigned to fulfill the <code className="font-bold">Sisa OS</code> of the topmost eligible PO (Sisa OS &ge; 51 pcs): <code className="font-bold">Stock Ready = min(Remaining Stock, Sisa OS)</code>.</li>
+              <li><strong>Dynamic Scope Reallocation (All vs Open Only):</strong> When filtered or exported under <code className="font-bold">CO Open Only</code>, Closed CO lines are bypassed so that 100% of warehouse stock is directed to active Open PO lines.</li>
+              <li><strong>Remaining Balance Forwarding:</strong> Leftover warehouse inventory flows sequentially downward to subsequent PO lines.</li>
+              <li><strong>15 Standard Columns:</strong> CO, Artikel, Item Description, Tanggal Input PO, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (PCS/KG), Harga.</li>
             </ul>
           </div>
 
@@ -146,16 +146,16 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span className="w-5 h-5 bg-[#2563EB] text-white flex items-center justify-center font-mono text-xs">
                 6
               </span>
-              <span>Stage 6: CO Status Detection (C = Closed, O = Open) & Filter/Export</span>
+              <span>Stage 6: CO Status Detection (C = Closed, O = Open) & Export Scopes</span>
             </div>
             <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
-              Mendeteksi suffix status pada kode Customer Order (CO) kolom A.
+              Detects status suffixes on Customer Order (CO) codes in Column A.
             </p>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
-              <li><strong className="text-emerald-700">Status O (Open):</strong> Menandakan Customer Order masih aktif / berjalan (contoh: <code className="font-bold">18H8550 1 O</code>).</li>
-              <li><strong className="text-zinc-700">Status C (Closed):</strong> Menandakan Customer Order telah selesai ditutup (contoh: <code className="font-bold">18H6941 5 C</code>).</li>
-              <li><strong>Filter Interaktif & Opsi Export:</strong> Menyediakan tab filter preview dan dropdown export Excel untuk Seluruh CO, Khusus CO Open, Khusus CO Closed, maupun Stock Ready.</li>
-              <li><strong>Direct Excel Share to WhatsApp:</strong> Mendukung pengiriman langsung file Excel (.xlsx) via WhatsApp (attachment otomatis di perangkat mobile / auto-download + buka WhatsApp di desktop) dengan filter scope terpilih.</li>
+              <li><strong className="text-emerald-700">Status O (Open):</strong> Indicates Customer Order is active / in-progress (e.g. <code className="font-bold">18H8550 1 O</code>).</li>
+              <li><strong className="text-zinc-700">Status C (Closed):</strong> Indicates Customer Order has been fulfilled / closed (e.g. <code className="font-bold">18H6941 5 C</code>).</li>
+              <li><strong>Interactive Filters & Export Options:</strong> Provides preview tabs and Excel export scopes for All CO, Open CO Only, Closed CO Only, and Stock Ready POs.</li>
+              <li><strong>Direct Excel Share to WhatsApp:</strong> Supports direct dispatch of generated Excel (.xlsx) workbooks via WhatsApp with selected export filters.</li>
             </ul>
           </div>
 
@@ -165,15 +165,15 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <span className="w-5 h-5 bg-[#7C3AED] text-white flex items-center justify-center font-mono text-xs">
                 7
               </span>
-              <span>Stage 7: SYMIX ERP Header & Pagination Auto-Skip (Anti-Splice Anomaly)</span>
+              <span>Stage 7: SYMIX ERP Header & Pagination Auto-Skip (Anti-Splice Engine)</span>
             </div>
             <p className="text-xs font-mono text-[#141414]/70 leading-relaxed mb-2">
-              Mengabaikan header cetakan ERP (seperti <code className="font-bold">SYMIX 4.0R3.0</code>, <code className="font-bold">CO40-R</code>, <code className="font-bold">C/O No. L S</code>, baris pembatas <code className="font-bold">---------</code>) yang berulang di tengah data.
+              Automatically filters out repeating ERP print headers (such as <code className="font-bold">SYMIX 4.0R3.0</code>, <code className="font-bold">CO40-R</code>, <code className="font-bold">C/O No. L S</code>, divider lines <code className="font-bold">---------</code>) appearing across printed page breaks.
             </p>
             <ul className="text-xs font-mono text-[#141414]/90 space-y-1 list-disc pl-5">
-              <li><strong>Auto-Ignore Header:</strong> Baris header halaman dilewati otomatis tanpa memutus data PO yang sedang dibaca.</li>
-              <li><strong>Koneksi Surat Jalan Lintas Halaman:</strong> Jika baris pengiriman <code className="font-bold">P26xxx</code> terpotong oleh header halaman, surat jalan di halaman berikutnya tetap tersambung ke PO induk yang sama.</li>
-              <li><strong>Bebas Baris Anomali:</strong> Mencegah teks header seperti <code className="font-bold">C/O No. L S</code> terbaca sebagai order baru.</li>
+              <li><strong>Auto-Ignore Headers:</strong> Page break lines are seamlessly skipped without interrupting or truncating active PO records.</li>
+              <li><strong>Cross-Page Delivery Stitching:</strong> When delivery log sequences (<code className="font-bold">P26xxx</code>) span across page headers, logs on subsequent pages remain correctly attached to their parent PO.</li>
+              <li><strong>Anomaly Prevention:</strong> Prevents non-data header text such as <code className="font-bold">C/O No. L S</code> from being mistakenly parsed as a new order.</li>
             </ul>
           </div>
         </div>

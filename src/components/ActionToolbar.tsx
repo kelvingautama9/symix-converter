@@ -491,17 +491,6 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           </button>
         )}
 
-        {/* View Parser Engine Logic Rules */}
-        <button
-          type="button"
-          id="btn-view-rules"
-          onClick={handleToggleDocClick}
-          className="inline-flex items-center gap-1.5 px-3 py-2 bg-white hover:bg-[#F0F0EE] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-colors cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[40px]"
-        >
-          <BookOpen className="w-3.5 h-3.5 text-[#FF6B35] shrink-0" />
-          <span>Rules</span>
-        </button>
-
         {/* Reset / Upload New */}
         <button
           type="button"
