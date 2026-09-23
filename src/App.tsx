@@ -380,29 +380,32 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F0F0EE] text-[#141414] font-sans selection:bg-[#FF6B35] selection:text-white pb-16">
+    <div className="min-h-screen bg-[#E8EBF0] text-[#17191D] font-sans selection:bg-[#EA5413] selection:text-white pb-16 relative overflow-x-hidden">
+      {/* Subtle warm ambient lighting */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent -z-10" />
+
       {/* Top Header Bar */}
-      <header className="border-b-2 border-[#141414] bg-white sticky top-0 z-40">
+      <header className="border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl sticky top-0 z-40 shadow-xs">
         <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-white border-2 border-[#141414] flex items-center justify-center shrink-0 shadow-[2px_2px_0px_#141414] overflow-hidden p-0.5">
+            <div className="w-10 h-10 rounded-2xl bg-white border border-zinc-200/80 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-0.5">
               <img
                 src="/logo.jpg"
                 alt="BlackEYE Logo"
-                className="w-full h-full object-contain"
+                className="w-full h-full object-contain rounded-xl"
                 referrerPolicy="no-referrer"
               />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <h1 className="text-xs sm:text-sm md:text-base font-black uppercase tracking-tight text-[#141414] truncate">
+                <h1 className="text-xs sm:text-sm md:text-base font-bold tracking-tight text-[#17191D] truncate">
                   BLACKEYE - SYMIX STOCK CONVERTER
                 </h1>
-                <span className="px-1.5 py-0.5 bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[9px] sm:text-[10px] font-mono font-bold uppercase tracking-wider shrink-0">
+                <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/25 text-[#EA5413] text-[9px] sm:text-[10px] font-mono font-semibold rounded-full tracking-wider shrink-0">
                   BROWSER_V2.0
                 </span>
               </div>
-              <p className="text-[10px] sm:text-[11px] font-mono text-[#141414]/70 hidden sm:block truncate">
+              <p className="text-[10px] sm:text-[11px] text-[#5C6068] hidden sm:block truncate">
                 Tools Rekapitulasi Stock & Sisa Order Status (OS) Customer
               </p>
             </div>
@@ -417,7 +420,7 @@ export default function App() {
                 haptic.medium();
                 setIsAIChatOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-2 sm:py-1.5 bg-[#141414] hover:bg-[#252525] text-white border-2 border-[#141414] text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
+              className="liquid-glass-dark inline-flex items-center gap-1.5 px-3 py-2 text-xs uppercase tracking-wider cursor-pointer"
               title="Buka AI Chatbot Asisten"
             >
               <Bot className="w-3.5 h-3.5 text-emerald-400" />
@@ -431,7 +434,7 @@ export default function App() {
                 type="button"
                 id="header-btn-download"
                 onClick={() => handleDownloadExcel()}
-                className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-1.5 bg-[#141414] hover:bg-black text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
+                className="liquid-glass-primary inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2 text-xs uppercase tracking-wider cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span className="hidden md:inline">Unduh Excel</span>
@@ -447,22 +450,22 @@ export default function App() {
         {statusMessage && (
           <div
             id="status-indicator-banner"
-            className="p-3.5 px-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in"
+            className="p-3.5 px-4 glass-panel rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in shadow-sm border border-emerald-500/20"
           >
             <div className="flex items-center gap-2.5">
-              <div className="w-5 h-5 bg-[#25D366] border border-[#141414] flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+              <div className="w-6 h-6 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
               </div>
-              <span className="font-bold text-xs sm:text-sm uppercase tracking-tight text-[#141414]">
+              <span className="font-semibold text-xs sm:text-sm text-[#1E2024]">
                 {statusMessage}
               </span>
             </div>
             {summary && currentFileName && (
-              <div className="flex items-center gap-2 text-[11px] text-[#141414]/70 font-mono">
-                <span className="border border-[#141414] bg-[#F0F0EE] px-2 py-0.5 font-bold">
+              <div className="flex items-center gap-2 text-[11px] text-[#5C6068] font-mono">
+                <span className="border border-white/80 bg-white/70 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
                   FILE: {currentFileName}
                 </span>
-                <span className="border border-[#141414] bg-[#F0F0EE] px-2 py-0.5 font-bold">
+                <span className="border border-white/80 bg-white/70 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
                   {data.length} PO
                 </span>
               </div>
@@ -486,47 +489,44 @@ export default function App() {
 
             {/* Quick Specifications Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-              <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex items-start gap-3">
-                <div className="w-8 h-8 bg-[#141414] text-white border border-[#141414] flex items-center justify-center shrink-0 mt-0.5">
-                  <FileSpreadsheet className="w-4 h-4" />
+              <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">
+                  <h4 className="text-xs font-bold text-[#1E2024]">
                     Format 15 Kolom Otomatis
                   </h4>
-                  <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
-                    Menyusun data mentah ERP ke dalam susunan 15 kolom standar secara rapi dan
-                    akurat.
+                  <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                    Menyusun data mentah ERP ke dalam susunan 15 kolom standar secara rapi dan akurat.
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex items-start gap-3">
-                <div className="w-8 h-8 bg-[#FF6B35] text-white border border-[#141414] flex items-center justify-center shrink-0 mt-0.5">
-                  <Cpu className="w-4 h-4" />
+              <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-[#EA5413] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Cpu className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">
+                  <h4 className="text-xs font-bold text-[#1E2024]">
                     Deteksi P26 & Fallback
                   </h4>
-                  <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
-                    Membaca surat jalan terbaru (P26) dan otomatis fallback ke QTY PO jika belum
-                    dikirim.
+                  <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                    Membaca surat jalan terbaru (P26) dan otomatis fallback ke QTY PO jika belum dikirim.
                   </p>
                 </div>
               </div>
 
-              <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex items-start gap-3">
-                <div className="w-8 h-8 bg-[#25D366] text-white border border-[#141414] flex items-center justify-center shrink-0 mt-0.5">
-                  <Share2 className="w-4 h-4" />
+              <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Share2 className="w-4 h-4 text-white" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">
+                  <h4 className="text-xs font-bold text-[#1E2024]">
                     Alokasi Stok FIFO
                   </h4>
-                  <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
-                    Mengalokasikan stok gudang sesuai urutan tanggal PO terlama untuk sisa OS di
-                    bawah 51 pcs.
+                  <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                    Mengalokasikan stok gudang sesuai urutan tanggal PO terlama untuk sisa OS di bawah 51 pcs.
                   </p>
                 </div>
               </div>
@@ -585,9 +585,9 @@ export default function App() {
             <DataTable data={data} />
 
             {/* Bottom Quick Notice */}
-            <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex flex-col md:flex-row items-center justify-between gap-3 text-xs font-mono">
-              <div className="flex items-center gap-2.5 text-[#141414]/80">
-                <Info className="w-4 h-4 text-[#FF6B35] shrink-0" />
+            <div className="p-4 glass-panel rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
+              <div className="flex items-center gap-2.5 text-[#5C6068]">
+                <Info className="w-4 h-4 text-[#EA5413] shrink-0" />
                 <span>
                   {convertedFiles.length > 1
                     ? `Sedang menganalisis 1 dari ${convertedFiles.length} file. Anda dapat berpindah file kapan saja melalui dropdown di atas.`
@@ -599,7 +599,7 @@ export default function App() {
                   type="button"
                   id="btn-bottom-change-file"
                   onClick={handleReset}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#DEDEDE] hover:bg-[#c9c9c9] text-[#141414] border-2 border-[#141414] font-bold uppercase tracking-wider text-xs shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                  className="liquid-glass-clear inline-flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider cursor-pointer text-zinc-700 hover:text-zinc-950"
                 >
                   <RefreshCw className="w-3.5 h-3.5" />
                   <span>Ganti File</span>
@@ -611,20 +611,20 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-[#141414]/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-[#141414]/60">
+      <footer className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-zinc-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#5C6068]">
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 bg-white border border-[#141414] overflow-hidden p-0.5 shadow-[1px_1px_0px_#141414]">
+          <div className="w-6 h-6 rounded-lg bg-white/80 border border-white/90 overflow-hidden p-0.5 shadow-2xs">
             <img
               src="/logo.jpg"
               alt="BlackEYE"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain rounded"
               referrerPolicy="no-referrer"
             />
           </div>
-          <span className="font-bold text-[#141414]">BLACKEYE</span>
+          <span className="font-bold text-[#1E2024]">BLACKEYE</span>
           <span>• ERP DATA ENGINE BROWSER_V2.0</span>
         </div>
-        <div className="text-[11px] text-[#141414]/60">
+        <div className="text-[11px] text-[#5C6068]">
           Master Rekapitulasi Stock & Sisa Order Status (OS) Customer
         </div>
       </footer>

@@ -96,6 +96,17 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
     }
   }, [isOpen]);
 
+  // Close drawer on ESC key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
   // Check scrollability of quick prompt carousel
   const updateScrollButtons = () => {
     if (quickPromptsRef.current) {
@@ -278,6 +289,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
         throw new Error(result.message || 'Gagal menerima tanggapan dari AI.');
       }
 
+      // Render full answer immediately with zero lag
       const modelMessage: Message = {
         id: `model-${Date.now()}`,
         role: 'model',
@@ -288,6 +300,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       setMessages((prev) => [...prev, modelMessage]);
       setLastFailedQuery(null);
       haptic.success();
+
+      setTimeout(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 50);
     } catch (err: any) {
       console.error('Chat error:', err);
       haptic.error();
@@ -321,14 +339,14 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   const getContainerSizeClasses = () => {
     switch (sizeMode) {
       case 'fullscreen':
-        return 'fixed inset-0 sm:inset-3 z-50 w-full sm:w-[calc(100vw-24px)] h-full sm:h-[calc(100vh-24px)] max-w-full sm:border-2 border-[#141414] shadow-2xl';
+        return 'fixed inset-0 sm:inset-5 z-50 w-full sm:w-[calc(100vw-40px)] h-full sm:h-[calc(100vh-40px)] max-w-full rounded-none sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,19,0.18)] border border-white/80';
       case 'wide':
-        return 'fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 w-full sm:w-[860px] md:w-[960px] h-[94vh] sm:h-[780px] max-h-[96vh] sm:border-2 border-[#141414] sm:shadow-[8px_8px_0px_#141414]';
+        return 'fixed bottom-0 right-0 sm:bottom-5 sm:right-5 z-50 w-full sm:w-[860px] md:w-[940px] h-[92vh] sm:h-[740px] max-h-[96vh] rounded-t-3xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,19,0.18)] border border-white/80';
       case 'mini':
-        return 'fixed bottom-0 right-0 sm:bottom-4 sm:right-4 z-50 w-full sm:w-[390px] h-[55vh] sm:h-[460px] max-h-[85vh] sm:border-2 border-[#141414] sm:shadow-[4px_4px_0px_#141414]';
+        return 'fixed bottom-0 right-0 sm:bottom-5 sm:right-5 z-50 w-full sm:w-[420px] h-[60vh] sm:h-[490px] max-h-[85vh] rounded-t-3xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,19,0.18)] border border-white/80';
       case 'compact':
       default:
-        return 'fixed bottom-0 right-0 sm:bottom-5 sm:right-5 z-50 w-full sm:w-[500px] h-[90vh] sm:h-[650px] max-h-[95vh] sm:border-2 border-[#141414] sm:shadow-[6px_6px_0px_#141414]';
+        return 'fixed bottom-0 right-0 sm:bottom-5 sm:right-5 z-50 w-full sm:w-[520px] h-[88vh] sm:h-[660px] max-h-[94vh] rounded-t-3xl sm:rounded-3xl shadow-[0_20px_60px_-15px_rgba(0,0,19,0.18)] border border-white/80';
     }
   };
 
@@ -343,22 +361,24 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
             haptic.medium();
             onOpen();
           }}
-          className="fixed bottom-5 right-5 z-40 bg-[#141414] hover:bg-[#252525] text-white px-4 py-3 border-2 border-[#141414] shadow-[4px_4px_0px_#141414] flex items-center gap-2.5 transition-all transform active:translate-x-[2px] active:translate-y-[2px] cursor-pointer group"
+          className="fixed bottom-5 right-5 z-40 bg-white/75 backdrop-blur-2xl rounded-full p-2 pl-3.5 pr-4 flex items-center gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_12px_36px_rgba(25,113,156,0.14)] hover:shadow-2xl cursor-pointer group border border-white/90"
           title="Buka AI Chatbot Asisten"
         >
-          <div className="relative">
-            <Bot className="w-5 h-5 text-emerald-400 group-hover:rotate-12 transition-transform" />
+          <div className="relative w-9 h-9 rounded-full bg-gradient-to-b from-[#1F83B4] to-[#19719C] flex items-center justify-center text-white shadow-md shadow-[#19719C]/30 border border-white/30">
+            <Bot className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
             {data && data.length > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-400 rounded-full animate-ping" />
+              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full ring-2 ring-white animate-pulse" />
             )}
           </div>
-          <div className="text-left font-mono">
-            <span className="text-xs font-black tracking-wider block">AI CHATBOT</span>
-            <span className="text-[10px] text-emerald-400 font-bold block -mt-0.5">
-              {data && data.length > 0 ? `${data.length} PO Terbaca` : 'Tanya Data'}
+          <div className="text-left font-sans">
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs font-bold text-[#000013] tracking-tight">AI Assistant</span>
+              <Sparkles className="w-3.5 h-3.5 text-[#19719C]" />
+            </div>
+            <span className="text-[10px] text-[#19719C] font-semibold block">
+              {data && data.length > 0 ? `${data.length} PO Terdeteksi` : 'Tanya Data ERP'}
             </span>
           </div>
-          <Sparkles className="w-3.5 h-3.5 text-amber-400 ml-0.5" />
         </button>
       )}
 
@@ -366,33 +386,32 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       {isOpen && (
         <div
           id="ai-chat-drawer-container"
-          className={`${getContainerSizeClasses()} bg-[#F5F5F3] flex flex-col overflow-hidden font-sans transition-all duration-200 ease-out`}
+          className={`${getContainerSizeClasses()} bg-white/70 backdrop-blur-2xl flex flex-col overflow-hidden font-sans transition-all duration-200 ease-out shadow-[0_20px_60px_-15px_rgba(0,0,19,0.14),0_0_0_1px_rgba(255,255,255,0.7)]`}
         >
-          {/* Header */}
-          <div className="p-3 bg-[#141414] text-white border-b-2 border-[#141414] flex items-center justify-between shrink-0 select-none">
-            <div className="flex items-center gap-2 sm:gap-2.5">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 bg-emerald-500/20 border border-emerald-400 flex items-center justify-center shrink-0">
-                <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
+          {/* Minimalist Frosted Glass Header */}
+          <div className="px-3.5 sm:px-4 py-3 bg-white/75 backdrop-blur-2xl border-b border-white/80 flex items-center justify-between gap-2 shrink-0 select-none text-[#000013]">
+            {/* Left: Brand Identity */}
+            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-b from-[#1F83B4] to-[#19719C] text-white flex items-center justify-center shrink-0 shadow-sm shadow-[#19719C]/25 border border-white/30">
+                <Bot className="w-4 h-4" />
               </div>
-              <div className="truncate">
+              <div className="min-w-0 truncate">
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-xs font-black font-mono tracking-wider text-white truncate">
-                    BLACKEYE AI
+                  <h3 className="text-xs sm:text-sm font-bold tracking-tight text-[#000013] truncate">
+                    BlackEYE AI
                   </h3>
-                  <span className="px-1.5 py-0.5 bg-emerald-950 text-emerald-300 border border-emerald-500/60 text-[9px] font-mono font-bold uppercase hidden sm:inline">
-                    Gemini 3.8 Flash
-                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                 </div>
-                <div className="text-[10px] font-mono text-white/60 truncate">
-                  Analisis Data Hasil Convert ERP
+                <div className="text-[10px] text-[#5C5C68] truncate">
+                  Asisten ERP SYMIX & Logistik
                 </div>
               </div>
             </div>
 
-            {/* Header Controls: Size Switchers & Actions */}
-            <div className="flex items-center gap-1 shrink-0">
-              {/* Size Mode Switcher Buttons */}
-              <div className="hidden sm:flex items-center bg-white/10 border border-white/20 p-0.5 mr-1">
+            {/* Right: Controls & Actions (Always anchored with shrink-0) */}
+            <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+              {/* Size Mode Switcher */}
+              <div className="flex items-center glass-segmented p-0.5">
                 <button
                   type="button"
                   id="btn-size-mini"
@@ -400,12 +419,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                     haptic.light();
                     setSizeMode('mini');
                   }}
-                  className={`px-1.5 py-1 text-[10px] font-mono font-bold uppercase transition-colors ${
+                  className={`px-2 py-0.5 text-[10px] transition-all cursor-pointer ${
                     sizeMode === 'mini'
-                      ? 'bg-white text-[#141414] shadow-sm'
-                      : 'text-white/70 hover:text-white'
+                      ? 'glass-segmented-active font-bold'
+                      : 'text-[#5C5C68] hover:text-[#000013] rounded-full font-medium'
                   }`}
-                  title="Perkecil Ukuran (Mini 390px)"
+                  title="Ukuran Mini"
                 >
                   Mini
                 </button>
@@ -416,12 +435,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                     haptic.light();
                     setSizeMode('compact');
                   }}
-                  className={`px-2 py-1 text-[10px] font-mono font-bold uppercase transition-colors ${
+                  className={`px-2 py-0.5 text-[10px] transition-all cursor-pointer ${
                     sizeMode === 'compact'
-                      ? 'bg-white text-[#141414] shadow-sm'
-                      : 'text-white/70 hover:text-white'
+                      ? 'glass-segmented-active font-bold'
+                      : 'text-[#5C5C68] hover:text-[#000013] rounded-full font-medium'
                   }`}
-                  title="Ukuran Standar"
+                  title="Ukuran Normal"
                 >
                   Normal
                 </button>
@@ -432,12 +451,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                     haptic.light();
                     setSizeMode('wide');
                   }}
-                  className={`px-2 py-1 text-[10px] font-mono font-bold uppercase flex items-center gap-1 transition-colors ${
+                  className={`hidden sm:inline-flex items-center gap-1 px-2 py-0.5 text-[10px] transition-all cursor-pointer ${
                     sizeMode === 'wide'
-                      ? 'bg-white text-[#141414] shadow-sm'
-                      : 'text-white/70 hover:text-white'
+                      ? 'glass-segmented-active font-bold'
+                      : 'text-[#5C5C68] hover:text-[#000013] rounded-full font-medium'
                   }`}
-                  title="Tampilan Melebar (Cocok untuk Tabel)"
+                  title="Ukuran Lebar"
                 >
                   <Columns2 className="w-3 h-3" />
                   <span>Lebar</span>
@@ -449,10 +468,10 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                     haptic.light();
                     setSizeMode(sizeMode === 'fullscreen' ? 'compact' : 'fullscreen');
                   }}
-                  className={`p-1 transition-colors ${
+                  className={`p-1 transition-all cursor-pointer ${
                     sizeMode === 'fullscreen'
-                      ? 'bg-white text-[#141414]'
-                      : 'text-white/70 hover:text-white'
+                      ? 'glass-segmented-active'
+                      : 'text-[#5C5C68] hover:text-[#000013] rounded-full'
                   }`}
                   title={sizeMode === 'fullscreen' ? 'Perkecil' : 'Layar Penuh'}
                 >
@@ -464,56 +483,33 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 </button>
               </div>
 
-              {/* Mobile Quick Size Buttons */}
-              <div className="sm:hidden flex items-center bg-white/10 border border-white/20 p-0.5 mr-0.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic.light();
-                    setSizeMode(sizeMode === 'mini' ? 'compact' : 'mini');
-                  }}
-                  className={`px-1.5 py-0.5 text-[9px] font-mono font-bold uppercase ${
-                    sizeMode === 'mini' ? 'bg-white text-[#141414]' : 'text-white/80'
-                  }`}
-                  title="Toggle Ukuran Mini"
-                >
-                  {sizeMode === 'mini' ? 'Norm' : 'Mini'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic.light();
-                    setSizeMode(sizeMode === 'fullscreen' ? 'compact' : 'fullscreen');
-                  }}
-                  className={`p-1 ${sizeMode === 'fullscreen' ? 'bg-white text-[#141414]' : 'text-white/80'}`}
-                  title="Layar Penuh"
-                >
-                  {sizeMode === 'fullscreen' ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
-                </button>
-              </div>
-
+              {/* Clear History */}
               <button
                 type="button"
                 id="btn-ai-chat-clear"
                 onClick={handleClearHistory}
-                className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+                className="w-7 h-7 rounded-full bg-white/70 hover:bg-white border border-white/85 flex items-center justify-center text-[#5C5C68] hover:text-red-600 transition-colors cursor-pointer shadow-2xs"
                 title="Bersihkan riwayat chat"
               >
-                <Trash2 className="w-4 h-4" />
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
 
+              {/* API Key Modal Toggle */}
               <button
                 type="button"
                 id="btn-ai-chat-key"
                 onClick={() => setShowKeyModal(!showKeyModal)}
-                className={`p-1.5 transition-colors ${
-                  customApiKey ? 'text-emerald-400 bg-emerald-950/40' : 'text-white/70 hover:text-white hover:bg-white/10'
+                className={`w-7 h-7 rounded-full border flex items-center justify-center transition-colors cursor-pointer shadow-2xs ${
+                  customApiKey
+                    ? 'text-[#19719C] bg-[#83B3CA]/20 border-[#19719C]/40'
+                    : 'text-[#5C5C68] bg-white/70 hover:bg-white hover:text-[#000013] border-white/85'
                 }`}
                 title="Pengaturan API Key"
               >
-                <Key className="w-4 h-4" />
+                <Key className="w-3.5 h-3.5" />
               </button>
 
+              {/* Close Button X - Guaranteed ALWAYS visible & never clipped */}
               <button
                 type="button"
                 id="btn-ai-chat-close"
@@ -521,23 +517,23 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                   haptic.light();
                   onClose();
                 }}
-                className="p-1.5 text-white/70 hover:text-white hover:bg-white/10 transition-colors ml-0.5"
+                className="w-7 h-7 rounded-full bg-white/80 hover:bg-white border border-white/90 flex items-center justify-center text-[#5C5C68] hover:text-[#000013] hover:rotate-90 transition-all cursor-pointer shadow-2xs ml-0.5 shrink-0"
                 title="Tutup Chat"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
           {/* Context Status Banner */}
-          <div className="px-3.5 py-1.5 bg-white border-b border-[#141414]/20 flex items-center justify-between text-xs font-mono shrink-0">
+          <div className="px-3.5 sm:px-4 py-2 bg-white/45 backdrop-blur-md border-b border-white/60 flex items-center justify-between text-xs shrink-0">
             <div className="flex items-center gap-2 truncate">
               <span
-                className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                  data && data.length > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  data && data.length > 0 ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse' : 'bg-amber-400'
                 }`}
               />
-              <span className="truncate text-[#141414] font-bold text-[11px]">
+              <span className="truncate text-[#000013] font-medium text-[11px]">
                 {data && data.length > 0
                   ? `Konteks: ${currentFileName || 'Excel Terkonversi'} (${data.length} PO Terdeteksi)`
                   : 'Belum ada data. Silakan upload file Excel.'}
@@ -545,7 +541,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
             </div>
 
             {data && data.length > 0 && (
-              <span className="text-[10px] text-emerald-800 font-bold bg-emerald-100 px-1.5 py-0.5 border border-emerald-300 shrink-0 ml-2">
+              <span className="text-[10px] text-[#19719C] font-semibold bg-[#83B3CA]/15 px-2.5 py-0.5 border border-[#83B3CA]/30 rounded-full shrink-0 ml-2 shadow-2xs">
                 Data Aktif
               </span>
             )}
@@ -553,21 +549,21 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
 
           {/* Custom API Key Overlay Settings */}
           {showKeyModal && (
-            <div className="p-3 bg-amber-50 border-b-2 border-[#141414] animate-fade-in shrink-0">
+            <div className="p-4 mx-3 my-2 rounded-2xl glass-panel-warm border border-[#83B3CA]/40 animate-fade-in shrink-0 shadow-sm">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-black font-mono uppercase text-[#141414] flex items-center gap-1.5">
-                  <Key className="w-3.5 h-3.5 text-amber-700" />
+                <span className="text-xs font-bold uppercase text-[#000013] flex items-center gap-1.5">
+                  <Key className="w-3.5 h-3.5 text-[#19719C]" />
                   Kustom Gemini API Key (Opsional)
                 </span>
                 <button
                   type="button"
                   onClick={() => setShowKeyModal(false)}
-                  className="text-[#141414]/60 hover:text-[#141414]"
+                  className="w-6 h-6 rounded-full bg-white/70 hover:bg-white border border-white/80 flex items-center justify-center text-[#5C5C68] hover:text-[#000013] cursor-pointer shadow-2xs"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3 h-3" />
                 </button>
               </div>
-              <p className="text-[11px] text-[#141414]/80 mb-2 leading-relaxed">
+              <p className="text-[11px] text-[#5C5C68] mb-2.5 leading-relaxed">
                 Di Vercel, API Key cukup dipasang di <strong>Vercel Settings &gt; Environment Variables</strong>. Namun jika ingin menguji langsung di browser ini, Anda bisa memasukkannya di bawah:
               </p>
               <div className="flex gap-2">
@@ -577,13 +573,13 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                   value={customApiKey}
                   onChange={(e) => setCustomApiKey(e.target.value)}
                   placeholder="AIzaSy..."
-                  className="flex-1 px-2.5 py-1.5 bg-white border border-[#141414] text-xs font-mono focus:outline-none focus:ring-1 focus:ring-[#141414]"
+                  className="flex-1 px-3 py-1.5 bg-white/80 border border-white/90 rounded-xl text-xs font-mono shadow-2xs focus:outline-none focus:ring-2 focus:ring-[#19719C]/30 text-[#000013]"
                 />
                 <button
                   type="button"
                   id="btn-save-custom-api-key"
                   onClick={() => handleSaveCustomKey(customApiKey)}
-                  className="px-3 py-1.5 bg-[#141414] text-white font-bold text-xs hover:bg-[#303030] transition-colors cursor-pointer shrink-0"
+                  className="liquid-glass-primary px-3.5 py-1.5 text-xs font-semibold cursor-pointer shrink-0"
                 >
                   {savedKeySuccess ? 'Tersimpan!' : 'Simpan'}
                 </button>
@@ -592,7 +588,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           )}
 
           {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5 bg-[#F5F5F3]">
+          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-4 bg-gradient-to-b from-[#F5F6F7]/50 via-[#E7EAED]/30 to-[#F2F4F6]/50 backdrop-blur-lg">
             {messages.map((msg) => {
               const isUser = msg.role === 'user';
               return (
@@ -603,44 +599,52 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                   <div
                     className={`${
                       isUser
-                        ? 'max-w-[85%] bg-[#141414] text-white border border-[#141414] shadow-[2px_2px_0px_#141414]'
-                        : 'w-full max-w-full bg-white text-[#141414] border-2 border-[#141414] shadow-[3px_3px_0px_#141414]'
-                    } p-3 sm:p-3.5 text-xs leading-relaxed`}
+                        ? 'max-w-[85%] bg-gradient-to-b from-[#1F83B4] to-[#19719C] text-white rounded-2xl rounded-tr-xs p-3.5 shadow-md shadow-[#19719C]/20 border border-white/30'
+                        : 'w-full max-w-full bg-white/75 backdrop-blur-xl rounded-2xl rounded-tl-xs p-4 text-[#000013] shadow-[0_4px_16px_rgba(0,0,19,0.04)] border border-white/90'
+                    } text-xs leading-relaxed`}
                   >
                     {!isUser && (
-                      <div className="flex items-center justify-between gap-2 mb-2 pb-1.5 border-b border-[#141414]/10 text-[10px] font-mono font-bold text-emerald-800">
+                      <div className="flex items-center justify-between gap-2 mb-2 pb-2 border-b border-zinc-200/50 text-[11px] font-semibold text-[#19719C]">
                         <div className="flex items-center gap-1.5">
-                          <Bot className="w-3.5 h-3.5 text-emerald-600" />
+                          <div className="w-5 h-5 rounded-md bg-[#83B3CA]/20 text-[#19719C] flex items-center justify-center">
+                            <Bot className="w-3.5 h-3.5" />
+                          </div>
                           <span>BLACKEYE ASSISTANT</span>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyMessage(msg.id, msg.content)}
-                          className="flex items-center gap-1 px-1.5 py-0.5 text-gray-500 hover:text-black hover:bg-gray-100 rounded text-[10px] transition-colors"
-                          title="Salin jawaban"
-                        >
-                          {copiedMessageId === msg.id ? (
-                            <>
-                              <Check className="w-3 h-3 text-emerald-600" />
-                              <span className="text-emerald-700">Tersalin</span>
-                            </>
-                          ) : (
-                            <>
-                              <Copy className="w-3 h-3" />
-                              <span>Salin</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCopyMessage(msg.id, msg.content)}
+                            className="liquid-glass-clear px-2 py-0.5 text-[10px] cursor-pointer flex items-center gap-1"
+                            title="Salin jawaban"
+                          >
+                            {copiedMessageId === msg.id ? (
+                              <>
+                                <Check className="w-3 h-3 text-emerald-600" />
+                                <span className="text-emerald-700">Tersalin</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3 h-3 text-[#5C5C68]" />
+                                <span>Salin</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
                       </div>
                     )}
 
                     {/* Markdown Content with full GFM Table Support */}
-                    <div className="markdown-content font-sans text-xs break-words overflow-x-auto">
+                    <div
+                      className={`markdown-content font-sans text-xs break-words overflow-x-auto ${
+                        isUser ? 'text-white' : 'text-[#000013]'
+                      }`}
+                    >
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
                           table: ({ ...props }) => (
-                            <div className="my-3 overflow-x-auto border-2 border-[#141414] shadow-[2px_2px_0px_#141414] bg-white max-w-full">
+                            <div className="my-3 overflow-x-auto rounded-xl border border-white/80 shadow-xs bg-white/80 backdrop-blur-md max-w-full">
                               <table
                                 className="w-full text-left border-collapse font-mono text-[11px] tabular-nums"
                                 {...props}
@@ -648,26 +652,26 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                             </div>
                           ),
                           thead: ({ ...props }) => (
-                            <thead className="bg-[#141414] text-white border-b-2 border-[#141414]" {...props} />
+                            <thead className="bg-[#19719C] text-white border-b border-[#145d82]" {...props} />
                           ),
                           th: ({ ...props }) => (
                             <th
-                              className="border-r border-[#333333] px-3 py-2 font-bold uppercase tracking-wider text-[10px] whitespace-nowrap bg-[#141414] text-white"
+                              className="px-3 py-2 font-semibold uppercase tracking-wider text-[10px] whitespace-nowrap text-white"
                               {...props}
                             />
                           ),
                           tbody: ({ ...props }) => (
-                            <tbody className="divide-y divide-[#141414]/20 bg-white" {...props} />
+                            <tbody className="divide-y divide-zinc-200/50 bg-white/50" {...props} />
                           ),
                           tr: ({ ...props }) => (
                             <tr
-                              className="hover:bg-[#FFF9E6] transition-colors even:bg-[#F9F9F8]"
+                              className="hover:bg-[#83B3CA]/10 transition-colors even:bg-white/30"
                               {...props}
                             />
                           ),
                           td: ({ ...props }) => (
                             <td
-                              className="border-r border-[#141414]/20 px-3 py-1.5 whitespace-nowrap font-mono text-[11px] text-[#141414]"
+                              className="px-3 py-1.5 whitespace-nowrap font-mono text-[11px] text-[#000013]"
                               {...props}
                             />
                           ),
@@ -675,7 +679,11 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                             if (inline) {
                               return (
                                 <code
-                                  className="bg-[#EAEAEA] border border-[#141414]/30 px-1.5 py-0.5 text-[#141414] font-mono text-[11px] font-bold"
+                                  className={`${
+                                    isUser
+                                      ? 'bg-white/25 border border-white/35 text-white'
+                                      : 'bg-[#83B3CA]/15 border border-[#83B3CA]/30 text-[#19719C]'
+                                  } px-1.5 py-0.5 rounded-md font-mono text-[11px] font-semibold`}
                                   {...props}
                                 >
                                   {children}
@@ -683,39 +691,65 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                               );
                             }
                             return (
-                              <pre className="my-2.5 p-3 bg-[#141414] text-emerald-400 font-mono text-xs border border-[#141414] overflow-x-auto shadow-[2px_2px_0px_#141414]">
+                              <pre className="my-2.5 p-3.5 rounded-xl bg-zinc-900/95 text-emerald-400 font-mono text-xs border border-white/10 shadow-inner overflow-x-auto">
                                 <code {...props}>{children}</code>
                               </pre>
                             );
                           },
                           p: ({ ...props }) => (
-                            <p className="mb-2 last:mb-0 leading-relaxed font-sans" {...props} />
+                            <p
+                              className={`mb-2 last:mb-0 leading-relaxed font-sans ${
+                                isUser ? 'text-white' : ''
+                              }`}
+                              {...props}
+                            />
                           ),
                           ul: ({ ...props }) => (
-                            <ul className="list-disc pl-5 mb-2 space-y-1 font-sans" {...props} />
+                            <ul
+                              className={`list-disc pl-5 mb-2 space-y-1 font-sans ${
+                                isUser ? 'text-white' : ''
+                              }`}
+                              {...props}
+                            />
                           ),
                           ol: ({ ...props }) => (
-                            <ol className="list-decimal pl-5 mb-2 space-y-1 font-sans" {...props} />
+                            <ol
+                              className={`list-decimal pl-5 mb-2 space-y-1 font-sans ${
+                                isUser ? 'text-white' : ''
+                              }`}
+                              {...props}
+                            />
                           ),
                           li: ({ ...props }) => <li className="leading-relaxed" {...props} />,
                           strong: ({ ...props }) => (
-                            <strong className="font-bold text-[#141414]" {...props} />
+                            <strong
+                              className={`font-bold ${isUser ? 'text-white' : 'text-[#000013]'}`}
+                              {...props}
+                            />
                           ),
                           h1: ({ ...props }) => (
                             <h1
-                              className="text-sm font-black font-mono uppercase mt-2.5 mb-1 pb-1 border-b border-[#141414]/20 text-[#141414]"
+                              className={`text-sm font-bold uppercase mt-2.5 mb-1 pb-1 border-b ${
+                                isUser
+                                  ? 'border-white/30 text-white'
+                                  : 'border-zinc-200/60 text-[#000013]'
+                              }`}
                               {...props}
                             />
                           ),
                           h2: ({ ...props }) => (
                             <h2
-                              className="text-xs font-black font-mono uppercase mt-2 mb-1 text-[#141414]"
+                              className={`text-xs font-bold uppercase mt-2 mb-1 ${
+                                isUser ? 'text-white' : 'text-[#000013]'
+                              }`}
                               {...props}
                             />
                           ),
                           h3: ({ ...props }) => (
                             <h3
-                              className="text-xs font-bold font-mono uppercase mt-1.5 mb-1 text-[#141414]"
+                              className={`text-xs font-semibold uppercase mt-1.5 mb-1 ${
+                                isUser ? 'text-white' : 'text-[#000013]'
+                              }`}
                               {...props}
                             />
                           ),
@@ -726,8 +760,8 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                     </div>
 
                     <div
-                      className={`text-[9px] font-mono mt-2 text-right ${
-                        isUser ? 'text-white/60' : 'text-[#141414]/40'
+                      className={`text-[9px] font-mono mt-1.5 text-right ${
+                        isUser ? 'text-white/80' : 'text-[#5C5C68]'
                       }`}
                     >
                       {msg.timestamp}
@@ -737,35 +771,35 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               );
             })}
 
-            {/* Animated Typing Indicator without container */}
+            {/* Animated Typing Indicator with requested text: "Sedang mengetik, tunggu yaa..." */}
             {isLoading && (
-              <div className="flex items-center gap-2.5 py-1.5 px-1 text-xs font-mono animate-fade-in">
-                {/* Animated 3 Bouncing Dots */}
+              <div className="inline-flex items-center gap-2.5 py-2 px-3.5 rounded-full bg-white/80 backdrop-blur-xl border border-white/90 text-xs text-[#5C5C68] animate-fade-in shadow-2xs">
+                {/* Animated 3 Bouncing Dots with Apple liquid blue accents */}
                 <div className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-[#141414] animate-bounce [animation-delay:-0.32s]" />
-                  <span className="w-2 h-2 rounded-full bg-[#FF6B35] animate-bounce [animation-delay:-0.16s]" />
-                  <span className="w-2 h-2 rounded-full bg-emerald-600 animate-bounce" />
+                  <span className="w-2 h-2 rounded-full bg-[#19719C] animate-bounce [animation-delay:-0.32s]" />
+                  <span className="w-2 h-2 rounded-full bg-[#83B3CA] animate-bounce [animation-delay:-0.16s]" />
+                  <span className="w-2 h-2 rounded-full bg-[#19719C]/50 animate-bounce" />
                 </div>
-                <span className="text-xs font-mono font-bold text-[#141414]/80 animate-pulse">
-                  Sedang mengetik, tunggu ya...
+                <span className="text-xs font-medium text-[#000013]">
+                  Sedang mengetik, tunggu yaa...
                 </span>
               </div>
             )}
 
             {/* Error Message Box with Retry Action */}
             {errorMessage && (
-              <div className="p-3 bg-red-50 border-2 border-red-800 text-xs font-mono text-red-950 shadow-[2px_2px_0px_#991b1b]">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="w-4 h-4 text-red-700 shrink-0 mt-0.5" />
+              <div className="p-3.5 rounded-2xl bg-white/85 backdrop-blur-md border border-red-300 text-xs text-red-950 shadow-sm">
+                <div className="flex items-start gap-2.5">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <strong className="block mb-1 text-red-900">Perhatian:</strong>
-                    <div className="leading-relaxed mb-2.5">{errorMessage}</div>
+                    <strong className="block mb-1 text-red-900 font-semibold">Perhatian:</strong>
+                    <div className="leading-relaxed mb-2.5 text-red-900/90">{errorMessage}</div>
                     {lastFailedQuery && (
                       <button
                         type="button"
                         onClick={() => handleSendMessage(lastFailedQuery)}
                         disabled={isLoading}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-red-800 hover:bg-red-900 text-white font-bold text-[11px] border border-red-950 shadow-[1px_1px_0px_#141414] transition-colors cursor-pointer"
+                        className="liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1 text-xs text-red-900 font-medium cursor-pointer"
                       >
                         <RefreshCw className="w-3 h-3" />
                         <span>Coba Lagi Pertanyaan</span>
@@ -780,14 +814,14 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           </div>
 
           {/* Quick Prompts Carousel with Left/Right Arrows, Wheel & Touch Pan */}
-          <div className="relative bg-white border-t border-[#141414]/20 px-1.5 py-2 flex items-center gap-1.5 shrink-0">
+          <div className="relative bg-white/60 backdrop-blur-xl border-t border-white/70 px-2 py-2 flex items-center gap-1.5 shrink-0">
             {/* Left Scroll Button */}
             <button
               type="button"
               onClick={() => handleScrollCarousel('left')}
               disabled={!canScrollLeft}
-              className={`p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center text-[#141414] hover:bg-[#FF6B35] hover:text-white border-2 border-[#141414] rounded-none shrink-0 transition-all shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
-                canScrollLeft ? 'opacity-100 cursor-pointer bg-white' : 'opacity-25 cursor-not-allowed bg-[#EAEAEA]'
+              className={`liquid-glass-clear p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center shrink-0 ${
+                canScrollLeft ? 'opacity-100 cursor-pointer' : 'opacity-25 cursor-not-allowed'
               }`}
               title="Geser opsi pertanyaan ke kiri"
               aria-label="Geser pertanyaan ke kiri"
@@ -818,7 +852,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                     handleSendMessage(prompt);
                   }}
                   disabled={isLoading}
-                  className="whitespace-nowrap px-3 py-1.5 text-[11px] font-mono font-bold bg-[#F0F0EE] hover:bg-[#DEDEDE] text-[#141414] border-2 border-[#141414] transition-all cursor-pointer shrink-0 disabled:opacity-50 active:translate-x-0.5 active:translate-y-0.5 shadow-[1px_1px_0px_#141414]"
+                  className="liquid-glass-clear whitespace-nowrap px-3.5 py-1.5 text-[11px] font-medium text-[#000013] hover:text-[#19719C] hover:border-[#19719C]/40 shrink-0 disabled:opacity-50 cursor-pointer shadow-xs"
                 >
                   {prompt}
                 </button>
@@ -830,8 +864,8 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               type="button"
               onClick={() => handleScrollCarousel('right')}
               disabled={!canScrollRight}
-              className={`p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center text-[#141414] hover:bg-[#FF6B35] hover:text-white border-2 border-[#141414] rounded-none shrink-0 transition-all shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
-                canScrollRight ? 'opacity-100 cursor-pointer bg-white' : 'opacity-25 cursor-not-allowed bg-[#EAEAEA]'
+              className={`liquid-glass-clear p-1.5 min-w-[28px] min-h-[28px] flex items-center justify-center shrink-0 ${
+                canScrollRight ? 'opacity-100 cursor-pointer' : 'opacity-25 cursor-not-allowed'
               }`}
               title="Geser opsi pertanyaan ke kanan"
               aria-label="Geser pertanyaan ke kanan"
@@ -846,23 +880,25 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               e.preventDefault();
               handleSendMessage();
             }}
-            className="p-2.5 sm:p-3 bg-white border-t-2 border-[#141414] flex gap-2 shrink-0"
+            className="p-3 bg-white/70 backdrop-blur-xl border-t border-white/80 flex items-center gap-2 shrink-0"
           >
-            <input
-              ref={inputRef}
-              type="text"
-              id="input-ai-chat-query"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Tanyakan apa saja tentang data tabel..."
-              disabled={isLoading}
-              className="flex-1 px-3 py-2 bg-[#F5F5F3] border-2 border-[#141414] text-xs font-mono text-[#141414] placeholder-[#141414]/50 focus:outline-none focus:bg-white transition-colors"
-            />
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                id="input-ai-chat-query"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Tanyakan apa saja tentang data tabel ERP..."
+                disabled={isLoading}
+                className="w-full px-4 py-2.5 bg-white/80 backdrop-blur-md border border-white/90 rounded-full text-xs font-mono text-[#000013] placeholder-[#5C5C68]/60 focus:outline-none focus:ring-2 focus:ring-[#19719C]/30 focus:border-[#19719C] focus:bg-white shadow-2xs transition-all"
+              />
+            </div>
             <button
               type="submit"
               id="btn-ai-chat-send"
               disabled={isLoading || !input.trim()}
-              className="px-4 py-2 bg-[#141414] hover:bg-[#2A2A2A] text-white border-2 border-[#141414] text-xs font-bold font-mono uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+              className="liquid-glass-primary px-4 sm:px-5 py-2.5 text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
             >
               <Send className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Kirim</span>

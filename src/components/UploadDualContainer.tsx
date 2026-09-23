@@ -3,11 +3,8 @@ import {
   FileSpreadsheet,
   Files,
   Upload,
-  CheckCircle2,
   AlertCircle,
-  Clock,
   Sparkles,
-  Layers,
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 
@@ -95,16 +92,16 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
 
       {/* Loading Progress State */}
       {isLoading && (
-        <div className="p-5 bg-white border-2 border-[#141414] shadow-[3px_3px_0px_#141414] space-y-3">
+        <div className="p-5 glass-panel rounded-3xl space-y-3 animate-fade-in">
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4 border-2 border-[#141414] border-t-transparent rounded-full animate-spin shrink-0" />
-              <span className="font-bold text-xs uppercase tracking-tight text-[#141414]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-5 h-5 border-2 border-[#EA5413] border-t-transparent rounded-full animate-spin shrink-0" />
+              <span className="font-semibold text-xs tracking-tight text-[#1E2024]">
                 {loadingMessage || 'Memproses file...'}
               </span>
             </div>
             {loadingProgress && (
-              <span className="text-xs font-mono font-bold text-[#141414]/70">
+              <span className="text-xs font-mono font-medium text-[#5C6068]">
                 {loadingProgress.current} / {loadingProgress.total} File
               </span>
             )}
@@ -112,15 +109,15 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
 
           {loadingProgress && (
             <div>
-              <div className="w-full h-3 bg-[#E5E5E5] border border-[#141414] overflow-hidden p-0.5">
+              <div className="w-full h-2.5 bg-zinc-200/60 rounded-full overflow-hidden p-0.5 backdrop-blur-sm">
                 <div
-                  className="h-full bg-[#25D366] transition-all duration-200"
+                  className="h-full bg-gradient-to-r from-[#FF7B35] to-[#10B981] rounded-full transition-all duration-200 shadow-sm"
                   style={{
                     width: `${Math.round((loadingProgress.current / loadingProgress.total) * 100)}%`,
                   }}
                 />
               </div>
-              <p className="text-[11px] font-mono text-[#141414]/60 mt-1 truncate">
+              <p className="text-[11px] font-mono text-[#5C6068] mt-1.5 truncate">
                 File: {loadingProgress.fileName}
               </p>
             </div>
@@ -130,14 +127,14 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
 
       {/* Error Message */}
       {errorMessage && !isLoading && (
-        <div className="p-3.5 px-4 bg-red-50 border-2 border-red-600 shadow-[2px_2px_0px_#dc2626] flex items-center gap-2.5 text-xs text-red-900 font-mono">
-          <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-          <span className="font-bold">{errorMessage}</span>
+        <div className="p-3.5 px-4 bg-red-500/10 border border-red-500/20 backdrop-blur-md rounded-2xl flex items-center gap-2.5 text-xs text-red-700 font-mono shadow-sm">
+          <AlertCircle className="w-4 h-4 text-red-500 shrink-0" />
+          <span className="font-semibold">{errorMessage}</span>
         </div>
       )}
 
       {/* Dual Upload Containers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
         {/* Container 1: Single Convert */}
         <div
           onDragEnter={(e) => {
@@ -159,36 +156,38 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
               singleInputRef.current?.click();
             }
           }}
-          className={`relative group cursor-pointer transition-all duration-150 bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] p-6 sm:p-8 flex flex-col justify-between ${
-            isDragSingle ? 'bg-[#F0F7F4] border-[#141414] scale-[0.995]' : 'hover:bg-[#FAFAFA]'
+          className={`relative group cursor-pointer transition-all duration-200 glass-panel rounded-3xl p-6 sm:p-7 flex flex-col justify-between ${
+            isDragSingle
+              ? 'ring-2 ring-[#FF7B35]/40 bg-white/90 scale-[0.995]'
+              : 'hover:bg-white/85 hover:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.06)]'
           }`}
         >
-          {/* Subtle dashed inner frame */}
-          <div className="absolute inset-0 border-2 border-dashed border-[#141414] opacity-15 m-3 pointer-events-none" />
+          {/* Subtle frosted glow accent */}
+          <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-zinc-200/40 to-transparent rounded-bl-full pointer-events-none" />
 
           {/* Top Tag & Header */}
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="px-2 py-0.5 bg-[#141414] text-white text-[10px] font-mono font-bold uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 bg-zinc-200/60 text-zinc-700 text-[11px] font-medium rounded-full border border-white/60">
                 Single Convert
               </span>
-              <span className="text-[10px] font-mono text-[#141414]/60 font-bold">1 FILE</span>
+              <span className="text-[11px] font-mono text-zinc-400 font-medium">1 FILE</span>
             </div>
 
-            <div className="w-12 h-12 bg-[#F0F0EE] border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <FileSpreadsheet className="w-6 h-6 text-[#141414]" />
+            <div className="w-12 h-12 rounded-2xl glass-card flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-zinc-700 shadow-sm">
+              <FileSpreadsheet className="w-6 h-6 text-zinc-700" />
             </div>
 
-            <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#141414]">
+            <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#1E2024]">
               Konversi 1 File
             </h3>
-            <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
+            <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
               Upload 1 file mentah untuk langsung dilihat dan dianalisis detail.
             </p>
           </div>
 
           {/* Action Button & Metadata */}
-          <div className="relative z-10 mt-6 pt-4 border-t border-[#141414]/15">
+          <div className="relative z-10 mt-6 pt-4 border-t border-zinc-200/60">
             <button
               type="button"
               id="btn-single-browse"
@@ -197,18 +196,22 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
                 singleInputRef.current?.click();
               }}
               disabled={isLoading}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-[#141414] hover:bg-black text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer disabled:opacity-50"
+              className="w-full liquid-glass-clear inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider cursor-pointer disabled:opacity-50"
             >
-              <Upload className="w-3.5 h-3.5" />
+              <Upload className="w-3.5 h-3.5 text-zinc-600" />
               <span>Pilih 1 File</span>
             </button>
 
-            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[10px] font-mono text-[#141414]/60">
-              <span className="border border-[#141414]/30 px-1.5 py-0.5 bg-white font-bold">
+            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C6068]">
+              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80 font-medium">
                 .xlsx / .xls
               </span>
-              <span className="border border-[#141414]/30 px-1.5 py-0.5 bg-white">Maks. 50MB</span>
-              <span className="border border-[#141414]/30 px-1.5 py-0.5 bg-white">Pratinjau Langsung</span>
+              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80">
+                Maks. 50MB
+              </span>
+              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80">
+                Pratinjau Langsung
+              </span>
             </div>
           </div>
         </div>
@@ -234,36 +237,40 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
               multiInputRef.current?.click();
             }
           }}
-          className={`relative group cursor-pointer transition-all duration-150 bg-white border-2 border-[#141414] shadow-[4px_4px_0px_#141414] p-6 sm:p-8 flex flex-col justify-between ${
-            isDragMulti ? 'bg-[#FFF8F4] border-[#141414] scale-[0.995]' : 'hover:bg-[#FAFAFA]'
+          className={`relative group cursor-pointer transition-all duration-200 glass-panel-warm rounded-3xl p-6 sm:p-7 flex flex-col justify-between ${
+            isDragMulti
+              ? 'ring-2 ring-[#EA5413]/50 bg-white/95 scale-[0.995]'
+              : 'hover:bg-white/90 hover:shadow-[0_12px_36px_-6px_rgba(234,84,19,0.12)]'
           }`}
         >
-          {/* Subtle dashed inner frame */}
-          <div className="absolute inset-0 border-2 border-dashed border-[#141414] opacity-15 m-3 pointer-events-none" />
+          {/* Subtle warm orange glass ambient glow */}
+          <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-[#FF7B35]/15 to-transparent rounded-bl-full pointer-events-none" />
 
           {/* Top Tag & Header */}
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="px-2 py-0.5 bg-[#FF6B35] text-white text-[10px] font-mono font-bold uppercase tracking-wider">
+              <span className="px-2.5 py-0.5 bg-[#EA5413]/10 text-[#EA5413] text-[11px] font-semibold rounded-full border border-[#EA5413]/20">
                 Multi Convert
               </span>
-              <span className="text-[10px] font-mono text-[#141414]/60 font-bold">BANYAK FILE</span>
+              <span className="text-[11px] font-mono text-[#EA5413]/70 font-semibold">
+                BANYAK FILE
+              </span>
             </div>
 
-            <div className="w-12 h-12 bg-[#F0F0EE] border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-              <Files className="w-6 h-6 text-[#FF6B35]" />
+            <div className="w-12 h-12 rounded-2xl glass-card flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-[#EA5413] shadow-sm">
+              <Files className="w-6 h-6 text-[#EA5413]" />
             </div>
 
-            <h3 className="text-lg sm:text-xl font-black uppercase tracking-tight text-[#141414]">
+            <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#1E2024]">
               Konversi Banyak File
             </h3>
-            <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
+            <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
               Upload banyak file sekaligus tanpa batas untuk auto-convert.
             </p>
           </div>
 
           {/* Action Button & Metadata */}
-          <div className="relative z-10 mt-6 pt-4 border-t border-[#141414]/15">
+          <div className="relative z-10 mt-6 pt-4 border-t border-zinc-200/60">
             <button
               type="button"
               id="btn-multi-browse"
@@ -272,18 +279,22 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
                 multiInputRef.current?.click();
               }}
               disabled={isLoading}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 bg-[#FF6B35] hover:bg-[#e85a24] text-white font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer disabled:opacity-50"
+              className="w-full liquid-glass-primary inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider cursor-pointer disabled:opacity-50"
             >
-              <Files className="w-3.5 h-3.5" />
+              <Files className="w-3.5 h-3.5 text-white" />
               <span>Pilih Banyak File</span>
             </button>
 
-            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[10px] font-mono text-[#141414]/60">
-              <span className="border border-[#141414]/30 px-1.5 py-0.5 bg-white font-bold text-[#FF6B35]">
-                Tanpa Batas File
+            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C5C68]">
+              <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90 font-semibold text-[#19719C]">
+                Tanpa Batas
               </span>
-              <span className="border border-[#141414]/30 px-1.5 py-0.5 bg-white">Unduh Semua (.zip)</span>
-              <span className="border border-[#141414]/30 px-1.5 py-0.5 bg-white">Master Excel Gabungan</span>
+              <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90">
+                Unduh Semua (.zip)
+              </span>
+              <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90">
+                Master Gabungan
+              </span>
             </div>
           </div>
         </div>

@@ -158,32 +158,32 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
   return (
     <div
       id="whatsapp-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/40 backdrop-blur-md animate-fade-in"
       onClick={handleClose}
     >
       <div
         id="whatsapp-modal-dialog"
-        className="w-full max-w-2xl bg-white border-2 border-[#141414] shadow-[6px_6px_0px_#141414] overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-2xl glass-panel rounded-3xl overflow-hidden flex flex-col max-h-[90vh] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-3.5 sm:p-5 border-b-2 border-[#141414] flex items-center justify-between bg-[#F0F0EE]">
+        <div className="p-4 sm:p-5 border-b border-zinc-200/60 flex items-center justify-between bg-white/40">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#128C7E] border-2 border-[#141414] flex items-center justify-center shadow-[2px_2px_0px_#141414] shrink-0">
-              <FileSpreadsheet className="w-5 h-5 text-white" />
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shadow-xs shrink-0 text-emerald-600">
+              <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-sm sm:text-base font-black uppercase tracking-tight text-[#141414]">
+              <h3 className="text-sm sm:text-base font-bold tracking-tight text-[#1E2024]">
                 Kirim Laporan ke WhatsApp
               </h3>
-              <p className="text-[11px] sm:text-xs font-mono text-[#141414]/70">
-                Pilih format pengiriman: File Excel .xlsx atau Teks Ringkasan
+              <p className="text-[11px] sm:text-xs text-[#5C6068]">
+                Pilih format pengiriman: File Excel .xlsx atau Ringkasan Teks
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="p-1.5 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+            className="liquid-glass-clear p-1.5 rounded-full text-zinc-500 hover:text-zinc-900 cursor-pointer"
             aria-label="Tutup modal"
           >
             <X className="w-4 h-4" />
@@ -191,58 +191,60 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
         </div>
 
         {/* Primary Format Mode Switcher Tabs */}
-        <div className="grid grid-cols-2 border-b-2 border-[#141414] bg-[#E8E8E6] font-mono text-xs font-bold">
-          <button
-            type="button"
-            id="wa-modal-mode-excel"
-            onClick={() => handleModeChange('EXCEL_FILE')}
-            className={`py-2.5 px-3 flex items-center justify-center gap-2 border-r-2 border-[#141414] transition-all cursor-pointer ${
-              activeMode === 'EXCEL_FILE'
-                ? 'bg-white text-emerald-950 font-black shadow-inner border-b-2 border-b-transparent -mb-[2px] z-10'
-                : 'text-[#141414]/70 hover:text-[#141414] hover:bg-[#dfdfdc]'
-            }`}
-          >
-            <FileSpreadsheet className="w-4 h-4 text-[#128C7E]" />
-            <span className="truncate">File Excel (.xlsx)</span>
-            <span className="hidden sm:inline text-[10px] uppercase font-mono px-1.5 py-0.2 bg-emerald-100 text-emerald-900 border border-emerald-400">
-              Hanya File
-            </span>
-          </button>
+        <div className="p-2 sm:px-4 bg-white/30 border-b border-zinc-200/60">
+          <div className="grid grid-cols-2 p-1 bg-zinc-200/50 rounded-2xl text-xs font-semibold">
+            <button
+              type="button"
+              id="wa-modal-mode-excel"
+              onClick={() => handleModeChange('EXCEL_FILE')}
+              className={`py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                activeMode === 'EXCEL_FILE'
+                  ? 'bg-white text-emerald-800 font-bold shadow-xs'
+                  : 'text-[#5C6068] hover:text-[#1E2024]'
+              }`}
+            >
+              <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+              <span className="truncate">File Excel (.xlsx)</span>
+              <span className="hidden sm:inline text-[10px] uppercase px-1.5 py-0.2 bg-emerald-100/80 text-emerald-800 rounded-full font-mono font-bold">
+                Hanya File
+              </span>
+            </button>
 
-          <button
-            type="button"
-            id="wa-modal-mode-text"
-            onClick={() => handleModeChange('TEXT_SUMMARY')}
-            className={`py-2.5 px-3 flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              activeMode === 'TEXT_SUMMARY'
-                ? 'bg-white text-[#141414] font-black shadow-inner border-b-2 border-b-transparent -mb-[2px] z-10'
-                : 'text-[#141414]/70 hover:text-[#141414] hover:bg-[#dfdfdc]'
-            }`}
-          >
-            <MessageSquare className="w-4 h-4 text-[#25D366]" />
-            <span className="truncate">Ringkasan Teks</span>
-            <span className="hidden sm:inline text-[10px] uppercase font-mono px-1.5 py-0.2 bg-[#DEDEDE] text-[#141414]">
-              Pesan Chat
-            </span>
-          </button>
+            <button
+              type="button"
+              id="wa-modal-mode-text"
+              onClick={() => handleModeChange('TEXT_SUMMARY')}
+              className={`py-2 px-3 rounded-xl flex items-center justify-center gap-2 transition-all cursor-pointer ${
+                activeMode === 'TEXT_SUMMARY'
+                  ? 'bg-white text-[#1E2024] font-bold shadow-xs'
+                  : 'text-[#5C6068] hover:text-[#1E2024]'
+              }`}
+            >
+              <MessageSquare className="w-4 h-4 text-emerald-500" />
+              <span className="truncate">Ringkasan Teks</span>
+              <span className="hidden sm:inline text-[10px] uppercase px-1.5 py-0.2 bg-zinc-200/80 text-zinc-700 rounded-full font-mono font-bold">
+                Pesan Chat
+              </span>
+            </button>
+          </div>
         </div>
 
         {/* Filter Scope Selection Tabs */}
-        <div className="p-3 bg-white border-b-2 border-[#141414] flex flex-wrap gap-1.5 sm:gap-2">
+        <div className="p-3 sm:px-4 bg-white/20 border-b border-zinc-200/60 flex flex-wrap gap-1.5 sm:gap-2">
           {/* Tab 1: All CO */}
           <button
             type="button"
             id="wa-tab-all"
             onClick={() => handleScopeChange('ALL')}
-            className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               activeScope === 'ALL'
-                ? 'bg-[#141414] text-white shadow-[2px_2px_0px_#141414]'
-                : 'bg-white hover:bg-[#F0F0EE] text-[#141414]'
+                ? 'liquid-glass-dark text-white'
+                : 'liquid-glass-clear text-[#1E2024]'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
             <span>Semua CO</span>
-            <span className={`px-1 py-0.2 text-[10px] ${activeScope === 'ALL' ? 'bg-white/20 text-white' : 'bg-[#DEDEDE] text-[#141414]'}`}>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeScope === 'ALL' ? 'bg-white/20 text-white' : 'bg-zinc-200/70 text-zinc-700'}`}>
               {countAll}
             </span>
           </button>
@@ -252,15 +254,15 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             type="button"
             id="wa-tab-open"
             onClick={() => handleScopeChange('OPEN_ONLY')}
-            className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               activeScope === 'OPEN_ONLY'
-                ? 'bg-[#2E7D32] text-white shadow-[2px_2px_0px_#141414]'
-                : 'bg-white hover:bg-emerald-50 text-[#2E7D32]'
+                ? 'liquid-glass-emerald text-white'
+                : 'liquid-glass-clear text-emerald-800'
             }`}
           >
-            <span className="w-2 h-2 rounded-full bg-[#2E7D32] border border-white" />
+            <span className="w-2 h-2 rounded-full bg-emerald-500 border border-white" />
             <span>CO Open (O)</span>
-            <span className={`px-1 py-0.2 text-[10px] ${activeScope === 'OPEN_ONLY' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${activeScope === 'OPEN_ONLY' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>
               {countOpen}
             </span>
           </button>
@@ -270,15 +272,15 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             type="button"
             id="wa-tab-stock-ready-all"
             onClick={() => handleScopeChange('STOCK_READY_ALL')}
-            className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               activeScope === 'STOCK_READY_ALL'
-                ? 'bg-[#FF6B35] text-white shadow-[2px_2px_0px_#141414]'
-                : 'bg-white hover:bg-orange-50 text-[#FF6B35]'
+                ? 'liquid-glass-orange text-white'
+                : 'liquid-glass-clear text-[#EA5413]'
             }`}
           >
             <Zap className="w-3.5 h-3.5 fill-current" />
             <span>Stock Ready (Semua)</span>
-            <span className={`px-1 py-0.2 text-[10px] font-bold ${activeScope === 'STOCK_READY_ALL' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-800'}`}>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeScope === 'STOCK_READY_ALL' ? 'bg-white/20 text-white' : 'bg-orange-100 text-orange-800'}`}>
               {countStockReadyAll}
             </span>
           </button>
@@ -288,61 +290,61 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             type="button"
             id="wa-tab-stock-ready-open"
             onClick={() => handleScopeChange('STOCK_READY_OPEN')}
-            className={`px-3 py-1.5 text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
               activeScope === 'STOCK_READY_OPEN'
-                ? 'bg-emerald-700 text-white shadow-[2px_2px_0px_#141414]'
-                : 'bg-white hover:bg-emerald-50 text-emerald-800'
+                ? 'liquid-glass-emerald text-white'
+                : 'liquid-glass-clear text-emerald-800'
             }`}
           >
             <Zap className="w-3.5 h-3.5 fill-current text-emerald-400" />
             <span>Stock Ready (CO Open)</span>
-            <span className={`px-1 py-0.2 text-[10px] font-bold ${activeScope === 'STOCK_READY_OPEN' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-900 border border-emerald-400'}`}>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeScope === 'STOCK_READY_OPEN' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'}`}>
               {countStockReadyOpen}
             </span>
           </button>
         </div>
 
         {/* Modal Main Body: Excel File Mode vs Text Summary Mode */}
-        <div className="p-3.5 sm:p-5 overflow-y-auto flex-1 bg-[#F0F0EE]">
+        <div className="p-3.5 sm:p-5 overflow-y-auto flex-1 bg-transparent">
           {activeMode === 'EXCEL_FILE' ? (
             <div className="space-y-4">
               {/* Excel File Document Card */}
-              <div className="p-4 sm:p-5 bg-white border-2 border-[#141414] shadow-[3px_3px_0px_#141414] flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="w-14 h-14 bg-emerald-50 border-2 border-[#141414] flex flex-col items-center justify-center shrink-0 shadow-[2px_2px_0px_#141414]">
-                  <FileSpreadsheet className="w-7 h-7 text-[#128C7E]" />
-                  <span className="text-[9px] font-black font-mono text-[#141414] -mt-0.5">XLSX</span>
+              <div className="p-4 sm:p-5 glass-card rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex flex-col items-center justify-center shrink-0 shadow-xs">
+                  <FileSpreadsheet className="w-7 h-7 text-emerald-600" />
+                  <span className="text-[9px] font-black font-mono text-emerald-900 -mt-0.5">XLSX</span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h4 className="text-sm font-black font-mono text-[#141414] truncate">
+                    <h4 className="text-sm font-bold font-mono text-[#1E2024] truncate">
                       {scopeFileName}
                     </h4>
-                    <span className="px-2 py-0.5 bg-emerald-100 text-emerald-950 border border-emerald-600 text-[10px] font-bold font-mono uppercase">
+                    <span className="px-2.5 py-0.5 bg-emerald-500/10 text-emerald-800 border border-emerald-500/30 text-[10px] font-bold rounded-full uppercase">
                       HANYA FILE .XLSX
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2.5 text-xs font-mono text-[#141414]/80">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2.5 text-xs text-[#5C6068]">
                     <div>
-                      <span className="text-[#141414]/50 block text-[10px] uppercase">Format</span>
-                      <strong className="text-[#141414]">Excel Spreadsheet</strong>
+                      <span className="text-[#5C6068]/70 block text-[10px] uppercase">Format</span>
+                      <strong className="text-[#1E2024]">Excel Spreadsheet</strong>
                     </div>
                     <div>
-                      <span className="text-[#141414]/50 block text-[10px] uppercase">Struktur Kolom</span>
-                      <strong className="text-[#141414]">15 Kolom Standar</strong>
+                      <span className="text-[#5C6068]/70 block text-[10px] uppercase">Struktur Kolom</span>
+                      <strong className="text-[#1E2024]">15 Kolom Standar</strong>
                     </div>
                     <div>
-                      <span className="text-[#141414]/50 block text-[10px] uppercase">Total Data</span>
-                      <strong className="text-emerald-700">{activeCount} PO</strong>
+                      <span className="text-[#5C6068]/70 block text-[10px] uppercase">Total Data</span>
+                      <strong className="text-emerald-700 font-mono font-bold">{activeCount} PO</strong>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Clarification Notice: Only File, No Text */}
-              <div className="p-3.5 bg-emerald-50 border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex items-start gap-3">
-                <ShieldCheck className="w-5 h-5 text-[#128C7E] shrink-0 mt-0.5" />
-                <div className="text-xs font-mono text-emerald-950 leading-relaxed">
-                  <strong className="font-bold text-[#141414] block mb-0.5 uppercase tracking-tight">
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-start gap-3">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                <div className="text-xs text-emerald-950 leading-relaxed">
+                  <strong className="font-bold text-[#1E2024] block mb-0.5">
                     Pengiriman Bersih (Tanpa Ketikan Teks)
                   </strong>
                   Fitur ini hanya mengirimkan dokumen fisik <strong>.xlsx</strong> langsung ke WhatsApp.
@@ -351,15 +353,15 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
               </div>
 
               {/* Column order info */}
-              <div className="p-3 bg-white border border-[#141414]/20 text-[11px] font-mono text-[#141414]/70">
-                <span className="font-bold text-[#141414]">Urutan 15 Kolom: </span>
+              <div className="p-3 rounded-2xl bg-white/60 border border-white/90 text-[11px] text-[#5C6068] font-mono shadow-2xs">
+                <span className="font-bold text-[#1E2024]">Urutan 15 Kolom: </span>
                 CO, Artikel, Item Description, Tanggal Input PO, No PO, Substance, QTY PO (pcs), Berat PO (KG), Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (pcs/kg), Harga.
               </div>
             </div>
           ) : (
             /* Text Summary Mode */
             <div className="relative">
-              <pre className="w-full p-4 bg-white border-2 border-[#141414] text-[#141414] font-mono text-xs leading-relaxed whitespace-pre-wrap select-all shadow-[2px_2px_0px_#141414] max-h-[40vh] overflow-y-auto">
+              <pre className="w-full p-4 glass-card rounded-2xl text-[#1E2024] font-mono text-xs leading-relaxed whitespace-pre-wrap select-all max-h-[40vh] overflow-y-auto">
                 {summaryText}
               </pre>
             </div>
@@ -368,7 +370,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
 
         {/* Notification Banner for File Sharing Result */}
         {shareNotice && (
-          <div className="px-4 py-2.5 bg-emerald-50 border-t-2 border-[#141414] text-xs font-mono text-emerald-900 flex items-center justify-between gap-2 animate-in fade-in duration-200">
+          <div className="px-4 py-2.5 bg-emerald-500/10 border-t border-emerald-500/20 text-xs font-mono text-emerald-900 flex items-center justify-between gap-2 animate-fade-in">
             <div className="flex items-center gap-2">
               <Check className="w-4 h-4 text-emerald-700 shrink-0" />
               <span>{shareNotice}</span>
@@ -384,10 +386,10 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
         )}
 
         {/* Actions Footer */}
-        <div className="p-3.5 sm:p-5 border-t-2 border-[#141414] bg-white flex flex-col sm:flex-row items-center justify-between gap-3 font-mono">
-          <div className="text-xs text-[#141414]/80 text-center sm:text-left">
+        <div className="p-3.5 sm:p-4 border-t border-zinc-200/60 bg-white/40 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="text-xs text-[#5C6068] text-center sm:text-left">
             Opsi Terpilih:{' '}
-            <span className="font-bold text-[#141414]">
+            <span className="font-bold text-[#1E2024]">
               {activeScope === 'STOCK_READY_ALL'
                 ? `⚡ Stock Ready (${countStockReadyAll} PO)`
                 : activeScope === 'STOCK_READY_OPEN'
@@ -406,10 +408,10 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
                   type="button"
                   id="btn-download-excel-modal"
                   onClick={handleDownloadExcelOnly}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
+                  className="flex-1 sm:flex-none liquid-glass-clear inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs uppercase tracking-wider cursor-pointer"
                   title="Download file Excel ke komputer"
                 >
-                  <Download className="w-4 h-4 text-[#141414]" />
+                  <Download className="w-4 h-4 text-zinc-600" />
                   <span>Download .xlsx</span>
                 </button>
 
@@ -419,17 +421,17 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
                   id="btn-share-excel-wa-modal"
                   onClick={handleShareExcelFile}
                   disabled={isSharingExcel || activeCount === 0}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 bg-[#128C7E] hover:bg-[#075E54] text-white border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 disabled:opacity-50 cursor-pointer min-h-[40px]"
+                  className="flex-1 sm:flex-none liquid-glass-emerald inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs uppercase tracking-wider disabled:opacity-50 cursor-pointer"
                   title="Kirim hanya file Excel (.xlsx) ke WhatsApp tanpa ketikan teks"
                 >
                   {isSharingExcel ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-[#25D366]" />
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
                       <span>Membagikan...</span>
                     </>
                   ) : (
                     <>
-                      <FileSpreadsheet className="w-4 h-4 text-[#25D366]" />
+                      <FileSpreadsheet className="w-4 h-4 text-white" />
                       <span>Kirim File .xlsx ke WA</span>
                     </>
                   )}
@@ -442,11 +444,11 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
                   type="button"
                   id="btn-copy-wa-modal"
                   onClick={handleCopy}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-[#DEDEDE] hover:bg-[#cecece] text-[#141414] border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
+                  className="flex-1 sm:flex-none liquid-glass-clear inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs uppercase tracking-wider cursor-pointer"
                   title="Salin ringkasan teks ke clipboard"
                 >
-                  {isCopied ? <Check className="w-4 h-4 text-green-700" /> : <Copy className="w-4 h-4 text-[#141414]" />}
-                  <span>{isCopied ? 'Copied!' : 'Copy Text'}</span>
+                  {isCopied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4 text-zinc-600" />}
+                  <span>{isCopied ? 'Tersalin!' : 'Salin Teks'}</span>
                 </button>
 
                 {/* Send Text Only */}
@@ -454,7 +456,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
                   type="button"
                   id="btn-open-wa-modal"
                   onClick={handleSendText}
-                  className="flex-1 sm:flex-none inline-flex items-center justify-center gap-1.5 px-5 py-2.5 bg-[#25D366] hover:bg-[#20ba59] text-white border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[40px]"
+                  className="flex-1 sm:flex-none liquid-glass-emerald inline-flex items-center justify-center gap-1.5 px-5 py-2.5 text-xs uppercase tracking-wider cursor-pointer"
                   title="Kirim format teks ringkasan ke WhatsApp"
                 >
                   <Send className="w-4 h-4 text-white" />

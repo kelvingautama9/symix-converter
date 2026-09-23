@@ -419,28 +419,28 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       id="data-table-container"
       className={
         isFullscreen
-          ? "fixed inset-0 z-50 bg-[#F0F0EE] flex flex-col p-2.5 sm:p-4 overflow-hidden"
-          : "bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] overflow-hidden"
+          ? "fixed inset-0 z-50 bg-[#F5F6F8]/95 backdrop-blur-2xl flex flex-col p-2.5 sm:p-4 overflow-hidden"
+          : "glass-panel rounded-3xl overflow-hidden relative z-10"
       }
     >
       {/* Fullscreen Dedicated Top Bar */}
       {isFullscreen && (
-        <div className="bg-[#141414] text-white p-2.5 sm:p-3 border-2 border-[#141414] flex items-center justify-between gap-3 shadow-[2px_2px_0px_#141414] mb-2.5 shrink-0">
+        <div className="glass-panel-warm p-2.5 sm:p-3 rounded-2xl flex items-center justify-between gap-3 mb-2.5 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-7 h-7 bg-emerald-500 text-white flex items-center justify-center font-bold text-xs shrink-0">
-              <TableIcon className="w-4 h-4 text-white" />
+            <div className="w-8 h-8 rounded-xl glass-card text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
+              <TableIcon className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="text-xs sm:text-sm font-black font-mono uppercase tracking-wider text-white truncate">
-                  Tabel Master ERP PO — Mode Layar Penuh
+                <h2 className="text-xs sm:text-sm font-bold tracking-tight text-[#1E2024] truncate">
+                  Tabel Master ERP PO — Layar Penuh
                 </h2>
-                <span className="px-1.5 py-0.2 bg-emerald-500/20 text-emerald-400 border border-emerald-400/40 text-[10px] font-mono font-bold">
+                <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-700 text-[10px] font-mono font-bold rounded-full">
                   {filteredData.length} Baris PO
                 </span>
               </div>
-              <p className="text-[10px] sm:text-[11px] font-mono text-white/60 truncate hidden sm:block">
-                Gunakan scroll leluasa vertikal & horizontal tanpa terganggu komponen dashboard lain (Tekan ESC untuk keluar)
+              <p className="text-[11px] text-[#5C6068] truncate hidden sm:block">
+                Scroll leluasa vertikal & horizontal tanpa terhalang dashboard (Tekan ESC untuk keluar)
               </p>
             </div>
           </div>
@@ -451,21 +451,21 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               haptic.medium();
               setIsFullscreen(false);
             }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#FF6B35] hover:bg-[#ff5719] text-white border-2 border-white text-xs font-mono font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_white] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer shrink-0"
+            className="liquid-glass-primary inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs uppercase tracking-wider cursor-pointer shrink-0"
           >
             <Minimize2 className="w-3.5 h-3.5" />
-            <span>Keluar Layar Penuh (ESC)</span>
+            <span>Keluar Layar Penuh</span>
           </button>
         </div>
       )}
 
       {/* Table Controls Header */}
-      <div className="p-3.5 sm:p-4 border-b-2 border-[#141414] flex flex-col gap-3 bg-[#F0F0EE] shrink-0">
+      <div className="p-3.5 sm:p-4 border-b border-zinc-200/60 bg-white/40 flex flex-col gap-3 shrink-0">
         {/* Row 1: Search & CO Status Quick Tabs */}
         <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-          {/* Search */}
+          {/* Search Bar */}
           <div className="relative flex-1 max-w-full lg:max-w-md">
-            <Search className="w-4 h-4 text-[#141414] absolute left-3.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               id="table-search-input"
@@ -475,132 +475,136 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 setCurrentPage(1);
               }}
               placeholder="Search PO, CO, Item, Description, Substance..."
-              className="w-full pl-9 pr-4 py-2 bg-white border-2 border-[#141414] text-xs font-mono text-[#141414] placeholder-[#141414]/40 focus:outline-none shadow-[1px_1px_0px_#141414] min-h-[40px]"
+              className="w-full pl-9 pr-4 py-2 bg-white/80 border border-white/90 rounded-full text-xs font-mono text-[#1E2024] placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FF7B35]/40 shadow-sm min-h-[38px] transition-all"
             />
           </div>
 
           {/* Filter 1: CO Status (ALL / OPEN / CLOSED) */}
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-[#141414] mr-0.5 sm:mr-1 flex items-center gap-1">
-              <Layers className="w-3.5 h-3.5 text-[#FF6B35]" />
+            <span className="text-[11px] font-semibold text-[#5C6068] mr-1 flex items-center gap-1">
+              <Layers className="w-3.5 h-3.5 text-[#EA5413]" />
               <span>Status CO:</span>
             </span>
-            <button
-              type="button"
-              id="filter-co-all"
-              onClick={() => handleCoFilterChange('ALL')}
-              className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[36px] flex items-center justify-center ${
-                coFilter === 'ALL'
-                  ? 'bg-[#141414] text-white'
-                  : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
-              }`}
-            >
-              Semua CO ({coCounts.all})
-            </button>
-            <button
-              type="button"
-              id="filter-co-open"
-              onClick={() => handleCoFilterChange('OPEN')}
-              className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[36px] flex items-center gap-1.5 ${
-                coFilter === 'OPEN'
-                  ? 'bg-[#2E7D32] text-white'
-                  : 'bg-white text-[#2E7D32] hover:bg-emerald-50'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${coFilter === 'OPEN' ? 'bg-white' : 'bg-[#2E7D32]'}`} />
-              <span>CO Open ({coCounts.open})</span>
-            </button>
-            <button
-              type="button"
-              id="filter-co-closed"
-              onClick={() => handleCoFilterChange('CLOSED')}
-              className={`px-2.5 sm:px-3 py-1.5 text-[11px] sm:text-xs font-bold font-mono uppercase tracking-wider border-2 border-[#141414] transition-all cursor-pointer shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-h-[36px] flex items-center gap-1.5 ${
-                coFilter === 'CLOSED'
-                  ? 'bg-[#555] text-white'
-                  : 'bg-white text-[#555] hover:bg-[#EAEAEA]'
-              }`}
-            >
-              <span className={`w-2 h-2 rounded-full ${coFilter === 'CLOSED' ? 'bg-white' : 'bg-[#555]'}`} />
-              <span>CO Closed ({coCounts.closed})</span>
-            </button>
+            <div className="glass-segmented inline-flex items-center">
+              <button
+                type="button"
+                id="filter-co-all"
+                onClick={() => handleCoFilterChange('ALL')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer ${
+                  coFilter === 'ALL'
+                    ? 'glass-segmented-active text-[#EA5413]'
+                    : 'text-[#5C6068] hover:text-[#1E2024]'
+                }`}
+              >
+                Semua ({coCounts.all})
+              </button>
+              <button
+                type="button"
+                id="filter-co-open"
+                onClick={() => handleCoFilterChange('OPEN')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                  coFilter === 'OPEN'
+                    ? 'bg-emerald-500 text-white shadow-sm'
+                    : 'text-[#5C6068] hover:text-emerald-700'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${coFilter === 'OPEN' ? 'bg-white' : 'bg-emerald-500'}`} />
+                <span>Open ({coCounts.open})</span>
+              </button>
+              <button
+                type="button"
+                id="filter-co-closed"
+                onClick={() => handleCoFilterChange('CLOSED')}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                  coFilter === 'CLOSED'
+                    ? 'bg-zinc-700 text-white shadow-sm'
+                    : 'text-[#5C6068] hover:text-zinc-800'
+                }`}
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${coFilter === 'CLOSED' ? 'bg-white' : 'bg-zinc-400'}`} />
+                <span>Closed ({coCounts.closed})</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Row 2: Delivery Filters (Left) & Responsiveness/Scroll View Controls (Right) */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pt-2 border-t border-[#141414]/15">
-          <div className="flex flex-wrap items-center gap-1.5 text-xs font-bold uppercase tracking-wider">
-            <span className="text-[10px] font-black uppercase text-[#141414]/70 mr-1">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pt-2.5 border-t border-zinc-200/60">
+          <div className="flex flex-wrap items-center gap-1.5 text-xs">
+            <span className="text-[11px] font-semibold text-[#5C6068] mr-1">
               Status Kirim:
             </span>
-            <button
-              type="button"
-              onClick={() => handleDeliveryFilterChange('ALL')}
-              className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
-                filterStatus === 'ALL'
-                  ? 'bg-[#141414] text-white'
-                  : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
-              }`}
-            >
-              Semua ({filterCounts.all})
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDeliveryFilterChange('PARTIAL_DELIVERY')}
-              className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
-                filterStatus === 'PARTIAL_DELIVERY'
-                  ? 'bg-[#FF6B35] text-white'
-                  : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
-              }`}
-            >
-              Partial Delivery ({filterCounts.partial})
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDeliveryFilterChange('FULL_PENDING')}
-              className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
-                filterStatus === 'FULL_PENDING'
-                  ? 'bg-[#DEDEDE] text-[#141414]'
-                  : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
-              }`}
-            >
-              Pending Delivery ({filterCounts.pending})
-            </button>
-            <button
-              type="button"
-              onClick={() => handleDeliveryFilterChange('STOCK_READY')}
-              className={`px-2 sm:px-2.5 py-1 border-2 border-[#141414] transition-all cursor-pointer text-[10px] sm:text-[11px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
-                filterStatus === 'STOCK_READY'
-                  ? 'bg-[#25D366] text-white'
-                  : 'bg-white text-[#141414] hover:bg-[#EAEAEA]'
-              }`}
-            >
-              Stock Ready ({filterCounts.stockReady})
-            </button>
+            <div className="glass-segmented inline-flex items-center flex-wrap">
+              <button
+                type="button"
+                onClick={() => handleDeliveryFilterChange('ALL')}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  filterStatus === 'ALL'
+                    ? 'glass-segmented-active text-[#1E2024]'
+                    : 'text-[#5C6068] hover:text-[#1E2024]'
+                }`}
+              >
+                Semua ({filterCounts.all})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeliveryFilterChange('PARTIAL_DELIVERY')}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  filterStatus === 'PARTIAL_DELIVERY'
+                    ? 'bg-[#EA5413] text-white shadow-sm'
+                    : 'text-[#5C6068] hover:text-[#EA5413]'
+                }`}
+              >
+                Partial ({filterCounts.partial})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeliveryFilterChange('FULL_PENDING')}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  filterStatus === 'FULL_PENDING'
+                    ? 'bg-zinc-600 text-white shadow-sm'
+                    : 'text-[#5C6068] hover:text-zinc-800'
+                }`}
+              >
+                Pending ({filterCounts.pending})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeliveryFilterChange('STOCK_READY')}
+                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  filterStatus === 'STOCK_READY'
+                    ? 'bg-emerald-600 text-white shadow-sm'
+                    : 'text-[#5C6068] hover:text-emerald-700'
+                }`}
+              >
+                Stock Ready ({filterCounts.stockReady})
+              </button>
+            </div>
           </div>
 
           {/* Opsi Scroll & View Mode */}
           <div className="flex items-center gap-1.5 flex-wrap self-start md:self-auto">
-            <span className="text-[10px] font-black uppercase tracking-wider text-[#141414]/70 mr-0.5">
-              Mode Scroll:
+            <span className="text-[11px] font-semibold text-[#5C6068] mr-0.5">
+              Scroll:
             </span>
 
             {/* Segmented Control: Bebas Halaman vs Kunci Kotak */}
-            <div className="inline-flex border-2 border-[#141414] bg-white p-0.5 shadow-[1px_1px_0px_#141414]">
+            <div className="glass-segmented inline-flex items-center">
               <button
                 type="button"
                 onClick={() => {
                   haptic.selection();
                   setScrollMode('page');
                 }}
-                className={`flex items-center gap-1 px-2 py-1 text-[10px] sm:text-[11px] font-mono font-bold uppercase transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
                   scrollMode === 'page'
-                    ? 'bg-[#141414] text-white shadow-[1px_1px_0px_#141414]'
-                    : 'text-[#141414] hover:bg-[#EAEAEA]'
+                    ? 'glass-segmented-active text-emerald-700'
+                    : 'text-[#5C6068] hover:text-[#1E2024]'
                 }`}
                 title="Scroll mouse bebas menggerakkan seluruh halaman web tanpa tersangkut di dalam tabel"
               >
-                <Unlock className={`w-3 h-3 ${scrollMode === 'page' ? 'text-emerald-400' : 'text-[#141414]'}`} />
-                <span>Bebas Halaman</span>
+                <Unlock className={`w-3 h-3 ${scrollMode === 'page' ? 'text-emerald-600' : 'text-zinc-400'}`} />
+                <span>Bebas</span>
               </button>
 
               <button
@@ -609,15 +613,15 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                   haptic.selection();
                   setScrollMode('box');
                 }}
-                className={`flex items-center gap-1 px-2 py-1 text-[10px] sm:text-[11px] font-mono font-bold uppercase transition-all cursor-pointer ${
+                className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
                   scrollMode === 'box'
-                    ? 'bg-[#141414] text-white shadow-[1px_1px_0px_#141414]'
-                    : 'text-[#141414] hover:bg-[#EAEAEA]'
+                    ? 'glass-segmented-active text-[#EA5413]'
+                    : 'text-[#5C6068] hover:text-[#1E2024]'
                 }`}
                 title="Batasi tabel dalam kotak scroll 70vh dengan scrollbar internal"
               >
-                <Lock className={`w-3 h-3 ${scrollMode === 'box' ? 'text-amber-400' : 'text-[#141414]'}`} />
-                <span>Kunci Kotak</span>
+                <Lock className={`w-3 h-3 ${scrollMode === 'box' ? 'text-[#EA5413]' : 'text-zinc-400'}`} />
+                <span>Kotak</span>
               </button>
             </div>
 
@@ -628,17 +632,17 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 haptic.medium();
                 setIsFullscreen(!isFullscreen);
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-[#141414] text-[#141414] hover:text-white border-2 border-[#141414] font-mono font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[30px]"
-              title={isFullscreen ? "Keluar layar penuh (ESC)" : "Buka tabel dalam mode layar penuh (Full Spreadsheet View)"}
+              className="liquid-glass-clear inline-flex items-center gap-1 px-3 py-1 text-[11px] uppercase tracking-wider cursor-pointer"
+              title={isFullscreen ? "Keluar layar penuh (ESC)" : "Buka tabel dalam mode layar penuh"}
             >
               {isFullscreen ? (
                 <>
-                  <Minimize2 className="w-3.5 h-3.5 text-[#FF6B35]" />
-                  <span>Keluar Full</span>
+                  <Minimize2 className="w-3.5 h-3.5 text-[#EA5413]" />
+                  <span>Keluar</span>
                 </>
               ) : (
                 <>
-                  <Maximize2 className="w-3.5 h-3.5 text-[#FF6B35]" />
+                  <Maximize2 className="w-3.5 h-3.5 text-[#EA5413]" />
                   <span>Layar Penuh</span>
                 </>
               )}
@@ -646,16 +650,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
 
             {/* Custom Columns / Rows Button */}
             {hiddenColumnCount > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-100 border-2 border-amber-800 text-amber-950 text-[10px] sm:text-[11px] font-mono font-bold shadow-[1px_1px_0px_#78350f]">
-                <EyeOff className="w-3.5 h-3.5 text-amber-800 shrink-0" />
-                <span>{hiddenColumnCount} Row Tersembunyi</span>
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[11px] font-medium rounded-full">
+                <EyeOff className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                <span>{hiddenColumnCount} Hide</span>
                 <button
                   type="button"
                   onClick={showAllColumns}
-                  className="ml-1 px-1.5 py-0.5 bg-amber-800 hover:bg-amber-900 text-white text-[9px] font-bold uppercase shadow-[1px_1px_0px_black] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer flex items-center gap-1"
+                  className="ml-0.5 px-1.5 py-0.2 bg-amber-700 hover:bg-amber-800 text-white text-[9px] font-bold rounded-full cursor-pointer flex items-center gap-0.5 transition-colors"
                   title="Tampilkan semua row / kolom (Reset)"
                 >
-                  <RotateCcw className="w-3 h-3 text-white" />
+                  <RotateCcw className="w-2.5 h-2.5 text-white" />
                   <span>Reset</span>
                 </button>
               </div>
@@ -668,15 +672,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 haptic.light();
                 setIsManageColumnsOpen(true);
               }}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1 border-2 border-[#141414] font-mono font-bold text-[10px] sm:text-[11px] uppercase tracking-wider transition-all shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[30px] ${
-                hiddenColumnCount > 0
-                  ? 'bg-amber-200 text-amber-950 hover:bg-amber-300 border-amber-800'
-                  : 'bg-white hover:bg-[#EAEAEA] text-[#141414]'
+              className={`liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1 font-mono text-[11px] uppercase tracking-wider cursor-pointer ${
+                hiddenColumnCount > 0 ? 'border-[#EA5413]/40 text-[#EA5413]' : ''
               }`}
-              title="Kustomisasi Row / Kolom (1. CO, 2. Artikel, 3. Item Description, dst)"
+              title="Kustomisasi Row / Kolom"
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#141414]" />
-              <span>Kustom Row {hiddenColumnCount > 0 ? `(${hiddenColumnCount} Hide)` : ''}</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-[#EA5413]" />
+              <span>Kustom Kolom {hiddenColumnCount > 0 ? `(${hiddenColumnCount})` : ''}</span>
             </button>
           </div>
         </div>
@@ -686,25 +688,25 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       <div
         className={
           isFullscreen
-            ? "flex-1 min-h-0 overflow-x-auto overflow-y-auto relative border-2 border-[#141414] bg-white"
+            ? "flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-white/30"
             : scrollMode === 'page'
             ? "overflow-x-auto relative"
             : "overflow-x-auto overflow-y-auto max-h-[68vh] sm:max-h-[74vh] relative"
         }
       >
         <table id="erp-extracted-table" className="w-full text-left text-xs whitespace-nowrap border-collapse">
-          <thead className={`${isStickyHeader ? 'sticky top-0 z-20 shadow-[0_2px_4px_rgba(0,0,0,0.15)]' : 'relative z-10'} bg-[#141414]`}>
-            <tr className="bg-[#141414] text-white text-[11px] font-mono font-bold uppercase tracking-wider">
-              <th className={`${thStickyClass} bg-[#141414] py-3 px-3 pl-4 border-r border-white/20`}>#</th>
+          <thead className={`${isStickyHeader ? 'sticky top-0 z-20 shadow-sm' : 'relative z-10'} bg-[#1E2229]/95 backdrop-blur-md`}>
+            <tr className="bg-[#1E2229]/95 text-white text-[11px] font-mono font-semibold tracking-wider">
+              <th className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 pl-4 border-r border-white/10`}>#</th>
 
               {visibleColumns.co && (
                 <th
                   onClick={() => handleSort('CO')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 min-w-[160px]`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[160px]`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>1. CO (Customer Order)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -712,11 +714,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.artikel && (
                 <th
                   onClick={() => handleSort('Artikel')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>2. Artikel</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -724,11 +726,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.itemDescription && (
                 <th
                   onClick={() => handleSort('Item Description')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors min-w-[220px] border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors min-w-[220px] border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>3. Item Description</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -736,11 +738,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.tanggalInput && (
                 <th
                   onClick={() => handleSort('Tanggal Input PO')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20 min-w-[140px]`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[140px]`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>4. Tanggal Input PO</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -748,11 +750,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.noPo && (
                 <th
                   onClick={() => handleSort('No PO')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>5. No PO (Clean)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -760,11 +762,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.substance && (
                 <th
                   onClick={() => handleSort('Substance')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
                     <span>6. Substance</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -772,11 +774,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.qtyPo && (
                 <th
                   onClick={() => handleSort('QTY PO (pcs)')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>7. QTY PO (pcs)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -784,11 +786,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.beratPo && (
                 <th
                   onClick={() => handleSort('Berat PO (KG)')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>8. Berat PO (KG)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -796,11 +798,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.stockPcs && (
                 <th
                   onClick={() => handleSort('Stock (pcs)')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>9. Stock (pcs)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -808,11 +810,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.stockKg && (
                 <th
                   onClick={() => handleSort('Stock (kg)')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>10. Stock (kg)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -820,11 +822,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.sisaOsPcs && (
                 <th
                   onClick={() => handleSort('Sisa OS (pcs)')}
-                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/20 bg-[#FF6B35]`}
+                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-[#EA5413]/90`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>11. Sisa OS (pcs)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-white/80" />
                   </div>
                 </th>
               )}
@@ -832,11 +834,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.sisaOsKg && (
                 <th
                   onClick={() => handleSort('Sisa OS (kg)')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>12. Sisa OS (kg)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -844,11 +846,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.terkirimPcs && (
                 <th
                   onClick={() => handleSort('Terkirim (PCS)')}
-                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/20 bg-[#2E7D32]`}
+                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-[#059669]/90`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>13. Terkirim (PCS)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-white/80" />
                   </div>
                 </th>
               )}
@@ -856,11 +858,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.terkirimKg && (
                 <th
                   onClick={() => handleSort('Terkirim (KG)')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 text-right cursor-pointer hover:bg-black transition-colors border-r border-white/20`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>14. Terkirim (KG)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
@@ -868,21 +870,21 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.harga && (
                 <th
                   onClick={() => handleSort('Harga')}
-                  className={`${thStickyClass} bg-[#141414] py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black transition-colors`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black/30 transition-colors`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
                     <span>15. Harga</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5" />
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-[#141414]/15 font-mono text-xs">
+          <tbody className="divide-y divide-zinc-200/50 font-mono text-xs">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={visibleColumnCount} className="py-12 text-center text-[#141414]/60 font-sans font-medium">
-                  Tidak ada data yang sesuai dengan filter Status CO atau pencarian saat ini.
+                <td colSpan={visibleColumnCount} className="py-12 text-center text-[#5C6068] font-sans font-medium">
+                  Tidak ada data yang sesuai dengan filter atau pencarian saat ini.
                 </td>
               </tr>
             ) : (
@@ -900,21 +902,21 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 return (
                   <tr
                     key={rowKey}
-                    className="hover:bg-[#F0F0EE] transition-colors group"
+                    className="hover:bg-[#FF7B35]/5 transition-colors group"
                   >
-                    <td className="py-2.5 px-3 pl-4 text-[#141414]/70 border-r border-[#141414]/10 font-mono font-bold">
+                    <td className="py-2.5 px-3 pl-4 text-zinc-400 border-r border-zinc-200/40 font-mono font-medium">
                       {originalIndex}
                     </td>
 
                     {visibleColumns.co && (
-                      <td className="py-2.5 px-3 font-bold text-[#141414] border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 font-semibold text-[#1E2024] border-r border-zinc-200/40">
                         <div className="flex items-center gap-1.5">
-                          <span className="px-1.5 py-0.5 bg-[#F0F0EE] border border-[#141414] text-[#141414] text-[11px] font-mono">
+                          <span className="px-2 py-0.5 bg-white/70 border border-zinc-200/70 text-[#1E2024] text-[11px] font-mono rounded-md shadow-xs">
                             {row.CO || '-'}
                           </span>
                           {isCOOpen && (
                             <span
-                              className="px-1.5 py-0.5 bg-emerald-100 border border-emerald-600 text-emerald-800 text-[9px] font-black uppercase"
+                              className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 text-[10px] font-bold uppercase rounded-full"
                               title="CO Status: OPEN (Masih Terbuka / Berjalan)"
                             >
                               OPEN
@@ -922,7 +924,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                           )}
                           {isCOClosed && (
                             <span
-                              className="px-1.5 py-0.5 bg-zinc-100 border border-zinc-400 text-zinc-600 text-[9px] font-bold uppercase"
+                              className="px-2 py-0.5 bg-zinc-200/60 border border-zinc-300/60 text-zinc-600 text-[10px] font-semibold uppercase rounded-full"
                               title="CO Status: CLOSED (Selesai / Ditutup)"
                             >
                               CLOSED
@@ -933,72 +935,78 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     )}
 
                     {visibleColumns.artikel && (
-                      <td className="py-2.5 px-3 font-bold text-[#141414] border-r border-[#141414]/10">
-                        <span className="px-1.5 py-0.5 bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[11px] font-mono">
+                      <td className="py-2.5 px-3 font-semibold text-[#1E2024] border-r border-zinc-200/40">
+                        <span className="px-2 py-0.5 bg-white/80 border border-zinc-200/80 text-[#1E2024] text-[11px] font-mono rounded-md">
                           {row.Artikel}
                         </span>
                       </td>
                     )}
 
                     {visibleColumns.itemDescription && (
-                      <td className="py-2.5 px-3 text-[#141414] font-sans font-medium whitespace-normal max-w-xs line-clamp-1 group-hover:line-clamp-none border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-[#1E2024] font-sans font-medium whitespace-normal max-w-xs line-clamp-1 group-hover:line-clamp-none border-r border-zinc-200/40">
                         {row['Item Description']}
                       </td>
                     )}
 
                     {visibleColumns.tanggalInput && (
-                      <td className="py-2.5 px-3 text-[#141414] font-mono border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-[#5C6068] font-mono border-r border-zinc-200/40">
                         {row['Tanggal Input PO'] && row['Tanggal Input PO'] !== '-' ? (
-                          <span className="px-1.5 py-0.5 bg-[#F0F0EE] border border-[#141414]/40 text-[#141414] text-[11px] font-mono font-medium whitespace-nowrap">
+                          <span className="px-2 py-0.5 bg-white/60 border border-zinc-200/60 text-[#5C6068] text-[11px] font-mono rounded whitespace-nowrap">
                             {row['Tanggal Input PO']}
                           </span>
                         ) : (
-                          <span className="text-[#141414]/40">-</span>
+                          <span className="text-zinc-400">-</span>
                         )}
                       </td>
                     )}
 
                     {visibleColumns.noPo && (
-                      <td className="py-2.5 px-3 font-bold text-[#141414] border-r border-[#141414]/10">
-                        {row['No PO']}
+                      <td className="py-2.5 px-3 font-semibold text-[#1E2024] font-mono border-r border-zinc-200/40">
+                        {row['No PO'] || '-'}
                       </td>
                     )}
 
                     {visibleColumns.substance && (
-                      <td className="py-2.5 px-3 text-[#141414]/70 font-sans border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-[#5C6068] font-sans border-r border-zinc-200/40">
                         {row.Substance || '-'}
                       </td>
                     )}
 
                     {visibleColumns.qtyPo && (
-                      <td className="py-2.5 px-3 text-right text-[#141414] font-bold border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#1E2024] border-r border-zinc-200/40">
                         {row['QTY PO (pcs)'].toLocaleString('id-ID')}
                       </td>
                     )}
 
                     {visibleColumns.beratPo && (
-                      <td className="py-2.5 px-3 text-right text-[#141414]/70 border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
                         {row['Berat PO (KG)'].toLocaleString('id-ID')}
                       </td>
                     )}
 
                     {visibleColumns.stockPcs && (
-                      <td className="py-2.5 px-3 text-right text-[#141414] font-medium border-r border-[#141414]/10">
-                        {row['Stock (pcs)'].toLocaleString('id-ID')}
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#1E2024] border-r border-zinc-200/40">
+                        {row['Stock (pcs)'] > 0 ? (
+                          <span className="text-emerald-700 font-bold bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                            {row['Stock (pcs)'].toLocaleString('id-ID')}
+                          </span>
+                        ) : (
+                          '0'
+                        )}
                       </td>
                     )}
 
                     {visibleColumns.stockKg && (
-                      <td className="py-2.5 px-3 text-right text-[#141414]/70 border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
                         {row['Stock (kg)'].toLocaleString('id-ID')}
                       </td>
                     )}
 
                     {visibleColumns.sisaOsPcs && (
-                      <td className="py-2.5 px-3 text-right font-black text-[#141414] bg-[#FF6B35]/15 border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-[#EA5413] border-r border-zinc-200/40 bg-[#EA5413]/5">
                         {row['Sisa OS (pcs)'].toLocaleString('id-ID')}
                         {isDeliveredPartial && (
-                          <span className="ml-1 inline-block text-[10px] text-green-700 font-sans font-bold">
+                          <span className="ml-1 inline-block text-[10px] text-emerald-700 font-sans font-semibold">
                             (SJ✓)
                           </span>
                         )}
@@ -1006,25 +1014,25 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     )}
 
                     {visibleColumns.sisaOsKg && (
-                      <td className="py-2.5 px-3 text-right text-[#141414]/80 border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
                         {row['Sisa OS (kg)'].toLocaleString('id-ID')}
                       </td>
                     )}
 
                     {visibleColumns.terkirimPcs && (
-                      <td className="py-2.5 px-3 text-right font-bold text-green-800 bg-green-50/60 border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-800 border-r border-zinc-200/40 bg-emerald-500/5">
                         {terkirimPcs > 0 ? terkirimPcs.toLocaleString('id-ID') : '0'}
                       </td>
                     )}
 
                     {visibleColumns.terkirimKg && (
-                      <td className="py-2.5 px-3 text-right text-[#141414]/80 border-r border-[#141414]/10">
+                      <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
                         {terkirimKg > 0 ? terkirimKg.toLocaleString('id-ID') : '0'}
                       </td>
                     )}
 
                     {visibleColumns.harga && (
-                      <td className="py-2.5 px-3 pr-4 text-right text-[#141414] font-bold">
+                      <td className="py-2.5 px-3 pr-4 text-right font-mono font-medium text-[#1E2024]">
                         {row.Harga > 0 ? `Rp ${row.Harga.toLocaleString('id-ID')}` : '-'}
                       </td>
                     )}
@@ -1037,17 +1045,17 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       </div>
 
       {/* Table Pagination & Navigation Footer */}
-      <div className="p-3 sm:p-4 border-t-2 border-[#141414] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs text-[#141414] font-mono bg-[#F0F0EE] shrink-0">
+      <div className="p-3 sm:p-4 border-t border-zinc-200/60 bg-white/40 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs text-[#5C6068] font-mono shrink-0">
         <div className="flex items-center gap-2 flex-wrap text-center sm:text-left text-[11px] sm:text-xs">
           {isUnlimited ? (
-            <span>
+            <span className="font-semibold text-[#1E2024]">
               Menampilkan semua <span className="font-bold">{filteredData.length}</span> PO Records (Tanpa Limit)
             </span>
           ) : (
             <span>
-              Showing <span className="font-bold">{filteredData.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}</span> -{' '}
-              <span className="font-bold">{Math.min(currentPage * effectivePageSize, filteredData.length)}</span> of{' '}
-              <span className="font-bold">{filteredData.length}</span> PO Records
+              Menampilkan baris <span className="font-bold text-[#1E2024]">{filteredData.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}</span> -{' '}
+              <span className="font-bold text-[#1E2024]">{Math.min(currentPage * effectivePageSize, filteredData.length)}</span> dari{' '}
+              <span className="font-bold text-[#1E2024]">{filteredData.length}</span> PO
             </span>
           )}
 
@@ -1058,30 +1066,29 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               haptic.light();
               tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
-            className="inline-flex items-center gap-1 px-2 py-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] font-bold text-[10px] shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer ml-1"
+            className="liquid-glass-clear inline-flex items-center gap-1 px-2.5 py-1 text-[11px] cursor-pointer ml-1 text-zinc-600 hover:text-zinc-900"
             title="Kembali ke atas tabel"
           >
-            <ArrowUp className="w-3 h-3" />
-            <span>Ke Atas Tabel</span>
+            <ArrowUp className="w-3 h-3 text-[#EA5413]" />
+            <span>Ke Atas</span>
           </button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 sm:gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="font-bold uppercase text-[10px]">Tampilkan:</span>
+            <span className="font-semibold uppercase text-[10px] text-[#5C6068]">Baris:</span>
             <select
               value={pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-              className="bg-white border-2 border-[#141414] text-[#141414] font-bold px-2 py-1.5 text-xs focus:outline-none cursor-pointer min-h-[36px]"
+              className="bg-white/80 border border-white/90 text-[#1E2024] font-semibold px-2.5 py-1 text-xs rounded-full focus:outline-none cursor-pointer shadow-xs"
             >
-              <option value={0}>Semua Data (Unlimited)</option>
+              <option value={0}>Semua (Unlimited)</option>
               <option value={25}>25 Baris</option>
               <option value={50}>50 Baris</option>
               <option value={100}>100 Baris</option>
               <option value={250}>250 Baris</option>
               <option value={500}>500 Baris</option>
               <option value={1000}>1000 Baris</option>
-              <option value={5000}>5000 Baris</option>
             </select>
           </div>
 
@@ -1091,19 +1098,19 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 type="button"
                 disabled={currentPage <= 1}
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
-                className="p-1.5 sm:p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+                className="liquid-glass-clear p-1.5 rounded-full disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-zinc-600 hover:text-zinc-900"
                 aria-label="Halaman sebelumnya"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <span className="px-2 font-bold font-mono text-[11px] sm:text-xs">
+              <span className="px-2 font-bold font-mono text-xs text-[#1E2024]">
                 {currentPage} / {totalPages}
               </span>
               <button
                 type="button"
                 disabled={currentPage >= totalPages}
                 onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
-                className="p-1.5 sm:p-1 border-2 border-[#141414] bg-white hover:bg-[#DEDEDE] text-[#141414] disabled:opacity-30 disabled:pointer-events-none transition-colors shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
+                className="liquid-glass-clear p-1.5 rounded-full disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-zinc-600 hover:text-zinc-900"
                 aria-label="Halaman berikutnya"
               >
                 <ChevronRight className="w-4 h-4" />
@@ -1113,106 +1120,108 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         </div>
       </div>
 
-      {/* Modal Dialog: Kelola & Kustomisasi Row / Kolom Tabel (Hide / Unhide) */}
+      {/* Modal Dialog: Kelola & Kustomisasi Row / Kolom Tabel */}
       {isManageColumnsOpen && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5"
+          className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-md flex items-center justify-center p-3 sm:p-5"
           onClick={() => setIsManageColumnsOpen(false)}
         >
           <div
-            className="bg-white border-4 border-[#141414] shadow-[8px_8px_0px_#141414] w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            className="glass-panel rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-fade-in shadow-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="bg-[#141414] text-white p-3.5 sm:p-4 flex items-center justify-between gap-3 border-b-2 border-[#141414]">
-              <div className="flex items-center gap-2">
-                <SlidersHorizontal className="w-5 h-5 text-[#FF6B35]" />
+            <div className="p-4 sm:p-5 flex items-center justify-between gap-3 border-b border-zinc-200/60 bg-white/40">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl glass-card text-[#EA5413] flex items-center justify-center shadow-xs">
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
                 <div>
-                  <h3 className="font-mono font-bold text-sm sm:text-base uppercase tracking-wider">
-                    Kustomisasi Row / Kolom Tabel
+                  <h3 className="font-bold text-sm sm:text-base text-[#1E2024]">
+                    Kustomisasi Kolom Tabel
                   </h3>
-                  <p className="text-[11px] text-white/70 font-sans mt-0.5">
-                    Pilih apa saja yang ingin ditampilkan (1. CO, 2. Artikel, 3. Item Description, dst). Data tetap utuh untuk AI Chatbot.
+                  <p className="text-[11px] text-[#5C6068]">
+                    Pilih kolom yang ingin ditampilkan di tabel. Data AI Chatbot tetap membaca utuh.
                   </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsManageColumnsOpen(false)}
-                className="p-1.5 hover:bg-white/20 text-white transition-colors cursor-pointer border border-white/20"
+                className="liquid-glass-clear p-1.5 rounded-full text-zinc-500 hover:text-zinc-900 cursor-pointer"
                 title="Tutup (ESC)"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Presets & Quick Filters */}
-            <div className="p-3 sm:p-4 bg-[#F0F0EE] border-b-2 border-[#141414] flex flex-col gap-3">
+            <div className="p-3 sm:p-4 bg-white/30 border-b border-zinc-200/60 flex flex-col gap-3">
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-mono font-bold uppercase text-[#141414]/70 mr-1">
-                    Preset Tampilan:
+                  <span className="text-[11px] font-semibold text-[#5C6068] mr-1">
+                    Preset:
                   </span>
                   <button
                     type="button"
                     onClick={() => applyPreset('all')}
-                    className="px-2 py-1 bg-white hover:bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[10px] sm:text-[11px] font-mono font-bold shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                    className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
                     Semua (15)
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('essential')}
-                    className="px-2 py-1 bg-white hover:bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[10px] sm:text-[11px] font-mono font-bold shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                    className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
                     Esensial
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('logistics')}
-                    className="px-2 py-1 bg-white hover:bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[10px] sm:text-[11px] font-mono font-bold shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                    className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
-                    Logistik & Stok
+                    Logistik
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('financial')}
-                    className="px-2 py-1 bg-white hover:bg-[#DEDEDE] border border-[#141414] text-[#141414] text-[10px] sm:text-[11px] font-mono font-bold shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                    className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
                     Finansial
                   </button>
                   <button
                     type="button"
                     onClick={showAllColumns}
-                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 border border-[#141414] text-white text-[10px] sm:text-[11px] font-mono font-bold shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer flex items-center gap-1"
+                    className="liquid-glass-emerald px-2.5 py-1 text-[11px] cursor-pointer flex items-center gap-1"
                   >
                     <RotateCcw className="w-3 h-3 text-white" />
                     <span>Reset</span>
                   </button>
                 </div>
 
-                <div className="text-[11px] font-mono font-bold text-[#141414] bg-white border border-[#141414] px-2 py-0.5">
+                <div className="text-[11px] font-mono font-semibold text-[#1E2024] bg-white/70 border border-white/90 px-2.5 py-0.5 rounded-full shadow-xs">
                   {ERP_COLUMNS.length - hiddenColumnCount} / {ERP_COLUMNS.length} Tampil
                 </div>
               </div>
 
               {/* Search Bar inside column modal */}
               <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#141414]/60 pointer-events-none" />
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Cari row/kolom (contoh: CO, Artikel, Item Description, Stok, Harga)..."
+                  placeholder="Cari kolom (contoh: CO, Artikel, Item Description, Stok, Harga)..."
                   value={columnSearch}
                   onChange={(e) => setColumnSearch(e.target.value)}
-                  className="w-full pl-9 pr-8 py-1.5 text-xs bg-white border-2 border-[#141414] focus:outline-none focus:ring-1 focus:ring-[#FF6B35] font-mono font-medium"
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-white/80 border border-white/90 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF7B35]/40 font-mono shadow-xs"
                 />
                 {columnSearch && (
                   <button
                     type="button"
                     onClick={() => setColumnSearch('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-bold text-[#141414]/50 hover:text-black"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-zinc-400 hover:text-zinc-700"
                   >
                     ✕
                   </button>
@@ -1221,10 +1230,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
             </div>
 
             {/* List of Columns with Toggle Switches */}
-            <div className="flex-1 overflow-y-auto divide-y divide-[#141414]/15 max-h-[50vh] p-2 bg-white">
+            <div className="flex-1 overflow-y-auto divide-y divide-zinc-200/50 max-h-[50vh] p-2 bg-transparent">
               {filteredModalColumns.length === 0 ? (
-                <div className="py-8 text-center text-xs text-[#141414]/60 font-mono">
-                  Tidak ada row/kolom yang cocok dengan kata kunci &quot;{columnSearch}&quot;
+                <div className="py-8 text-center text-xs text-[#5C6068] font-mono">
+                  Tidak ada kolom yang cocok dengan kata kunci &quot;{columnSearch}&quot;
                 </div>
               ) : (
                 filteredModalColumns.map((col) => {
@@ -1234,24 +1243,24 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     <div
                       key={col.key}
                       onClick={() => toggleColumn(col.key)}
-                      className={`flex items-center justify-between gap-3 p-2.5 rounded transition-all cursor-pointer select-none ${
-                        isVisible ? 'hover:bg-[#F0F0EE]' : 'bg-amber-50/50 hover:bg-amber-50 opacity-80'
+                      className={`flex items-center justify-between gap-3 p-2.5 rounded-2xl transition-all cursor-pointer select-none ${
+                        isVisible ? 'hover:bg-white/60' : 'bg-amber-500/5 hover:bg-amber-500/10 opacity-75'
                       }`}
                     >
                       <div className="flex items-center gap-3 min-w-0">
-                        <span className="w-7 h-7 rounded bg-[#141414] text-white font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                        <span className="w-7 h-7 rounded-xl bg-zinc-800 text-white font-mono font-bold text-xs flex items-center justify-center shrink-0">
                           {col.number}
                         </span>
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`font-mono font-bold text-xs ${isVisible ? 'text-[#141414]' : 'text-[#141414]/60 line-through'}`}>
+                            <span className={`font-mono font-bold text-xs ${isVisible ? 'text-[#1E2024]' : 'text-zinc-400 line-through'}`}>
                               {col.label}
                             </span>
-                            <span className="px-1.5 py-0.2 bg-[#F0F0EE] border border-[#141414]/40 text-[9px] font-mono font-bold text-[#141414]/80 uppercase">
+                            <span className="px-2 py-0.2 bg-white/80 border border-zinc-200/80 text-[9px] font-mono font-medium text-zinc-600 rounded-full uppercase">
                               {col.badge}
                             </span>
                           </div>
-                          <span className="text-[11px] text-[#141414]/65 font-sans truncate">
+                          <span className="text-[11px] text-[#5C6068] truncate">
                             {col.description}
                           </span>
                         </div>
@@ -1264,20 +1273,20 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                             e.stopPropagation();
                             toggleColumn(col.key);
                           }}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-bold border-2 transition-all cursor-pointer shadow-[1px_1px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer ${
                             isVisible
-                              ? 'bg-emerald-100 border-emerald-800 text-emerald-950 hover:bg-emerald-200'
-                              : 'bg-amber-100 border-amber-800 text-amber-950 hover:bg-amber-200'
+                              ? 'liquid-glass-emerald'
+                              : 'bg-amber-500/15 text-amber-800 border border-amber-500/30'
                           }`}
                         >
                           {isVisible ? (
                             <>
-                              <Check className="w-3.5 h-3.5 text-emerald-800" />
+                              <Check className="w-3.5 h-3.5 text-white" />
                               <span>Tampil</span>
                             </>
                           ) : (
                             <>
-                              <EyeOff className="w-3.5 h-3.5 text-amber-800" />
+                              <EyeOff className="w-3.5 h-3.5 text-amber-700" />
                               <span>Hidden</span>
                             </>
                           )}
@@ -1290,14 +1299,14 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
             </div>
 
             {/* Modal Footer Note & Done Button */}
-            <div className="p-3 sm:p-4 bg-[#F0F0EE] border-t-2 border-[#141414] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <p className="text-[11px] text-[#141414]/80 font-sans">
-                <span className="font-bold">Info:</span> Menyembunyikan row pada tampilan web tidak menghapus data. AI Chatbot tetap membaca seluruh 15 row/kolom ERP secara utuh.
+            <div className="p-3.5 sm:p-4 bg-white/40 border-t border-zinc-200/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+              <p className="text-[11px] text-[#5C6068]">
+                Menyembunyikan kolom tidak menghapus data. AI Chatbot tetap membaca 15 kolom secara utuh.
               </p>
               <button
                 type="button"
                 onClick={() => setIsManageColumnsOpen(false)}
-                className="px-5 py-2 bg-[#141414] hover:bg-black text-white text-xs font-mono font-bold uppercase shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer text-center"
+                className="liquid-glass-primary px-5 py-2 text-xs uppercase tracking-wider cursor-pointer text-center"
               >
                 Selesai
               </button>
