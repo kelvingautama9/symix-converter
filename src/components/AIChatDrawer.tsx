@@ -26,6 +26,7 @@ interface Message {
   role: 'user' | 'model';
   content: string;
   timestamp: string;
+  modelUsed?: string;
 }
 
 interface AIChatDrawerProps {
@@ -295,6 +296,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
         role: 'model',
         content: result.reply,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        modelUsed: result.modelUsed,
       };
 
       setMessages((prev) => [...prev, modelMessage]);
@@ -654,6 +656,11 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                           <span className="tracking-wider uppercase text-[11px] font-semibold">
                             BlackEYE Assistant
                           </span>
+                          {msg.modelUsed && (
+                            <span className="text-[10px] font-mono font-normal px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-700 border border-emerald-500/20 lowercase tracking-normal">
+                              {msg.modelUsed.replace('models/', '')}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <button

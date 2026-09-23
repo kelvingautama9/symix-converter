@@ -59,7 +59,7 @@ export default async function handler(req: any, res: any) {
       const summary = dataContext.summary || {};
 
       // Limit records in prompt to prevent token overflow if thousands of records, but include full statistical summary
-      const sampleLimit = 150;
+      const sampleLimit = 100;
       const sampledRecords = records.slice(0, sampleLimit);
 
       datasetContextText = `
@@ -73,7 +73,7 @@ Total Pcs Sisa OS: ${summary.totalSisaPcs ? summary.totalSisaPcs.toLocaleString(
 Total Stok Gudang: ${summary.totalStockPcs ? summary.totalStockPcs.toLocaleString() + ' Pcs (' + (summary.totalStockKg || 0).toLocaleString() + ' kg)' : '-'}
 Estimasi Valuasi Sisa OS: ${summary.totalValue ? 'Rp ' + summary.totalValue.toLocaleString('id-ID') : '-'}
 
-Daftar Data Record PO (Format JSON Singkat):
+Daftar Data Record PO (Format JSON Ringkas):
 ${JSON.stringify(
   sampledRecords.map((r: any) => ({
     CO: r.CO,
@@ -90,9 +90,7 @@ ${JSON.stringify(
     SisaOS_kg: r['Sisa OS (kg)'],
     Terkirim_pcs: r['Terkirim (PCS)'],
     Harga: r.Harga,
-  })),
-  null,
-  2
+  }))
 )}
 ${records.length > sampleLimit ? `\n*(Catatan: Menampilkan ${sampleLimit} dari total ${records.length} PO dalam sampel context prompt)*` : ''}
 `;
@@ -155,20 +153,28 @@ ${datasetContextText}
       parts: [{ text: message }],
     });
 
-    // Multi-model fallback chain to handle Google server load spikes (503 / 429)
+    // Multi-model auto fallback chain to seamlessly handle server spikes (503), quota limits (429), or deprecations
+    // Starts with high-availability Flash models that have immediate capacity, then falls back across versions
     const candidateModels = [
-      'gemini-2.5-flash',
+      'gemini-3.5-flash',
+      'gemini-3.5-flash-lite',
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
       'gemini-3.8-flash',
-      'gemini-3.1-flash-lite',
       'gemini-flash-latest',
+      'gemini-flash-lite-latest',
+      'gemini-3.1-flash-lite',
     ];
 
     let lastError: any = null;
     let replyText = '';
+    let usedModel = '';
 
     for (const modelName of candidateModels) {
       try {
-        const response = await ai.models.generateContent({
+        console.log(`[AI Chat] Mencoba model: ${modelName}...`);
+
+        const generatePromise = ai.models.generateContent({
           model: modelName,
           contents,
           config: {
@@ -178,13 +184,22 @@ ${datasetContextText}
           },
         });
 
+        // 25 second failover timeout per candidate model to ensure complete reasoning and response
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout (>25s) pada model ${modelName}`)), 25000)
+        );
+
+        const response = await Promise.race([generatePromise, timeoutPromise]);
+
         if (response && response.text) {
           replyText = response.text;
+          usedModel = modelName;
+          console.log(`[AI Chat] Berhasil dijawab menggunakan model: ${modelName}`);
           break; // successfully got response, exit loop
         }
       } catch (err: any) {
         lastError = err;
-        console.warn(`Model ${modelName} failed (${err?.message || err}), switching to next fallback...`);
+        console.warn(`[AI Chat] Model ${modelName} gagal (${err?.status || err?.message || err}), beralih ke fallback model berikutnya...`);
       }
     }
 
@@ -195,6 +210,7 @@ ${datasetContextText}
     return res.status(200).json({
       success: true,
       reply: replyText,
+      modelUsed: usedModel,
     });
   } catch (error: any) {
     console.error('Error in /api/chat Gemini processing:', error);
