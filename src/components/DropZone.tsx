@@ -7,6 +7,7 @@ interface DropZoneProps {
   isLoading: boolean;
   errorMessage: string | null;
   currentFileName: string | null;
+  onSwitchToBatchMode?: () => void;
 }
 
 export const DropZone: React.FC<DropZoneProps> = ({
@@ -14,6 +15,7 @@ export const DropZone: React.FC<DropZoneProps> = ({
   isLoading,
   errorMessage,
   currentFileName,
+  onSwitchToBatchMode,
 }) => {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,6 +130,23 @@ export const DropZone: React.FC<DropZoneProps> = ({
               <FileSpreadsheet className="w-4 h-4" />
               Browse Files
             </button>
+
+            {onSwitchToBatchMode && (
+              <button
+                type="button"
+                id="btn-switch-to-batch-dropzone"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  haptic.selection();
+                  onSwitchToBatchMode();
+                }}
+                className="inline-flex items-center gap-2 px-5 py-3.5 bg-white hover:bg-[#F0F0EE] text-[#141414] font-bold text-xs uppercase tracking-wider transition-all border-2 border-[#141414] cursor-pointer shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5"
+                title="Buka konversi sekaligus banyak file tanpa batas"
+              >
+                <span className="w-2 h-2 rounded-full bg-[#FF6B35] animate-ping" />
+                <span>Konversi Banyak File (Batch) ➔</span>
+              </button>
+            )}
           </div>
 
           {currentFileName && !isLoading && (

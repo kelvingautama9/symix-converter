@@ -66,3 +66,35 @@ export type WhatsAppReportScope =
   | 'STOCK_READY_OPEN'
   | 'STOCK_READY_CLOSED';
 
+export type BatchItemStatus = 'pending' | 'processing' | 'success' | 'error';
+
+export interface BatchFileItem {
+  id: string;
+  file?: File;
+  rawFileName: string;
+  rawFileSize?: number;
+  status: BatchItemStatus;
+  errorMessage?: string;
+  data?: ExtractedRecord[];
+  summary?: ParseSummary;
+  excelBlob?: Blob;
+  outputFileName?: string;
+  durationMs?: number;
+  rawBuffer?: ArrayBuffer;
+  workbook?: any;
+}
+
+export interface BatchAggregateStats {
+  totalFiles: number;
+  completedFiles: number;
+  failedFiles: number;
+  totalPOs: number;
+  totalUniqueArticles: number;
+  totalQtyPcs: number;
+  totalSisaOSPcs: number;
+  totalTerkirimPcs: number;
+  totalStockPcs: number;
+  totalCOOpen: number;
+  totalCOClosed: number;
+}
+

@@ -1,11 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import * as XLSX from 'xlsx';
-import { ExtractedRecord, ParseSummary, ExcelExportScope, WhatsAppReportScope } from './types';
+import {
+  ExtractedRecord,
+  ParseSummary,
+  ExcelExportScope,
+  WhatsAppReportScope,
+  BatchFileItem,
+} from './types';
 import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
 import { exportToExcel, shareExcelFileToWhatsApp, getExportFileName } from './utils/excelExporter';
-import { shareToWhatsApp, generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
+import { generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
+import {
+  convertSingleRawFile,
+  downloadAllAsZip,
+  exportCombinedMasterWorkbook,
+} from './utils/batchConverter';
 import { haptic } from './utils/haptics';
-import { DropZone } from './components/DropZone';
+import { UploadDualContainer } from './components/UploadDualContainer';
+import { FileSwitcherBar, ConvertedFileItem } from './components/FileSwitcherBar';
 import { StatsOverview } from './components/StatsOverview';
 import { DeliveryPieChart } from './components/DeliveryPieChart';
 import { ActionToolbar } from './components/ActionToolbar';
@@ -16,39 +28,59 @@ import { AIChatDrawer } from './components/AIChatDrawer';
 import {
   FileSpreadsheet,
   CheckCircle2,
-  Database,
   Cpu,
   Download,
   Share2,
   Info,
-  Layers,
-  ShieldCheck,
   RefreshCw,
-  ExternalLink,
   Bot,
   Sparkles,
+  Layers,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function App() {
-  const [data, setData] = useState<ExtractedRecord[]>([]);
-  const [summary, setSummary] = useState<ParseSummary | null>(null);
+  // All converted files state
+  const [convertedFiles, setConvertedFiles] = useState<ConvertedFileItem[]>([]);
+  const [activeFileId, setActiveFileId] = useState<string | null>(null);
+
+  // Status & processing state
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [loadingMessage, setLoadingMessage] = useState<string | null>(null);
+  const [loadingProgress, setLoadingProgress] = useState<{
+    current: number;
+    total: number;
+    fileName: string;
+  } | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [rawWorkbook, setRawWorkbook] = useState<XLSX.WorkBook | null>(null);
-  const [fileBuffer, setFileBuffer] = useState<ArrayBuffer | null>(null);
-  const [currentFileName, setCurrentFileName] = useState<string | null>(null);
+  const [isZipping, setIsZipping] = useState<boolean>(false);
+  const [isMerging, setIsMerging] = useState<boolean>(false);
 
-  // Modals & UI state
+  // Modals state
   const [isWAModalOpen, setIsWAModalOpen] = useState(false);
   const [waModalInitialScope, setWaModalInitialScope] = useState<WhatsAppReportScope>('ALL');
-  const [waModalInitialMode, setWaModalInitialMode] = useState<'EXCEL_FILE' | 'TEXT_SUMMARY'>('EXCEL_FILE');
+  const [waModalInitialMode, setWaModalInitialMode] = useState<'EXCEL_FILE' | 'TEXT_SUMMARY'>(
+    'EXCEL_FILE'
+  );
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-  // Dynamically compute Stock Ready counts for toolbar dropdowns matching FIFO logic
+  // Active file derived state
+  const activeFile = useMemo(() => {
+    if (convertedFiles.length === 0) return null;
+    return convertedFiles.find((f) => f.id === activeFileId) || convertedFiles[0];
+  }, [convertedFiles, activeFileId]);
+
+  const data: ExtractedRecord[] = useMemo(() => activeFile?.data || [], [activeFile]);
+  const summary: ParseSummary | null = useMemo(() => activeFile?.summary || null, [activeFile]);
+  const currentFileName: string | null = useMemo(
+    () => activeFile?.rawFileName || null,
+    [activeFile]
+  );
+
+  // Compute FIFO Stock ready counts for action toolbar
   const totalStockReadyAll = useMemo(() => {
     if (!data || data.length === 0) return 0;
     const scoped = recalculateFIFOStock(data, 'ALL');
@@ -61,76 +93,143 @@ export default function App() {
     return scoped.filter((d) => d.coStatus === 'OPEN' && (d['Stock (pcs)'] || 0) > 0).length;
   }, [data]);
 
-  const handleFileLoaded = (
-    buffer: ArrayBuffer,
-    fileName: string,
-    triggerCelebration: boolean = true
-  ) => {
-    setIsLoading(true);
-    setErrorMessage(null);
-    setStatusMessage('Membaca & memproses hierarki data ERP...');
-    setFileBuffer(buffer);
-    setCurrentFileName(fileName);
-    haptic.medium();
-
-    // Give UI a brief frame to show loading state smoothly
-    setTimeout(() => {
-      try {
-        const { data: parsedData, summary: parsedSummary, workbook } = parseExcelBuffer(
-          buffer,
-          fileName
-        );
-
-        if (!parsedData || parsedData.length === 0) {
-          throw new Error(
-            'Tidak ada data Purchase Order (SH-/ST-/BX-/DC- dan DAP/PO) yang valid ditemukan pada sheet ini. Pastikan format file sesuai struktur ERP.'
-          );
-        }
-
-        setData(parsedData);
-        setSummary(parsedSummary);
-        setRawWorkbook(workbook);
-        setStatusMessage(
-          `Success: ${parsedData.length} POs extracted dari ${parsedSummary.totalUniqueItems} artikel produk`
-        );
-        haptic.success();
-
-        if (triggerCelebration) {
-          confetti({
-            particleCount: 70,
-            spread: 70,
-            origin: { y: 0.6 },
-            colors: ['#10b981', '#38bdf8', '#fbbf24'],
-          });
-        }
-      } catch (err: any) {
-        console.error('Parsing error:', err);
-        haptic.error();
-        setErrorMessage(err?.message || 'Terjadi kesalahan saat memproses file Excel.');
-        setStatusMessage(null);
-      } finally {
-        setIsLoading(false);
-      }
-    }, 120);
+  // Convert a single File instance to ConvertedFileItem
+  const processRawFile = async (file: File): Promise<ConvertedFileItem> => {
+    const result = await convertSingleRawFile(file, 'ALL');
+    return {
+      id: `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      rawFileName: file.name,
+      fileSize: file.size,
+      data: result.data,
+      summary: result.summary,
+      rawBuffer: result.rawBuffer,
+      rawWorkbook: result.workbook,
+      excelBlob: result.excelBlob,
+      outputFileName: result.outputFileName,
+      durationMs: result.durationMs,
+    };
   };
 
+  // Handle single convert
+  const handleSingleFileSelected = async (file: File) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    setLoadingMessage('Membaca & mengonversi file...');
+    setLoadingProgress(null);
+    haptic.medium();
+
+    try {
+      const converted = await processRawFile(file);
+      setConvertedFiles([converted]);
+      setActiveFileId(converted.id);
+      setStatusMessage(`File ${file.name} berhasil dikonversi (${converted.data.length} PO).`);
+      haptic.success();
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.6 },
+        colors: ['#10b981', '#38bdf8', '#fbbf24'],
+      });
+    } catch (err: any) {
+      console.error('Single conversion error:', err);
+      haptic.error();
+      setErrorMessage(
+        err?.message || 'Gagal memproses file Excel. Pastikan format sesuai standar ERP.'
+      );
+      setStatusMessage(null);
+    } finally {
+      setIsLoading(false);
+      setLoadingMessage(null);
+    }
+  };
+
+  // Handle multi convert (or append more files)
+  const handleMultipleFilesSelected = async (files: File[]) => {
+    if (files.length === 0) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    setLoadingMessage(`Mengonversi ${files.length} file...`);
+    haptic.medium();
+
+    const results: ConvertedFileItem[] = [];
+    const errors: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setLoadingProgress({ current: i + 1, total: files.length, fileName: file.name });
+      try {
+        const converted = await processRawFile(file);
+        results.push(converted);
+      } catch (err: any) {
+        console.error(`Error converting ${file.name}:`, err);
+        errors.push(`${file.name}: ${err?.message || 'Gagal'}`);
+      }
+    }
+
+    setIsLoading(false);
+    setLoadingProgress(null);
+    setLoadingMessage(null);
+
+    if (results.length > 0) {
+      setConvertedFiles((prev) => {
+        // Append to existing files if any, otherwise set as initial list
+        const updated = [...prev, ...results];
+        return updated;
+      });
+      setActiveFileId(results[0].id);
+      haptic.success();
+      confetti({
+        particleCount: 70,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#25D366', '#FF6B35', '#141414'],
+      });
+      setStatusMessage(
+        `${results.length} file berhasil dikonversi.` +
+          (errors.length > 0 ? ` (${errors.length} file bermasalah)` : '')
+      );
+    } else {
+      haptic.error();
+      setErrorMessage(
+        `Semua file (${files.length}) gagal dikonversi. Pastikan format file sesuai struktur ERP.`
+      );
+    }
+  };
+
+  // Switch active file from dropdown
+  const handleSelectFile = (fileId: string) => {
+    setActiveFileId(fileId);
+    const target = convertedFiles.find((f) => f.id === fileId);
+    if (target) {
+      setStatusMessage(`File aktif: ${target.rawFileName}`);
+    }
+  };
+
+  // Change sheet within the active file
   const handleSelectSheet = (sheetName: string) => {
-    if (!fileBuffer || !currentFileName) return;
+    if (!activeFile || !activeFile.rawBuffer) return;
     haptic.selection();
     setIsLoading(true);
     setTimeout(() => {
       try {
         const { data: parsedData, summary: parsedSummary, workbook } = parseExcelBuffer(
-          fileBuffer,
-          currentFileName,
+          activeFile.rawBuffer,
+          activeFile.rawFileName,
           sheetName
         );
-        setData(parsedData);
-        setSummary(parsedSummary);
-        setRawWorkbook(workbook);
-        setStatusMessage(
-          `Success: ${parsedData.length} POs extracted (Sheet: ${sheetName})`
+        setConvertedFiles((prev) =>
+          prev.map((f) =>
+            f.id === activeFile.id
+              ? {
+                  ...f,
+                  data: parsedData,
+                  summary: parsedSummary,
+                  rawWorkbook: workbook,
+                }
+              : f
+          )
         );
+        setStatusMessage(`Sheet diubah: ${sheetName}`);
         haptic.success();
       } catch (err: any) {
         haptic.error();
@@ -138,18 +237,90 @@ export default function App() {
       } finally {
         setIsLoading(false);
       }
-    }, 100);
+    }, 80);
   };
 
+  // Download active file Excel
   const handleDownloadExcel = (scope: ExcelExportScope = 'ALL') => {
-    if (!data || data.length === 0) return;
+    if (!data || data.length === 0 || !currentFileName) return;
     haptic.success();
     const filename = getExportFileName(currentFileName, scope);
     exportToExcel(data, filename, scope);
   };
 
+  // Download all converted files as a single ZIP archive
+  const handleDownloadAllZip = async () => {
+    if (convertedFiles.length === 0) return;
+    setIsZipping(true);
+    haptic.medium();
+    try {
+      const items: BatchFileItem[] = convertedFiles.map((f) => ({
+        id: f.id,
+        rawFileName: f.rawFileName,
+        fileSize: f.fileSize,
+        status: 'success',
+        data: f.data,
+        summary: f.summary,
+        excelBlob: f.excelBlob,
+        outputFileName: f.outputFileName,
+      }));
+      await downloadAllAsZip(items);
+      haptic.success();
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.7 },
+        colors: ['#25D366', '#FF6B35', '#141414'],
+      });
+      setStatusMessage(`Berhasil mengunduh zip untuk ${convertedFiles.length} file.`);
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (err: any) {
+      console.error('Error downloading zip:', err);
+      haptic.error();
+      setErrorMessage(err?.message || 'Gagal mengunduh file .zip.');
+    } finally {
+      setIsZipping(false);
+    }
+  };
+
+  // Download master consolidated workbook with all files
+  const handleDownloadMasterCombined = () => {
+    if (convertedFiles.length === 0) return;
+    setIsMerging(true);
+    haptic.medium();
+    try {
+      const items: BatchFileItem[] = convertedFiles.map((f) => ({
+        id: f.id,
+        rawFileName: f.rawFileName,
+        fileSize: f.fileSize,
+        status: 'success',
+        data: f.data,
+        summary: f.summary,
+        excelBlob: f.excelBlob,
+        outputFileName: f.outputFileName,
+      }));
+      exportCombinedMasterWorkbook(items);
+      haptic.success();
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: { y: 0.7 },
+        colors: ['#10b981', '#FF6B35', '#141414'],
+      });
+      setStatusMessage('Berhasil membuat Master Excel Gabungan.');
+      setTimeout(() => setStatusMessage(null), 4000);
+    } catch (err: any) {
+      console.error('Error combining master workbook:', err);
+      haptic.error();
+      setErrorMessage(err?.message || 'Gagal menggabungkan workbook master.');
+    } finally {
+      setIsMerging(false);
+    }
+  };
+
+  // Share active file via WhatsApp
   const handleShareExcelWhatsApp = async (scope: ExcelExportScope = 'ALL') => {
-    if (!data || data.length === 0) return;
+    if (!data || data.length === 0 || !currentFileName) return;
     haptic.medium();
     try {
       const filename = getExportFileName(currentFileName, scope);
@@ -157,23 +328,24 @@ export default function App() {
       if (result.success) {
         haptic.success();
         confetti({
-          particleCount: 50,
-          spread: 60,
+          particleCount: 40,
+          spread: 50,
           origin: { y: 0.8 },
           colors: ['#128C7E', '#25D366', '#FF6B35', '#141414'],
         });
         setStatusMessage(result.message);
-        setTimeout(() => setStatusMessage(null), 6000);
+        setTimeout(() => setStatusMessage(null), 5000);
       } else if (result.method !== 'cancelled') {
         setStatusMessage(result.message);
       }
     } catch (err: any) {
       console.error('Error sharing Excel via WhatsApp:', err);
       haptic.error();
-      setErrorMessage(err?.message || 'Gagal membagikan file Excel via WhatsApp.');
+      setErrorMessage(err?.message || 'Gagal membagikan file via WhatsApp.');
     }
   };
 
+  // Open WhatsApp report modal
   const handleOpenWhatsApp = (
     scope: WhatsAppReportScope = 'ALL',
     mode: 'EXCEL_FILE' | 'TEXT_SUMMARY' = 'EXCEL_FILE'
@@ -185,6 +357,7 @@ export default function App() {
     setIsWAModalOpen(true);
   };
 
+  // Copy WhatsApp summary text
   const handleCopyWhatsAppText = async (scope: WhatsAppReportScope = 'ALL') => {
     if (!data || data.length === 0) return;
     haptic.light();
@@ -197,20 +370,18 @@ export default function App() {
     }
   };
 
+  // Reset all files and return to upload view
   const handleReset = () => {
     haptic.heavy();
-    setData([]);
-    setSummary(null);
-    setRawWorkbook(null);
-    setFileBuffer(null);
-    setCurrentFileName(null);
+    setConvertedFiles([]);
+    setActiveFileId(null);
     setStatusMessage(null);
     setErrorMessage(null);
   };
 
   return (
     <div className="min-h-screen bg-[#F0F0EE] text-[#141414] font-sans selection:bg-[#FF6B35] selection:text-white pb-16">
-      {/* Top Bento Header Bar */}
+      {/* Top Header Bar */}
       <header className="border-b-2 border-[#141414] bg-white sticky top-0 z-40">
         <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3 sm:gap-4">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
@@ -238,6 +409,7 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
+            {/* AI Chatbot Assistant */}
             <button
               type="button"
               id="header-btn-ai-chat"
@@ -253,6 +425,7 @@ export default function App() {
               <Sparkles className="w-3 h-3 text-amber-400" />
             </button>
 
+            {/* Quick Download Excel Header Button (when active file available) */}
             {data.length > 0 && (
               <button
                 type="button"
@@ -261,105 +434,69 @@ export default function App() {
                 className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 sm:py-1.5 bg-[#141414] hover:bg-black text-white text-[11px] sm:text-xs font-bold uppercase tracking-wider transition-all border-2 border-[#141414] shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer min-h-[38px] sm:min-h-auto"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">Download Excel</span>
+                <span className="hidden md:inline">Unduh Excel</span>
               </button>
             )}
           </div>
         </div>
       </header>
 
-      {/* Main Bento Container (Fluid with Max 1920px on Ultrawide & 24-32px Side Padding) */}
+      {/* Main Container */}
       <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
-        {/* Visual Status Indicator Bento Card */}
+        {/* Status Alert Banner */}
         {statusMessage && (
           <div
             id="status-indicator-banner"
             className="p-3.5 px-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in"
           >
             <div className="flex items-center gap-2.5">
-              <div className="w-6 h-6 bg-[#25D366] border border-[#141414] flex items-center justify-center shrink-0">
-                <CheckCircle2 className="w-4 h-4 text-white" />
+              <div className="w-5 h-5 bg-[#25D366] border border-[#141414] flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-3.5 h-3.5 text-white" />
               </div>
-              <span className="font-bold text-xs sm:text-sm uppercase tracking-tight text-[#141414]">{statusMessage}</span>
+              <span className="font-bold text-xs sm:text-sm uppercase tracking-tight text-[#141414]">
+                {statusMessage}
+              </span>
             </div>
-            {summary && (
-              <div className="flex items-center gap-3 text-[11px] text-[#141414]/70 font-mono">
-                <span className="border border-[#141414] bg-[#F0F0EE] px-2 py-0.5 font-bold">FILE: {summary.fileName}</span>
-                <span className="border border-[#141414] bg-[#F0F0EE] px-2 py-0.5 font-bold">TIME: {summary.parsedAt}</span>
+            {summary && currentFileName && (
+              <div className="flex items-center gap-2 text-[11px] text-[#141414]/70 font-mono">
+                <span className="border border-[#141414] bg-[#F0F0EE] px-2 py-0.5 font-bold">
+                  FILE: {currentFileName}
+                </span>
+                <span className="border border-[#141414] bg-[#F0F0EE] px-2 py-0.5 font-bold">
+                  {data.length} PO
+                </span>
               </div>
             )}
           </div>
         )}
 
-        {/* Drag & Drop Upload Bento Grid */}
-        {(!data || data.length === 0) && (
+        {/* ============================================================== */}
+        {/* 1. INITIAL STATE: DUAL UPLOAD CONTAINERS (Single & Multi)      */}
+        {/* ============================================================== */}
+        {convertedFiles.length === 0 && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
-              {/* Dropzone Column */}
-              <div className="lg:col-span-8">
-                <DropZone
-                  onFileLoaded={handleFileLoaded}
-                  isLoading={isLoading}
-                  errorMessage={errorMessage}
-                  currentFileName={currentFileName}
-                />
-              </div>
+            <UploadDualContainer
+              onSingleFileSelected={handleSingleFileSelected}
+              onMultipleFilesSelected={handleMultipleFilesSelected}
+              isLoading={isLoading}
+              loadingMessage={loadingMessage}
+              loadingProgress={loadingProgress}
+              errorMessage={errorMessage}
+            />
 
-              {/* Bento Info Side Cards */}
-              <div className="lg:col-span-4 flex flex-col justify-between gap-4">
-                {/* Side Card 1: Parsing Logic */}
-                <div className="p-5 bg-[#DEDEDE] border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex-1 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-black uppercase tracking-wider text-[#141414]">Parsing Logic Active</span>
-                      <Cpu className="w-4 h-4 text-[#141414]" />
-                    </div>
-                    <ul className="text-xs font-mono space-y-1.5 text-[#141414]/90 mt-3">
-                      <li className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#141414]">✓</span> Detect Parent [SH-/ST-/BX-/DC-]
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#141414]">✓</span> Clean Date Prefixes from PO
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#141414]">✓</span> Overwrite Balances via P26
-                      </li>
-                      <li className="flex items-center gap-1.5">
-                        <span className="font-bold text-[#141414]">✓</span> Zero-Delivery Auto-Fallback
-                      </li>
-                    </ul>
-                  </div>
-                  <div className="mt-4 pt-3 border-t border-[#141414]/20 text-[10px] font-mono text-[#141414]/70 uppercase">
-                    100% Client-side Processing
-                  </div>
-                </div>
-
-                {/* Side Card 2: Output Schema */}
-                <div className="p-5 bg-[#FF6B35] border-2 border-[#141414] text-white shadow-[2px_2px_0px_#141414] flex flex-col justify-between">
-                  <div>
-                    <span className="text-[11px] font-black uppercase tracking-wider text-white/90">Output Schema</span>
-                    <div className="text-3xl font-black font-mono mt-1 mb-1">15 COLs</div>
-                    <p className="text-xs font-mono text-white/90 leading-relaxed">
-                      Strict ordering: CO, Artikel, Desc, Tanggal Input PO, No PO, Substance, QTY PO, Berat PO, Stock (pcs/kg), Sisa OS (pcs/kg), Terkirim (pcs/kg), Harga.
-                    </p>
-                  </div>
-                  <div className="mt-3 text-[10px] font-mono uppercase text-white/80">
-                    Standard Master Rekapitulasi
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Quick Helper Explainer Bento Trio */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+            {/* Quick Specifications Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
               <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex items-start gap-3">
                 <div className="w-8 h-8 bg-[#141414] text-white border border-[#141414] flex items-center justify-center shrink-0 mt-0.5">
                   <FileSpreadsheet className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">Standard 14 Columns</h4>
+                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">
+                    Format 15 Kolom Otomatis
+                  </h4>
                   <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
-                    Auto-organizes messy raw ERP data into structured 14 master columns including CO, Sisa OS, and Terkirim calculation.
+                    Menyusun data mentah ERP ke dalam susunan 15 kolom standar secara rapi dan
+                    akurat.
                   </p>
                 </div>
               </div>
@@ -369,9 +506,12 @@ export default function App() {
                   <Cpu className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">P26 Sub-Child & Fallback</h4>
+                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">
+                    Deteksi P26 & Fallback
+                  </h4>
                   <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
-                    Accurately overwrites latest surat jalan delivery rows and safely falls back to full QTY PO when unsent.
+                    Membaca surat jalan terbaru (P26) dan otomatis fallback ke QTY PO jika belum
+                    dikirim.
                   </p>
                 </div>
               </div>
@@ -381,9 +521,12 @@ export default function App() {
                   <Share2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">Instant WhatsApp Report</h4>
+                  <h4 className="text-xs font-black uppercase tracking-tight text-[#141414]">
+                    Alokasi Stok FIFO
+                  </h4>
                   <p className="text-xs font-mono text-[#141414]/70 mt-1 leading-relaxed">
-                    Generate WhatsApp formatted text with outstanding summary and share directly to customers or logistics teams.
+                    Mengalokasikan stok gudang sesuai urutan tanggal PO terlama untuk sisa OS di
+                    bawah 51 pcs.
                   </p>
                 </div>
               </div>
@@ -391,16 +534,34 @@ export default function App() {
           </div>
         )}
 
-        {/* Extracted Dashboard View */}
-        {data && data.length > 0 && summary && (
-          <div className="space-y-5 animate-fade-in">
-            {/* Top Bento Stats Overview */}
+        {/* ============================================================== */}
+        {/* 2. CONVERTED STATE: FILE DROPDOWN SELECTOR & FULL ANALYSIS     */}
+        {/* ============================================================== */}
+        {convertedFiles.length > 0 && activeFile && summary && (
+          <div className="space-y-4 sm:space-y-5 animate-fade-in">
+            {/* File Switcher Dropdown & Action Bar */}
+            <FileSwitcherBar
+              files={convertedFiles}
+              activeFileId={activeFile.id}
+              onSelectFile={handleSelectFile}
+              onDownloadActiveExcel={() => handleDownloadExcel('ALL')}
+              onDownloadAllZip={convertedFiles.length > 1 ? handleDownloadAllZip : undefined}
+              onDownloadMasterCombined={
+                convertedFiles.length > 1 ? handleDownloadMasterCombined : undefined
+              }
+              onAddMoreFiles={handleMultipleFilesSelected}
+              onReset={handleReset}
+              isZipping={isZipping}
+              isMerging={isMerging}
+            />
+
+            {/* Statistics Cards for Active File */}
             <StatsOverview summary={summary} />
 
-            {/* Delivery Ratio Pie Chart: Total Terkirim vs Sisa OS */}
+            {/* Delivery Ratio Pie Chart */}
             <DeliveryPieChart summary={summary} />
 
-            {/* Action Buttons Bento Toolbar */}
+            {/* Toolbar for Scope Export, WhatsApp, Sheets */}
             <ActionToolbar
               onDownloadExcel={handleDownloadExcel}
               onShareExcelWhatsApp={handleShareExcelWhatsApp}
@@ -420,26 +581,28 @@ export default function App() {
               totalStockReadyOpen={totalStockReadyOpen}
             />
 
-            {/* Main Data Table */}
+            {/* Main Interactive Table with Row Customization */}
             <DataTable data={data} />
 
-            {/* Bottom Quick Actions Bento Card */}
-            <div className="p-5 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-3 text-xs font-mono text-[#141414]/80">
+            {/* Bottom Quick Notice */}
+            <div className="p-4 bg-white border-2 border-[#141414] shadow-[2px_2px_0px_#141414] flex flex-col md:flex-row items-center justify-between gap-3 text-xs font-mono">
+              <div className="flex items-center gap-2.5 text-[#141414]/80">
                 <Info className="w-4 h-4 text-[#FF6B35] shrink-0" />
                 <span>
-                  Ingin memproses file ERP lain? Klik tombol di samping untuk mengunggah file baru.
+                  {convertedFiles.length > 1
+                    ? `Sedang menganalisis 1 dari ${convertedFiles.length} file. Anda dapat berpindah file kapan saja melalui dropdown di atas.`
+                    : 'Ingin memproses file lain? Klik "+ Tambah File" untuk menambah file baru atau "Ganti File" untuk mulai dari awal.'}
                 </span>
               </div>
-              <div className="flex items-center gap-3 shrink-0">
+              <div className="flex items-center gap-2 shrink-0">
                 <button
                   type="button"
-                  id="btn-bottom-reset"
+                  id="btn-bottom-change-file"
                   onClick={handleReset}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#141414] hover:bg-black text-white border-2 border-[#141414] text-xs font-bold uppercase tracking-wider transition-all shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#DEDEDE] hover:bg-[#c9c9c9] text-[#141414] border-2 border-[#141414] font-bold uppercase tracking-wider text-xs shadow-[2px_2px_0px_#141414] active:translate-x-0.5 active:translate-y-0.5 cursor-pointer"
                 >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Upload File Baru</span>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Ganti File</span>
                 </button>
               </div>
             </div>
@@ -447,11 +610,16 @@ export default function App() {
         )}
       </main>
 
-      {/* Footer Branding */}
+      {/* Footer */}
       <footer className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-[#141414]/15 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-[#141414]/60">
         <div className="flex items-center gap-2">
           <div className="w-5 h-5 bg-white border border-[#141414] overflow-hidden p-0.5 shadow-[1px_1px_0px_#141414]">
-            <img src="/logo.jpg" alt="BlackEYE" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            <img
+              src="/logo.jpg"
+              alt="BlackEYE"
+              className="w-full h-full object-contain"
+              referrerPolicy="no-referrer"
+            />
           </div>
           <span className="font-bold text-[#141414]">BLACKEYE</span>
           <span>• ERP DATA ENGINE BROWSER_V2.0</span>
@@ -461,7 +629,7 @@ export default function App() {
         </div>
       </footer>
 
-      {/* Modals */}
+      {/* Modals & Drawers */}
       <WhatsAppModal
         isOpen={isWAModalOpen}
         onClose={() => setIsWAModalOpen(false)}
@@ -471,10 +639,7 @@ export default function App() {
         initialMode={waModalInitialMode}
       />
 
-      <ParserRulesModal
-        isOpen={isRulesModalOpen}
-        onClose={() => setIsRulesModalOpen(false)}
-      />
+      <ParserRulesModal isOpen={isRulesModalOpen} onClose={() => setIsRulesModalOpen(false)} />
 
       <AIChatDrawer
         isOpen={isAIChatOpen}
