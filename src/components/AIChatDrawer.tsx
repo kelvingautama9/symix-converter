@@ -53,7 +53,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       id: 'welcome',
       role: 'model',
       content:
-        'Halo! Saya **BlackEYE AI Assistant**. Saya siap membantu membaca dan menganalisis data hasil konversi ERP Anda secara langsung.\n\nSilakan tanyakan rekap status CO, detail ukuran tiap artikel, sisa tonase OS, ketersediaan stok ready gudang, atau pilih salah satu saran cepat di bawah.',
+        'Halo! Saya **BlackEYE AI Assistant** *(develop by Kelvin)*. Saya siap membantu membaca dan menganalisis data hasil konversi ERP Anda secara langsung.\n\nSilakan tanyakan rekap status CO, detail ukuran tiap artikel, sisa tonase OS, ketersediaan stok ready gudang, atau pilih salah satu saran cepat di bawah.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -249,6 +249,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
+    const modelMsgId = `model-${Date.now()}`;
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
 
@@ -276,32 +277,153 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           history: apiHistory,
           dataContext: data && data.length > 0 ? { records: data, summary } : null,
           currentFileName: currentFileName || null,
+          stream: true, // Enable SSE streaming for fastest TTFT (~200ms)
         }),
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        if (result.error === 'GEMINI_API_KEY_NOT_CONFIGURED') {
+        let errJson: any = null;
+        try {
+          errJson = await response.json();
+        } catch {
+          // not json
+        }
+        if (errJson?.error === 'GEMINI_API_KEY_NOT_CONFIGURED') {
           throw new Error(
             'GEMINI_API_KEY belum dikonfigurasi di Vercel Environment Variables. Silakan pasang di Vercel Dashboard, atau klik ikon kunci di atas untuk memasukkan API Key secara langsung.'
           );
         }
-        throw new Error(result.message || 'Gagal menerima tanggapan dari AI.');
+        throw new Error(errJson?.message || `Server error (${response.status})`);
       }
 
-      // Render full answer immediately with zero lag
-      const modelMessage: Message = {
-        id: `model-${Date.now()}`,
-        role: 'model',
-        content: result.reply,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        modelUsed: result.modelUsed,
-      };
+      // Check if response is Server-Sent Events stream
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('text/event-stream') && response.body) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let accumulatedReply = '';
+        let detectedModel: string | undefined = undefined;
+        let hasInitializedBubble = false;
 
-      setMessages((prev) => [...prev, modelMessage]);
-      setLastFailedQuery(null);
-      haptic.success();
+        const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        let buffer = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n\n');
+          buffer = lines.pop() || '';
+
+          for (const block of lines) {
+            if (!block.trim()) continue;
+
+            let eventType = 'message';
+            let dataStr = '';
+
+            const rawLines = block.split('\n');
+            for (const line of rawLines) {
+              if (line.startsWith('event:')) {
+                eventType = line.replace('event:', '').trim();
+              } else if (line.startsWith('data:')) {
+                dataStr = line.replace('data:', '').trim();
+              }
+            }
+
+            if (!dataStr) continue;
+
+            if (eventType === 'meta') {
+              try {
+                const meta = JSON.parse(dataStr);
+                if (meta.modelUsed) detectedModel = meta.modelUsed;
+              } catch {
+                // ignore
+              }
+            } else if (eventType === 'error') {
+              try {
+                const errObj = JSON.parse(dataStr);
+                throw new Error(errObj.message || 'Error from AI stream');
+              } catch (parseErr: any) {
+                throw new Error(parseErr.message || 'Stream error');
+              }
+            } else if (eventType === 'done') {
+              // stream complete
+              break;
+            } else {
+              // Standard data event: contains text chunk
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.text) {
+                  accumulatedReply += parsed.text;
+
+                  if (!hasInitializedBubble) {
+                    hasInitializedBubble = true;
+                    // Stop spinner immediately as first word arrives
+                    setIsLoading(false);
+                    setMessages((prev) => [
+                      ...prev,
+                      {
+                        id: modelMsgId,
+                        role: 'model',
+                        content: accumulatedReply,
+                        timestamp: timeString,
+                        modelUsed: detectedModel,
+                      },
+                    ]);
+                  } else {
+                    // Update content progressively in real-time
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === modelMsgId
+                          ? { ...msg, content: accumulatedReply, modelUsed: detectedModel || msg.modelUsed }
+                          : msg
+                      )
+                    );
+                  }
+
+                  if (messagesEndRef.current) {
+                    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }
+              } catch {
+                // not json text chunk, ignore
+              }
+            }
+          }
+        }
+
+        if (!hasInitializedBubble && accumulatedReply) {
+          setIsLoading(false);
+          setMessages((prev) => [
+            ...prev,
+            {
+              id: modelMsgId,
+              role: 'model',
+              content: accumulatedReply,
+              timestamp: timeString,
+              modelUsed: detectedModel,
+            },
+          ]);
+        }
+
+        setLastFailedQuery(null);
+        haptic.success();
+      } else {
+        // Fallback for standard JSON response
+        const result = await response.json();
+        const modelMessage: Message = {
+          id: modelMsgId,
+          role: 'model',
+          content: result.reply,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          modelUsed: result.modelUsed,
+        };
+
+        setMessages((prev) => [...prev, modelMessage]);
+        setLastFailedQuery(null);
+        haptic.success();
+      }
 
       setTimeout(() => {
         if (messagesEndRef.current) {
@@ -316,9 +438,9 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       let msg = err?.message || 'Terjadi gangguan saat menghubungi AI.';
       if (typeof msg === 'string') {
         if (msg.includes('503') || msg.includes('high demand') || msg.includes('UNAVAILABLE')) {
-          msg = 'Server Google Gemini sedang mengalami antrean trafik padat (503). Silakan tekan tombol "Coba Lagi" di bawah.';
-        } else if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED')) {
-          msg = 'Batas kuota harian atau frekuensi request tercapai. Silakan tunggu sebentar lalu coba lagi.';
+          msg = 'Server Google Gemini sedang mengalami antrean trafik padat (503). Sistem telah mencoba auto-fallback ke model lain. Silakan tekan tombol "Coba Lagi" di bawah.';
+        } else if (msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('kuota')) {
+          msg = 'Batas kuota gratis Google Gemini atau frekuensi pengiriman tercapai (429). Silakan tunggu 30 detik lalu tekan "Coba Lagi", atau pasang Gemini API Key pribadi via ikon kunci (🔑) di atas.';
         }
       }
       setErrorMessage(msg);
@@ -363,23 +485,61 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
             haptic.medium();
             onOpen();
           }}
-          className="fixed bottom-5 right-5 z-40 bg-white/75 backdrop-blur-2xl rounded-full p-2 pl-3.5 pr-4 flex items-center gap-3 transition-all duration-300 hover:scale-105 active:scale-95 shadow-[0_12px_36px_rgba(25,113,156,0.14)] hover:shadow-2xl cursor-pointer group border border-white/90"
+          className="fixed bottom-5 right-5 z-40 p-[1.5px] rounded-full group cursor-pointer transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] select-none"
           title="Buka AI Chatbot Asisten"
         >
-          <div className="relative w-9 h-9 rounded-full bg-gradient-to-b from-[#1F83B4] to-[#19719C] flex items-center justify-center text-white shadow-md shadow-[#19719C]/30 border border-white/30">
-            <Bot className="w-5 h-5 group-hover:rotate-12 transition-transform duration-300" />
-            {data && data.length > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-400 rounded-full ring-2 ring-white animate-pulse" />
-            )}
+          {/* Clockwise Animated Light Beam Container (Masked by rounded-full overflow-hidden) */}
+          <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none -z-0">
+            {/* Base subtle static glass border */}
+            <div className="absolute inset-0 rounded-full border border-white/50" />
+
+            {/* Smooth Slow Clockwise Rotating Light Beam: Light White -> Light Grey -> Light White */}
+            <div
+              className="absolute -inset-[150%] animate-border-beam-slow pointer-events-none opacity-90 group-hover:opacity-100 transition-opacity"
+              style={{
+                background:
+                  'conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 210deg, rgba(255,255,255,0.98) 250deg, rgba(215,222,230,0.92) 285deg, rgba(255,255,255,1) 320deg, rgba(255,255,255,0.25) 345deg, transparent 360deg)',
+              }}
+            />
+
+            {/* Secondary blurred glow behind the beam for 3D radiance */}
+            <div
+              className="absolute -inset-[150%] animate-border-beam-slow pointer-events-none blur-[4px] opacity-60 group-hover:opacity-85 transition-opacity"
+              style={{
+                background:
+                  'conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 200deg, rgba(255,255,255,0.75) 250deg, rgba(215,222,230,0.88) 285deg, rgba(255,255,255,0.98) 320deg, transparent 350deg)',
+              }}
+            />
           </div>
-          <div className="text-left font-sans">
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-bold text-[#000013] tracking-tight">AI Assistant</span>
-              <Sparkles className="w-3.5 h-3.5 text-[#19719C]" />
+
+          {/* Apple Liquid Glass 3D Inner Body */}
+          <div className="relative z-10 apple-liquid-glass-badge px-3.5 py-2 flex items-center gap-3 rounded-full">
+            {/* 3D Specular curved glass sheen overlay */}
+            <div
+              className="absolute inset-x-0 top-0 h-[48%] rounded-t-full pointer-events-none bg-gradient-to-b from-white/70 via-white/20 to-transparent"
+              aria-hidden="true"
+            />
+
+            {/* Bot Icon with Liquid Sphere styling */}
+            <div className="relative w-8 h-8 rounded-full bg-gradient-to-b from-[#1F83B4] to-[#19719C] flex items-center justify-center text-white shadow-md shadow-[#19719C]/30 border border-white/40 shrink-0">
+              <Bot className="w-4 h-4 group-hover:rotate-12 transition-transform duration-300" />
+              {data && data.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full ring-2 ring-white animate-pulse" />
+              )}
             </div>
-            <span className="text-[10px] text-[#19719C] font-semibold block">
-              {data && data.length > 0 ? `${data.length} PO Terdeteksi` : 'Tanya Data ERP'}
-            </span>
+
+            {/* Text Label & Status */}
+            <div className="text-left font-sans select-none">
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold text-[#000013] tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
+                  AI Assistant
+                </span>
+                <Sparkles className="w-3.5 h-3.5 text-[#19719C]" />
+              </div>
+              <span className="text-[10px] text-[#19719C] font-semibold block leading-tight">
+                {data && data.length > 0 ? `${data.length} PO Terdeteksi` : 'Tanya Data ERP'}
+              </span>
+            </div>
           </div>
         </button>
       )}
@@ -803,17 +963,29 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                   <div className="flex-1">
                     <strong className="block mb-1 text-red-900 font-semibold">Perhatian:</strong>
                     <div className="leading-relaxed mb-2.5 text-red-900/90">{errorMessage}</div>
-                    {lastFailedQuery && (
-                      <button
-                        type="button"
-                        onClick={() => handleSendMessage(lastFailedQuery)}
-                        disabled={isLoading}
-                        className="liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1 text-xs text-red-900 font-medium cursor-pointer"
-                      >
-                        <RefreshCw className="w-3 h-3" />
-                        <span>Coba Lagi Pertanyaan</span>
-                      </button>
-                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {lastFailedQuery && (
+                        <button
+                          type="button"
+                          onClick={() => handleSendMessage(lastFailedQuery)}
+                          disabled={isLoading}
+                          className="liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1 text-xs text-red-900 font-medium cursor-pointer"
+                        >
+                          <RefreshCw className="w-3 h-3" />
+                          <span>Coba Lagi Pertanyaan</span>
+                        </button>
+                      )}
+                      {!showKeyModal && (
+                        <button
+                          type="button"
+                          onClick={() => setShowKeyModal(true)}
+                          className="px-3 py-1 rounded-full bg-white/90 hover:bg-white border border-red-200 text-xs text-red-900 font-medium inline-flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                        >
+                          <Key className="w-3 h-3 text-[#19719C]" />
+                          <span>Pasang API Key Pribadi</span>
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

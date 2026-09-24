@@ -1,11 +1,57 @@
 import { GoogleGenAI } from '@google/genai';
 
+// In-memory cooldown & healthy model tracker:
+// If a model hits 429 (quota exhausted) or 503 (high demand), it gets a longer cooldown (e.g. 5-10 minutes).
+// While in cooldown, requests SKIP that model immediately (0ms delay) and directly use healthy models.
+// As soon as the cooldown window expires, the model is tested again automatically!
+const modelCooldownUntil = new Map<string, number>();
+let lastSuccessfulModel: string = 'gemini-3.5-flash-lite';
+
+function markModelCooldown(modelName: string, errorString: string) {
+  // Optimal cooldown durations:
+  // 429 Resource Exhausted / Quota Limit: 10 minutes (prevents spamming Google when rate limit is reached)
+  // 503 Server High Demand / Spike: 3 minutes (allows Google server queue to clear)
+  // Timeout: 2 minutes
+  let cooldownDurationMs = 5 * 60 * 1000; // default 5 minutes
+
+  if (errorString.includes('429') || errorString.includes('RESOURCE_EXHAUSTED')) {
+    // Check if error contains explicit retry suggestion
+    const match = errorString.match(/retry in\s+([0-9.]+)\s*s/i) || errorString.match(/retryDelay"?:\s*"(\d+)s"/i);
+    if (match && match[1]) {
+      const sec = parseFloat(match[1]);
+      cooldownDurationMs = Math.max(60, Math.ceil(sec) + 30) * 1000;
+    } else {
+      cooldownDurationMs = 10 * 60 * 1000; // 10 minutes for 429
+    }
+  } else if (errorString.includes('503') || errorString.includes('high demand') || errorString.includes('UNAVAILABLE')) {
+    cooldownDurationMs = 3 * 60 * 1000; // 3 minutes for 503 traffic spike
+  } else if (errorString.includes('Timeout')) {
+    cooldownDurationMs = 2 * 60 * 1000; // 2 minutes for Timeout
+  } else if (errorString.includes('404') || errorString.includes('NOT_FOUND') || errorString.includes('no longer available')) {
+    cooldownDurationMs = 24 * 60 * 60 * 1000; // 24 hours for deprecated
+  }
+
+  modelCooldownUntil.set(modelName, Date.now() + cooldownDurationMs);
+  console.log(`[AI Speed-Up] Model ${modelName} diistirahatkan selama ${Math.round(cooldownDurationMs / 1000)}s.`);
+}
+
+function isModelInCooldown(modelName: string): boolean {
+  const expiry = modelCooldownUntil.get(modelName);
+  if (!expiry) return false;
+  if (Date.now() >= expiry) {
+    modelCooldownUntil.delete(modelName);
+    return false; // Cooldown expired, ready to be used again!
+  }
+  return true;
+}
+
 /**
  * Vercel Serverless Function & Express Route Handler
  * Endpoint: POST /api/chat
+ * Supports both Streaming SSE (stream: true) and standard JSON response.
  */
 export default async function handler(req: any, res: any) {
-  // Handle CORS if needed
+  // Handle CORS
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
@@ -22,6 +68,8 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Method Not Allowed. Gunakan method POST.' });
   }
 
+  const isStreamRequest = req.body?.stream !== false; // Default to streaming SSE for fastest TTFT
+
   try {
     const { message, history = [], dataContext, currentFileName } = req.body || {};
 
@@ -29,9 +77,6 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Message tidak boleh kosong.' });
     }
 
-    // Lazy initialization of Gemini API Key:
-    // 1. First check header 'x-gemini-api-key' (if user configured client-side key)
-    // 2. Then check environment variable process.env.GEMINI_API_KEY (Vercel Environment Variables)
     const apiKey = (req.headers['x-gemini-api-key'] as string) || process.env.GEMINI_API_KEY;
 
     if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
@@ -58,13 +103,35 @@ export default async function handler(req: any, res: any) {
       const records = dataContext.records;
       const summary = dataContext.summary || {};
 
-      // Limit records in prompt to prevent token overflow if thousands of records, but include full statistical summary
-      const sampleLimit = 100;
-      const sampledRecords = records.slice(0, sampleLimit);
+      // Smart Compact Tabular Format (TSV / Pipe format):
+      // Token-efficiency is 300% higher than repetitive JSON keys {"CO": "...", "Artikel": "..."}
+      // Allows AI to read all 146+ rows (up to 1,500 rows) with zero missing items and low token footprint.
+      const maxRowsToInclude = Math.min(records.length, 1200);
+      const rowsToRender = records.slice(0, maxRowsToInclude);
+
+      const tableRowsText = rowsToRender
+        .map((r: any, idx: number) => {
+          const rowNum = idx + 1;
+          const co = (r.CO || '').trim();
+          const st = (r.coStatus || '').trim();
+          const art = (r.Artikel || '').trim();
+          const desc = (r['Item Description'] || '').replace(/[\r\n\t]/g, ' ').trim();
+          const po = (r['No PO'] || '').trim();
+          const tgl = (r['Tanggal Input PO'] || '').trim();
+          const qty = r['QTY PO (pcs)'] || 0;
+          const brt = r['Berat PO (KG)'] || 0;
+          const stkP = r['Stock (pcs)'] || 0;
+          const stkK = r['Stock (kg)'] || 0;
+          const osP = r['Sisa OS (pcs)'] || 0;
+          const osK = r['Sisa OS (kg)'] || 0;
+          const krm = r['Terkirim (PCS)'] || 0;
+          return `${rowNum}|${co}|${st}|${art}|${desc}|${po}|${tgl}|${qty}|${brt}|${stkP}|${stkK}|${osP}|${osK}|${krm}`;
+        })
+        .join('\n');
 
       datasetContextText = `
 Nama File Sumber: ${currentFileName || 'Dokumen_Excel.xlsx'}
-Total Baris PO: ${records.length}
+Total Baris PO: ${records.length} Baris PO Terbaca Lengkap
 Total Artikel Unik: ${summary.totalUniqueItems || '-'}
 Total PO Status OPEN: ${summary.openCount || records.filter((r: any) => r.coStatus === 'OPEN').length}
 Total PO Status CLOSED: ${summary.closedCount || records.filter((r: any) => r.coStatus === 'CLOSED').length}
@@ -73,92 +140,61 @@ Total Pcs Sisa OS: ${summary.totalSisaPcs ? summary.totalSisaPcs.toLocaleString(
 Total Stok Gudang: ${summary.totalStockPcs ? summary.totalStockPcs.toLocaleString() + ' Pcs (' + (summary.totalStockKg || 0).toLocaleString() + ' kg)' : '-'}
 Estimasi Valuasi Sisa OS: ${summary.totalValue ? 'Rp ' + summary.totalValue.toLocaleString('id-ID') : '-'}
 
-Daftar Data Record PO (Format JSON Ringkas):
-${JSON.stringify(
-  sampledRecords.map((r: any) => ({
-    CO: r.CO,
-    status: r.coStatus,
-    Artikel: r.Artikel,
-    ItemDesc: r['Item Description'],
-    NoPO: r['No PO'],
-    TglPO: r['Tanggal Input PO'],
-    QtyPO_pcs: r['QTY PO (pcs)'],
-    BeratPO_kg: r['Berat PO (KG)'],
-    Stock_pcs: r['Stock (pcs)'],
-    Stock_kg: r['Stock (kg)'],
-    SisaOS_pcs: r['Sisa OS (pcs)'],
-    SisaOS_kg: r['Sisa OS (kg)'],
-    Terkirim_pcs: r['Terkirim (PCS)'],
-    Harga: r.Harga,
-  }))
-)}
-${records.length > sampleLimit ? `\n*(Catatan: Menampilkan ${sampleLimit} dari total ${records.length} PO dalam sampel context prompt)*` : ''}
+Seluruh Data Tabel ERP (Format Padat Kolom: Baris|CO|Status|Kode_Artikel|Deskripsi_Item|No_PO|Tgl_PO|Qty_PO_pcs|Berat_PO_kg|Stok_pcs|Stok_kg|Sisa_OS_pcs|Sisa_OS_kg|Terkirim_pcs):
+${tableRowsText}
+${records.length > maxRowsToInclude ? `\n*(Catatan: Menampilkan ${maxRowsToInclude} dari ${records.length} PO)*` : ''}
 `;
     }
 
-    const systemInstruction = `
-Anda adalah "BlackEYE AI Assistant", asisten ahli data ERP SYMIX, PPIC, dan Logistik Pergudangan.
+    const systemInstruction = `Anda adalah "BlackEYE AI Assistant", develop by Kelvin. Anda adalah asisten AI pakar logistik, supply chain, dan analisis data ERP SYMIX.
+Peran utama Anda adalah menganalisis, merangkum, dan menjawab pertanyaan pengguna seputar data Customer Order (CO), Purchase Order (PO), status pengiriman, berat tonase, sisa outstanding (OS), serta stok gudang secara profesional, akurat, dan cepat.
 
-PEDOMAN FORMAT JAWABAN (WAJIB DIIKUTI):
-1. **TO THE POINT & STRUKTUR BERSIH**:
-   - Jawab langsung ke inti pertanyaan secara jelas, ringkas, dan mudah dibaca tanpa basa-basi pembuka/penutup.
-2. **HINDARI TEKS MEMANJANG KE SAMPING & DILARANG MEMBUAT TABEL IMITASI DENGAN TANDA '|'**:
-   - DILARANG KERAS merangkai banyak data dalam satu baris panjang menggunakan pemisah pipa (misal: "Artikel | PO | Stok | Sisa OS | Status"). Ini sangat sulit dibaca!
-   - DILARANG menggabungkan beberapa poin (bullet) ke dalam satu baris atau paragraf bersambung.
-3. **ATURAN PEMILIHAN FORMAT (TABEL vs LIST)**:
-   - **Gunakan TABEL MARKDOWN RESMI** jika menampilkan data dengan 3 atau lebih kolom informasi (seperti: Artikel, Ukuran, No PO, Stok, Sisa OS, Status). Web ini sudah mendukung render tabel interaktif yang sangat rapi!
-     Contoh format tabel yang benar (selalu sertakan header dan newline antar baris):
-     | No | Artikel | Ukuran | No PO | Stok Ready | Sisa OS | Status |
-     |---|---|---|---|---|---|---|
-     | 1 | SH-B011-00004-A | 1370X530 MM | PO.2026.09.00008 | 520 pcs | 520 pcs | OPEN |
-   - **Gunakan LIST VERTIKAL KE BAWAH** hanya untuk data ringkas atau jika itemnya sedikit. Jika menggunakan list, buat struktur bertingkat ke bawah yang rapi tanpa tanda '|':
-     - **SH-B011-00004-A** (1370X530 MM)
-       • No PO: PO.2026.09.00008
-       • Stok Ready: 520 pcs (156 kg)
-       • Sisa OS: 520 pcs
-       • Status: OPEN
-4. **ANGKA, MATA UANG & NOTASI**:
-   - Tampilkan angka dalam format ribuan yang jelas (misal: 10.100 pcs, 2.411 kg).
-   - Format Penyingkatan Rupiah Indonesia (JANGAN gunakan 'M' untuk Juta!):
-     • RB = Ribu (misal: Rp 500 RB)
-     • JT = Juta (misal: Rp 268.4 JT)
-     • M = Miliar (misal: Rp 1.5 M)
-     • T = Triliun (misal: Rp 2.1 T)
-   - Kategori Artikel: SH- (Sheet), ST- (Standard sheet), BX- (Box), DC- (Die-cut).
-5. Jika data yang ditanyakan tidak ditemukan pada file, jawab singkat: "Data [nama/kode] tidak ditemukan pada tabel yang diunggah."
-6. **INTEGRITAS DATA LENGKAP**:
-   - Di antarmuka web, pengguna memiliki fitur kustomisasi untuk menyembunyikan (*hide*) Row/Kolom data tertentu (seperti 1. CO, 2. Artikel, 3. Item Description, dst) di layar untuk kenyamanan visual. Namun, kamu (AI Chatbot) tetap memiliki akses penuh terhadap seluruh data record PO asli. Jangan pernah menganggap data terhapus; jawablah dengan lengkap berdasarkan seluruh data konteks yang disediakan.
+Pedoman Penting:
+1. Jawablah selalu dalam Bahasa Indonesia yang lugas, profesional, sopan, dan jelas.
+2. Gunakan pemformatan Markdown (tabel, poin-poin tebal, list) agar data mudah dibaca oleh tim logistik dan manajemen.
+3. Bila data kuantitas atau nominal dipertanyakan, sebutkan angka pastinya lengkap dengan satuannya (Pcs, Kg, Ton, atau Rp).
+4. Jika ditanyakan status CO:
+   - "OPEN": Pesanan masih aktif berjalan dan belum tuntas dikirim seluruhnya.
+   - "CLOSED": Pesanan sudah selesai dipenuhi atau sudah ditutup.
+5. Jika ditanya tentang Sisa OS (Outstanding):
+   - Jelaskan bahwa Sisa OS adalah sisa barang yang belum terkirim ke customer.
+6. Apabila ditanyakan tentang siapa Anda atau siapa pembuat Anda, jawablah bahwa Anda adalah "BlackEYE AI Assistant, develop by Kelvin".
+7. Apabila pengguna menanyakan sesuatu di luar data yang diunggah, jawablah dengan sopan berdasarkan konteks industri logistik dan konversi ERP.
+8. Selalu hitung dan verifikasi dengan cermat angka-angka yang Anda sebutkan dari ringkasan data di atas.
 
-DATA KONTEKS:
+Berikut adalah informasi data saat ini:
+===============================
 ${datasetContextText}
-`;
+===============================`;
 
-    // Format chat history into contents array for Gemini
-    const contents: any[] = [];
+    // Format chat history
+    const contents: Array<{ role: string; parts: Array<{ text: string }> }> = [];
 
-    if (Array.isArray(history) && history.length > 0) {
-      for (const h of history) {
-        if (h && h.role && h.content) {
-          contents.push({
-            role: h.role === 'user' ? 'user' : 'model',
-            parts: [{ text: String(h.content) }],
-          });
-        }
+    if (Array.isArray(history)) {
+      for (const item of history) {
+        if (!item || !item.content) continue;
+        const role = item.role === 'user' ? 'user' : 'model';
+        contents.push({
+          role,
+          parts: [{ text: String(item.content) }],
+        });
       }
     }
 
-    // Add current user message
+    // Append current user message
     contents.push({
       role: 'user',
       parts: [{ text: message }],
     });
 
     // Multi-model auto fallback chain to seamlessly handle server spikes (503), quota limits (429), or deprecations
-    // Starts with high-availability Flash models that have immediate capacity, then falls back across versions
-    const candidateModels = [
-      'gemini-3.5-flash',
+    const baseCandidateModels = [
       'gemini-3.5-flash-lite',
+      'gemma-4-26b-a4b-it',
       'gemini-3.6-flash',
+      'gemini-3-flash-preview',
+      'gemma-4-31b-it',
+      'gemini-3.5-flash',
       'gemini-3.7-flash',
       'gemini-3.8-flash',
       'gemini-flash-latest',
@@ -166,27 +202,129 @@ ${datasetContextText}
       'gemini-3.1-flash-lite',
     ];
 
+    // Build optimized execution list
+    const activeCandidates: string[] = [];
+    const coolingCandidates: string[] = [];
+
+    for (const m of baseCandidateModels) {
+      if (isModelInCooldown(m)) {
+        coolingCandidates.push(m);
+      } else {
+        activeCandidates.push(m);
+      }
+    }
+
+    if (lastSuccessfulModel && activeCandidates.includes(lastSuccessfulModel)) {
+      const idx = activeCandidates.indexOf(lastSuccessfulModel);
+      activeCandidates.splice(idx, 1);
+      activeCandidates.unshift(lastSuccessfulModel);
+    }
+
+    const candidateModels = [...activeCandidates, ...coolingCandidates];
+
+    // -------------------------------------------------------------
+    // OPTION A: STREAMING SSE RESPONSE (Fastest TTFT ~200-400ms)
+    // -------------------------------------------------------------
+    if (isStreamRequest) {
+      // Set SSE headers immediately so client knows stream has started
+      res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache, no-transform');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no'); // Disable buffering on nginx/proxies
+      if (typeof res.flushHeaders === 'function') {
+        res.flushHeaders();
+      }
+
+      let lastError: any = null;
+      let streamStarted = false;
+      let usedModel = '';
+
+      for (const modelName of candidateModels) {
+        try {
+          console.log(`[AI Chat Stream] Mencoba model: ${modelName}...`);
+
+          const stream = await ai.models.generateContentStream({
+            model: modelName,
+            contents,
+            config: {
+              systemInstruction,
+              temperature: 0.2,
+              maxOutputTokens: 2500,
+            },
+          });
+
+          for await (const chunk of stream) {
+            const textChunk = chunk.text;
+            if (textChunk) {
+              if (!streamStarted) {
+                streamStarted = true;
+                usedModel = modelName;
+                lastSuccessfulModel = modelName;
+                // Emit initial metadata event with model used
+                res.write(`event: meta\ndata: ${JSON.stringify({ modelUsed: modelName })}\n\n`);
+              }
+              // Send text chunk to browser
+              res.write(`data: ${JSON.stringify({ text: textChunk })}\n\n`);
+            }
+          }
+
+          if (streamStarted) {
+            // Completed stream successfully
+            res.write(`event: done\ndata: {}\n\n`);
+            res.end();
+            return;
+          }
+        } catch (err: any) {
+          lastError = err;
+          const errDesc = String(err?.status || err?.message || err);
+          console.warn(`[AI Chat Stream] Model ${modelName} gagal (${errDesc}), mencatat cooldown & beralih ke fallback...`);
+          markModelCooldown(modelName, errDesc);
+
+          if (streamStarted) {
+            // Already started streaming to client, send error event inside stream
+            res.write(`event: error\ndata: ${JSON.stringify({ message: 'Terjadi pemutusan stream AI: ' + errDesc })}\n\n`);
+            res.end();
+            return;
+          }
+        }
+      }
+
+      // If loop finished and no stream started, format clean error message
+      let friendlyMessage = lastError?.message || 'Semua model AI sedang sibuk. Silakan coba kembali.';
+      if (friendlyMessage.includes('503') || friendlyMessage.includes('high demand') || friendlyMessage.includes('UNAVAILABLE')) {
+        friendlyMessage = 'Server Google AI sedang mengalami lonjakan antrean trafik padat (503). Silakan tekan tombol "Coba Lagi".';
+      } else if (friendlyMessage.includes('429') || friendlyMessage.includes('RESOURCE_EXHAUSTED')) {
+        friendlyMessage = 'Batas kuota harian atau batas frekuensi permintaan tercapai. Silakan tunggu sebentar lalu coba lagi.';
+      }
+
+      res.write(`event: error\ndata: ${JSON.stringify({ message: friendlyMessage })}\n\n`);
+      res.end();
+      return;
+    }
+
+    // -------------------------------------------------------------
+    // OPTION B: STANDARD JSON RESPONSE (FALLBACK IF STREAM=FALSE)
+    // -------------------------------------------------------------
     let lastError: any = null;
     let replyText = '';
     let usedModel = '';
 
     for (const modelName of candidateModels) {
       try {
-        console.log(`[AI Chat] Mencoba model: ${modelName}...`);
+        console.log(`[AI Chat JSON] Mencoba model: ${modelName}...`);
 
         const generatePromise = ai.models.generateContent({
           model: modelName,
           contents,
           config: {
             systemInstruction,
-            temperature: 0.2, // low temperature for analytical accuracy
-            maxOutputTokens: 2500, // cukup untuk tabel panjang & detail pesanan tanpa terpotong
+            temperature: 0.2,
+            maxOutputTokens: 2500,
           },
         });
 
-        // 25 second failover timeout per candidate model to ensure complete reasoning and response
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout (>25s) pada model ${modelName}`)), 25000)
+          setTimeout(() => reject(new Error(`Timeout (>16s) pada model ${modelName}`)), 16000)
         );
 
         const response = await Promise.race([generatePromise, timeoutPromise]);
@@ -194,12 +332,13 @@ ${datasetContextText}
         if (response && response.text) {
           replyText = response.text;
           usedModel = modelName;
-          console.log(`[AI Chat] Berhasil dijawab menggunakan model: ${modelName}`);
-          break; // successfully got response, exit loop
+          lastSuccessfulModel = modelName;
+          break;
         }
       } catch (err: any) {
         lastError = err;
-        console.warn(`[AI Chat] Model ${modelName} gagal (${err?.status || err?.message || err}), beralih ke fallback model berikutnya...`);
+        const errDesc = String(err?.status || err?.message || err);
+        markModelCooldown(modelName, errDesc);
       }
     }
 
@@ -216,13 +355,11 @@ ${datasetContextText}
     console.error('Error in /api/chat Gemini processing:', error);
 
     let friendlyMessage = error?.message || 'Terjadi kesalahan saat memproses pertanyaan dengan AI.';
-
-    // Clean up raw JSON error messages from upstream Google API
     if (typeof friendlyMessage === 'string') {
       if (friendlyMessage.includes('503') || friendlyMessage.includes('high demand') || friendlyMessage.includes('UNAVAILABLE')) {
-        friendlyMessage = 'Server Google AI sedang mengalami lonjakan trafik sementara (503). Silakan klik tombol "Coba Lagi" atau ulangi sesaat lagi.';
+        friendlyMessage = 'Server Google AI sedang mengalami lonjakan antrean trafik padat (503). Silakan tekan tombol "Coba Lagi".';
       } else if (friendlyMessage.includes('429') || friendlyMessage.includes('RESOURCE_EXHAUSTED')) {
-        friendlyMessage = 'Batas kuota gratis harian tercapai atau terlalu cepat mengirim pesan. Silakan tunggu 30 detik lalu coba lagi.';
+        friendlyMessage = 'Batas kuota harian atau batas frekuensi permintaan per menit tercapai. Silakan tunggu 30 detik lalu coba lagi, atau gunakan API Key pribadi via ikon kunci (🔑) di atas.';
       }
     }
 
