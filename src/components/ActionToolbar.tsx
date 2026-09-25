@@ -6,8 +6,6 @@ import {
   Check,
   RefreshCw,
   ChevronDown,
-  Sparkles,
-  Bot,
   Zap,
   FileSpreadsheet,
 } from 'lucide-react';
@@ -442,23 +440,6 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           </div>
         )}
 
-        {/* AI Chatbot Assistant Button */}
-        {onOpenAIChat && (
-          <button
-            type="button"
-            id="btn-toolbar-ai-chat"
-            onClick={() => {
-              haptic.medium();
-              onOpenAIChat();
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wider rounded-full border border-white/20 bg-zinc-900/85 hover:bg-zinc-900 text-white backdrop-blur-xl shadow-[0_4px_14px_-2px_rgba(0,0,19,0.20)] hover:-translate-y-0.5 active:translate-y-0 transition-all duration-200 cursor-pointer"
-            title="Tanya AI Chatbot tentang data ini"
-          >
-            <Bot className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="hidden sm:inline">AI Chat</span>
-            <Sparkles className="w-3 h-3 text-amber-400" />
-          </button>
-        )}
 
         {/* Reset / Change File */}
         <button
