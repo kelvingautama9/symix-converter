@@ -24,6 +24,9 @@ import {
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 import { recalculateFIFOStock } from '../utils/parserEngine';
+import { calculatePoAging, parsePoDate } from '../utils/agingUtils';
+
+export type AgingFilterOption = 'ALL' | 'SAFE' | 'FOLLOW_UP' | 'CRITICAL';
 
 export type ColumnKey =
   | 'co'
@@ -95,6 +98,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [coFilter, setCoFilter] = useState<CoFilterStatus>('ALL');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
+  const [agingFilter, setAgingFilter] = useState<AgingFilterOption>('ALL');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(0); // 0 = Unlimited / Show All Rows
   const [sortField, setSortField] = useState<keyof ExtractedRecord | null>(null);
@@ -200,6 +204,27 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
     return { partial, pending, stockReady, all: totalInCoScope };
   }, [scopedData, coFilter]);
 
+  // Aging counts based on current CO filter scope
+  const agingCounts = useMemo(() => {
+    let safe = 0;
+    let followUp = 0;
+    let critical = 0;
+    let total = 0;
+
+    scopedData.forEach((item) => {
+      if (coFilter === 'OPEN' && item.coStatus !== 'OPEN') return;
+      if (coFilter === 'CLOSED' && item.coStatus !== 'CLOSED') return;
+
+      total++;
+      const aging = calculatePoAging(item['Tanggal Input PO']);
+      if (aging.category === 'SAFE') safe++;
+      else if (aging.category === 'FOLLOW_UP') followUp++;
+      else if (aging.category === 'CRITICAL') critical++;
+    });
+
+    return { all: total, safe, followUp, critical };
+  }, [scopedData, coFilter]);
+
   // Filter and search
   const filteredData = useMemo(() => {
     return scopedData.filter((item) => {
@@ -237,14 +262,32 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       if (filterStatus === 'STOCK_READY') {
         return stockPcs > 0 || stockKg > 0;
       }
+
+      // 4. Aging PO Filter (< 7 Hari, 8–14 Hari, > 14 Hari)
+      if (agingFilter !== 'ALL') {
+        const aging = calculatePoAging(item['Tanggal Input PO']);
+        if (agingFilter === 'SAFE' && aging.category !== 'SAFE') return false;
+        if (agingFilter === 'FOLLOW_UP' && aging.category !== 'FOLLOW_UP') return false;
+        if (agingFilter === 'CRITICAL' && aging.category !== 'CRITICAL') return false;
+      }
+
       return true;
     });
-  }, [scopedData, searchTerm, coFilter, filterStatus]);
+  }, [scopedData, searchTerm, coFilter, filterStatus, agingFilter]);
 
   // Sort
   const sortedData = useMemo(() => {
     if (!sortField) return filteredData;
     return [...filteredData].sort((a, b) => {
+      // Specialized chronological sort for Tanggal Input PO
+      if (sortField === 'Tanggal Input PO') {
+        const timeA = parsePoDate(a['Tanggal Input PO'])?.getTime() ?? 0;
+        const timeB = parsePoDate(b['Tanggal Input PO'])?.getTime() ?? 0;
+        if (timeA !== timeB) {
+          return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+        }
+      }
+
       const valA = a[sortField];
       const valB = b[sortField];
 
@@ -580,6 +623,78 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 Stock Ready ({filterCounts.stockReady})
               </button>
             </div>
+
+            {/* Aging PO Filter (< 7h, 8-14h, > 14h) */}
+            <div className="flex items-center gap-1.5 ml-0 sm:ml-2">
+              <span className="text-[11px] font-semibold text-[#5C6068]">
+                Umur PO:
+              </span>
+              <div className="glass-segmented inline-flex items-center flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('ALL');
+                  }}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                    agingFilter === 'ALL'
+                      ? 'glass-segmented-active text-[#1E2024]'
+                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                  }`}
+                  title="Tampilkan semua umur PO"
+                >
+                  Semua ({agingCounts.all})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('SAFE');
+                  }}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                    agingFilter === 'SAFE'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-emerald-700'
+                  }`}
+                  title="PO baru diinput kurang dari 7 hari (Aman / Baru)"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${agingFilter === 'SAFE' ? 'bg-white' : 'bg-emerald-500'}`} />
+                  <span>&lt; 7h Aman ({agingCounts.safe})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('FOLLOW_UP');
+                  }}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                    agingFilter === 'FOLLOW_UP'
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-amber-700'
+                  }`}
+                  title="PO berjalan 8 hingga 14 hari (Perlu Follow UP)"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${agingFilter === 'FOLLOW_UP' ? 'bg-white' : 'bg-amber-500'}`} />
+                  <span>8–14h Follow Up ({agingCounts.followUp})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('CRITICAL');
+                  }}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                    agingFilter === 'CRITICAL'
+                      ? 'bg-rose-600 text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-rose-700'
+                  }`}
+                  title="PO lebih dari 14 hari / 30 hari (Kritis / Telat)"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${agingFilter === 'CRITICAL' ? 'bg-white' : 'bg-rose-500'}`} />
+                  <span>&gt; 14h Kritis ({agingCounts.critical})</span>
+                </button>
+              </div>
+            </div>
           </div>
 
           {/* Opsi Scroll & View Mode */}
@@ -738,7 +853,8 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.tanggalInput && (
                 <th
                   onClick={() => handleSort('Tanggal Input PO')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[140px]`}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[155px]`}
+                  title="Klik untuk mengurutkan berdasarkan tanggal / umur PO secara kronologis"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>4. Tanggal Input PO</span>
@@ -951,9 +1067,24 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     {visibleColumns.tanggalInput && (
                       <td className="py-2.5 px-3 text-[#5C6068] font-mono border-r border-zinc-200/40">
                         {row['Tanggal Input PO'] && row['Tanggal Input PO'] !== '-' ? (
-                          <span className="px-2 py-0.5 bg-white/60 border border-zinc-200/60 text-[#5C6068] text-[11px] font-mono rounded whitespace-nowrap">
-                            {row['Tanggal Input PO']}
-                          </span>
+                          <div className="flex flex-col gap-1 items-start">
+                            <span className="px-2 py-0.5 bg-white/60 border border-zinc-200/60 text-[#5C6068] text-[11px] font-mono rounded whitespace-nowrap">
+                              {row['Tanggal Input PO']}
+                            </span>
+                            {(() => {
+                              const aging = calculatePoAging(row['Tanggal Input PO']);
+                              if (aging.category === 'UNKNOWN') return null;
+                              return (
+                                <span
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border font-mono whitespace-nowrap ${aging.badgeClass}`}
+                                  title={`Umur PO: ${aging.days} hari (${aging.label})`}
+                                >
+                                  <span className={`w-1.5 h-1.5 rounded-full ${aging.dotClass}`} />
+                                  <span>{aging.shortLabel}</span>
+                                </span>
+                              );
+                            })()}
+                          </div>
                         ) : (
                           <span className="text-zinc-400">-</span>
                         )}

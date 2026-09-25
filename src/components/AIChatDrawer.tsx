@@ -450,6 +450,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   };
 
   const quickPrompts = [
+    'Analisis Aging PO (< 7h, 8-14h, > 14h)',
     'Daftar ukuran semua artikel',
     'Rekap PO dengan status OPEN',
     'Cek artikel yang memiliki Stok Ready gudang',

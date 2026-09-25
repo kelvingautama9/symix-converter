@@ -33,6 +33,7 @@ import {
   computeBatchStats,
 } from '../utils/batchConverter';
 import { haptic } from '../utils/haptics';
+import { calculatePoAging } from '../utils/agingUtils';
 
 interface BatchConverterProps {
   onInspectFileInSingleMode?: (data: ExtractedRecord[], fileName: string, buffer?: ArrayBuffer) => void;
@@ -825,7 +826,22 @@ export function BatchConverter({
                           {row['Item Description']}
                         </td>
                         <td className="p-2 border-r border-[#141414]/20 whitespace-nowrap">
-                          {row['Tanggal Input PO']}
+                          <div className="flex flex-col gap-0.5 items-start">
+                            <span>{row['Tanggal Input PO']}</span>
+                            {(() => {
+                              const aging = calculatePoAging(row['Tanggal Input PO']);
+                              if (aging.category === 'UNKNOWN') return null;
+                              return (
+                                <span
+                                  className={`inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-medium border font-mono ${aging.badgeClass}`}
+                                  title={`Umur PO: ${aging.days} hari (${aging.label})`}
+                                >
+                                  <span className={`w-1 h-1 rounded-full ${aging.dotClass}`} />
+                                  <span>{aging.shortLabel}</span>
+                                </span>
+                              );
+                            })()}
+                          </div>
                         </td>
                         <td className="p-2 border-r border-[#141414]/20 whitespace-nowrap">
                           {row['No PO']}
