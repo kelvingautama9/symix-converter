@@ -5,7 +5,10 @@ import {
   Upload,
   AlertCircle,
   Sparkles,
+  Sliders,
+  CheckCircle2,
 } from 'lucide-react';
+import { ConversionMode } from '../types';
 import { haptic } from '../utils/haptics';
 
 interface UploadDualContainerProps {
@@ -15,6 +18,8 @@ interface UploadDualContainerProps {
   loadingMessage?: string | null;
   loadingProgress?: { current: number; total: number; fileName: string } | null;
   errorMessage?: string | null;
+  conversionMode: ConversionMode;
+  onConversionModeChange: (mode: ConversionMode) => void;
 }
 
 export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
@@ -24,6 +29,8 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
   loadingMessage,
   loadingProgress,
   errorMessage,
+  conversionMode,
+  onConversionModeChange,
 }) => {
   const [isDragSingle, setIsDragSingle] = useState(false);
   const [isDragMulti, setIsDragMulti] = useState(false);
@@ -71,6 +78,68 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* 2 PILIHAN MANUAL MODE KONVERSI */}
+      <div className="glass-panel p-3.5 sm:p-4 rounded-3xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-2xl bg-[#19719C]/15 border border-[#83B3CA]/30 flex items-center justify-center text-[#19719C] shrink-0">
+            <Sliders className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs sm:text-sm font-bold text-[#000013]">
+                Pilih Format File yang Diupload:
+              </span>
+              <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100/90 border border-emerald-300 px-2 py-0.5 rounded-full">
+                Pilihan Manual
+              </span>
+            </div>
+            <p className="text-[11px] text-[#5C5C68]">
+              {conversionMode === 'CUT_COLUMNS'
+                ? 'Mode Terpotong: Untuk file Excel yang sudah memiliki banyak kolom terpisah (Kolom A=CO, B=PO, C=Harga, dst).'
+                : 'Mode Belum Terpotong: Untuk file teks mentah spool ERP yang seluruh datanya terkumpul di 1 kolom (Kolom A1).'}
+            </p>
+          </div>
+        </div>
+
+        {/* 2 Manual Options Segmented Control */}
+        <div className="flex items-center bg-[#E7EAED]/90 p-1 rounded-2xl border border-white/80 shrink-0">
+          <button
+            type="button"
+            id="btn-mode-cut-columns"
+            onClick={() => {
+              haptic.light();
+              onConversionModeChange('CUT_COLUMNS');
+            }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              conversionMode === 'CUT_COLUMNS'
+                ? 'bg-white text-[#19719C] shadow-sm font-bold'
+                : 'text-[#5C5C68] hover:text-[#000013]'
+            }`}
+            title="Pilih ini jika file Excel Anda sudah dipotong kolomnya (Normal / Standard)"
+          >
+            <CheckCircle2 className={`w-3.5 h-3.5 ${conversionMode === 'CUT_COLUMNS' ? 'text-[#19719C]' : 'opacity-25'}`} />
+            <span>File Sudah Terpotong</span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-mode-uncut-single"
+            onClick={() => {
+              haptic.light();
+              onConversionModeChange('UNCUT_SINGLE_COLUMN');
+            }}
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center gap-1.5 ${
+              conversionMode === 'UNCUT_SINGLE_COLUMN'
+                ? 'bg-white text-[#EA5413] shadow-sm font-bold'
+                : 'text-[#5C5C68] hover:text-[#000013]'
+            }`}
+            title="Pilih ini jika file Excel Anda mentah hanya terkumpul di 1 kolom A1 (Spool ERP)"
+          >
+            <CheckCircle2 className={`w-3.5 h-3.5 ${conversionMode === 'UNCUT_SINGLE_COLUMN' ? 'text-[#EA5413]' : 'opacity-25'}`} />
+            <span>File Belum Terpotong (1 Kolom A1)</span>
+          </button>
+        </div>
+      </div>
       {/* Hidden file inputs */}
       <input
         type="file"

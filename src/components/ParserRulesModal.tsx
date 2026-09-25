@@ -57,6 +57,33 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
 
         {/* Content */}
         <div className="p-5 sm:p-6 overflow-y-auto space-y-4 text-sm bg-transparent">
+          {/* 2 Pilihan Manual Mode Konversi Banner */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-white/80 to-amber-50/80 border border-[#83B3CA]/40 shadow-xs">
+            <div className="flex items-center gap-2 font-bold text-xs text-[#19719C] mb-2">
+              <span className="w-5 h-5 rounded-full bg-[#19719C] text-white flex items-center justify-center font-mono text-[11px]">
+                ★
+              </span>
+              <span>2 Pilihan Manual Mode Konversi ERP</span>
+            </div>
+            <p className="text-xs text-[#000013] leading-relaxed mb-2.5">
+              Aplikasi menyediakan <strong>2 pilihan mode manual</strong> yang dapat Anda pilih sebelum maupun sesudah upload file:
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px]">
+              <div className="p-2.5 rounded-xl bg-white/90 border border-blue-200">
+                <strong className="block text-[#19719C] mb-1 font-bold">1. File Sudah Terpotong (Multi-Kolom) - DEFAULT</strong>
+                <p className="text-[#5C5C68] leading-normal">
+                  Pilihan utama untuk file Excel yang sudah memiliki banyak kolom terpisah (Kolom A=CO, B=Date &amp; PO, C=Harga, D=Substance, G=QTY PO, O=Sisa OS). Menjamin hasil 100% presisi sesuai format tabel standar.
+                </p>
+              </div>
+              <div className="p-2.5 rounded-xl bg-white/90 border border-amber-200">
+                <strong className="block text-[#EA5413] mb-1 font-bold">2. File Belum Terpotong (1 Kolom A1 Spool)</strong>
+                <p className="text-[#5C5C68] leading-normal">
+                  Khusus untuk file mentah hasil download teks/spool ERP di mana seluruh data teks masih menumpuk di Kolom A1. Sistem menggunakan Boundary Split (&ge; 2 spasi) untuk memecah kolom secara otomatis ke susunan 15 kolom standar.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Stage 1: Parent Detection */}
           <div className="glass-card p-4 rounded-2xl">
             <div className="flex items-center gap-2 font-bold text-xs text-[#1E2024] mb-2">

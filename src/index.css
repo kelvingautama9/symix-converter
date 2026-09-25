@@ -274,15 +274,16 @@
 
 @keyframes border-beam-clockwise {
   0% {
-    transform: rotate(0deg);
+    transform: translate(-50%, -50%) rotate(0deg);
   }
   100% {
-    transform: rotate(360deg);
+    transform: translate(-50%, -50%) rotate(360deg);
   }
 }
 
-.animate-border-beam-slow {
-  animation: border-beam-clockwise 7.5s linear infinite;
+.animate-border-beam-clockwise {
+  animation: border-beam-clockwise 3.5s linear infinite;
+  will-change: transform;
 }
 
 .apple-liquid-glass-badge {
@@ -295,7 +296,7 @@
     inset 0 -1.5px 2px 0 rgba(0, 0, 19, 0.05),
     0 16px 36px -6px rgba(0, 0, 19, 0.12),
     0 4px 12px -2px rgba(25, 113, 156, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.40);
+  border: 1px solid rgba(255, 255, 255, 0.45);
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -306,4 +307,37 @@
     inset 0 -1.5px 2px 0 rgba(0, 0, 19, 0.04),
     0 22px 48px -8px rgba(0, 0, 19, 0.18),
     0 8px 20px -3px rgba(25, 113, 156, 0.14);
+}
+
+/* Border beam ring strictly masked to the 2px perimeter border so the badge interior stays 100% transparent liquid glass */
+.liquid-glass-beam-ring {
+  position: absolute;
+  inset: -1px;
+  border-radius: 9999px;
+  padding: 2px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 20;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
+
+/* Outer subtle glow halo along the perimeter, also masked from the center */
+.liquid-glass-beam-halo {
+  position: absolute;
+  inset: -3px;
+  border-radius: 9999px;
+  padding: 4px;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 5;
+  filter: blur(5px);
+  opacity: 0.70;
+  transition: opacity 0.3s ease;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
 }

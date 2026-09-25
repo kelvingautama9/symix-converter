@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import * as XLSX from 'xlsx';
-import { BatchFileItem, BatchAggregateStats, ExcelExportScope, ExtractedRecord, ParseSummary } from '../types';
+import { BatchFileItem, BatchAggregateStats, ExcelExportScope, ExtractedRecord, ParseSummary, ConversionMode } from '../types';
 import { parseExcelBuffer, recalculateFIFOStock } from './parserEngine';
 import { generateExcelBlobAndFile, getExportFileName, EXCEL_COLUMNS } from './excelExporter';
 
@@ -23,7 +23,8 @@ export function downloadBlob(blob: Blob, fileName: string): void {
  */
 export async function convertSingleRawFile(
   file: File,
-  scope: ExcelExportScope = 'ALL'
+  scope: ExcelExportScope = 'ALL',
+  mode: ConversionMode = 'CUT_COLUMNS'
 ): Promise<{
   data: ExtractedRecord[];
   summary: ParseSummary;
@@ -38,7 +39,9 @@ export async function convertSingleRawFile(
 
   const { data: parsedData, summary: parsedSummary, workbook } = parseExcelBuffer(
     rawBuffer,
-    file.name
+    file.name,
+    undefined,
+    mode
   );
 
   if (!parsedData || parsedData.length === 0) {

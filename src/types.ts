@@ -46,7 +46,10 @@ export interface ParseSummary {
   sheetNames: string[];
   activeSheetName: string;
   totalRawRows: number;
+  conversionMode?: ConversionMode;
 }
+
+export type ConversionMode = 'CUT_COLUMNS' | 'UNCUT_SINGLE_COLUMN';
 
 export type FilterStatus = 'ALL' | 'PARTIAL_DELIVERY' | 'FULL_PENDING' | 'STOCK_READY';
 export type CoFilterStatus = 'ALL' | 'OPEN' | 'CLOSED';

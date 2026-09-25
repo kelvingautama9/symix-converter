@@ -6,6 +6,7 @@ import {
   ExcelExportScope,
   WhatsAppReportScope,
   BatchFileItem,
+  ConversionMode,
 } from './types';
 import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
 import { exportToExcel, shareExcelFileToWhatsApp, getExportFileName } from './utils/excelExporter';
@@ -43,6 +44,7 @@ export default function App() {
   // All converted files state
   const [convertedFiles, setConvertedFiles] = useState<ConvertedFileItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
+  const [conversionMode, setConversionMode] = useState<ConversionMode>('CUT_COLUMNS');
 
   // Status & processing state
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -94,8 +96,11 @@ export default function App() {
   }, [data]);
 
   // Convert a single File instance to ConvertedFileItem
-  const processRawFile = async (file: File): Promise<ConvertedFileItem> => {
-    const result = await convertSingleRawFile(file, 'ALL');
+  const processRawFile = async (
+    file: File,
+    mode: ConversionMode = conversionMode
+  ): Promise<ConvertedFileItem> => {
+    const result = await convertSingleRawFile(file, 'ALL', mode);
     return {
       id: `${file.name}-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       rawFileName: file.name,
@@ -108,6 +113,49 @@ export default function App() {
       outputFileName: result.outputFileName,
       durationMs: result.durationMs,
     };
+  };
+
+  // Switch conversion mode manually for active file or future uploads
+  const handleSwitchConversionMode = (newMode: ConversionMode) => {
+    setConversionMode(newMode);
+    if (!activeFile || !activeFile.rawBuffer) return;
+    haptic.selection();
+    setIsLoading(true);
+    setTimeout(() => {
+      try {
+        const { data: parsedData, summary: parsedSummary, workbook } = parseExcelBuffer(
+          activeFile.rawBuffer,
+          activeFile.rawFileName,
+          activeFile.summary?.activeSheetName,
+          newMode
+        );
+        setConvertedFiles((prev) =>
+          prev.map((f) =>
+            f.id === activeFile.id
+              ? {
+                  ...f,
+                  data: parsedData,
+                  summary: parsedSummary,
+                  rawWorkbook: workbook,
+                }
+              : f
+          )
+        );
+        setStatusMessage(
+          `Mode konversi: ${
+            newMode === 'CUT_COLUMNS'
+              ? 'File Sudah Terpotong (Multi-Kolom)'
+              : 'File Belum Terpotong (1 Kolom A1)'
+          } (${parsedData.length} PO).`
+        );
+        haptic.success();
+      } catch (err: any) {
+        haptic.error();
+        setErrorMessage(err?.message || 'Gagal mengonversi dengan mode ini.');
+      } finally {
+        setIsLoading(false);
+      }
+    }, 50);
   };
 
   // Handle single convert
@@ -212,10 +260,12 @@ export default function App() {
     setIsLoading(true);
     setTimeout(() => {
       try {
+        const mode = activeFile.summary?.conversionMode || conversionMode;
         const { data: parsedData, summary: parsedSummary, workbook } = parseExcelBuffer(
           activeFile.rawBuffer,
           activeFile.rawFileName,
-          sheetName
+          sheetName,
+          mode
         );
         setConvertedFiles((prev) =>
           prev.map((f) =>
@@ -461,7 +511,37 @@ export default function App() {
               </span>
             </div>
             {summary && currentFileName && (
-              <div className="flex items-center gap-2 text-[11px] text-[#5C6068] font-mono">
+              <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#5C6068] font-mono">
+                {/* Manual Mode Switcher Pills */}
+                <div className="flex items-center bg-white/90 p-0.5 rounded-full border border-zinc-200/90 shadow-2xs">
+                  <button
+                    type="button"
+                    id="btn-active-mode-cut"
+                    onClick={() => handleSwitchConversionMode('CUT_COLUMNS')}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      (activeFile?.summary?.conversionMode || conversionMode) === 'CUT_COLUMNS'
+                        ? 'bg-[#19719C] text-white shadow-xs'
+                        : 'text-[#5C6068] hover:text-[#000013]'
+                    }`}
+                    title="Klik untuk memproses ulang file ini menggunakan mode: File Sudah Terpotong (Multi-Kolom)"
+                  >
+                    <span>✓ File Terpotong</span>
+                  </button>
+                  <button
+                    type="button"
+                    id="btn-active-mode-uncut"
+                    onClick={() => handleSwitchConversionMode('UNCUT_SINGLE_COLUMN')}
+                    className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                      (activeFile?.summary?.conversionMode || conversionMode) === 'UNCUT_SINGLE_COLUMN'
+                        ? 'bg-[#EA5413] text-white shadow-xs'
+                        : 'text-[#5C6068] hover:text-[#000013]'
+                    }`}
+                    title="Klik untuk memproses ulang file ini menggunakan mode: File Belum Terpotong (1 Kolom A1 Spool)"
+                  >
+                    <span>⚡ File Belum Terpotong (1 Kolom)</span>
+                  </button>
+                </div>
+
                 <span className="border border-white/80 bg-white/70 px-2.5 py-0.5 rounded-full font-medium shadow-2xs">
                   FILE: {currentFileName}
                 </span>
@@ -485,6 +565,8 @@ export default function App() {
               loadingMessage={loadingMessage}
               loadingProgress={loadingProgress}
               errorMessage={errorMessage}
+              conversionMode={conversionMode}
+              onConversionModeChange={setConversionMode}
             />
 
             {/* Quick Specifications Cards */}
@@ -495,10 +577,10 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-[#1E2024]">
-                    Format 15 Kolom Otomatis
+                    Dual-Mode Auto Parser (Anti-Geser)
                   </h4>
                   <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                    Menyusun data mentah ERP ke dalam susunan 15 kolom standar secara rapi dan akurat.
+                    Mendukung file tabel potong kolom maupun file teks mentah 1 kolom (A1 spool) tanpa perlu potong manual di Excel.
                   </p>
                 </div>
               </div>

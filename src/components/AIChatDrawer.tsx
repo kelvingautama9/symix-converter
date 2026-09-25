@@ -485,34 +485,10 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
             haptic.medium();
             onOpen();
           }}
-          className="fixed bottom-5 right-5 z-40 p-[1.5px] rounded-full group cursor-pointer transition-all duration-300 hover:scale-[1.03] active:scale-[0.97] select-none"
+          className="fixed bottom-5 right-5 z-40 rounded-full group cursor-pointer transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] select-none shadow-[0_16px_36px_-6px_rgba(0,0,19,0.14),0_4px_12px_-2px_rgba(25,113,156,0.10)]"
           title="Buka AI Chatbot Asisten"
         >
-          {/* Clockwise Animated Light Beam Container (Masked by rounded-full overflow-hidden) */}
-          <div className="absolute inset-0 rounded-full overflow-hidden pointer-events-none -z-0">
-            {/* Base subtle static glass border */}
-            <div className="absolute inset-0 rounded-full border border-white/50" />
-
-            {/* Smooth Slow Clockwise Rotating Light Beam: Light White -> Light Grey -> Light White */}
-            <div
-              className="absolute -inset-[150%] animate-border-beam-slow pointer-events-none opacity-90 group-hover:opacity-100 transition-opacity"
-              style={{
-                background:
-                  'conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 180deg, rgba(255,255,255,0.15) 210deg, rgba(255,255,255,0.98) 250deg, rgba(215,222,230,0.92) 285deg, rgba(255,255,255,1) 320deg, rgba(255,255,255,0.25) 345deg, transparent 360deg)',
-              }}
-            />
-
-            {/* Secondary blurred glow behind the beam for 3D radiance */}
-            <div
-              className="absolute -inset-[150%] animate-border-beam-slow pointer-events-none blur-[4px] opacity-60 group-hover:opacity-85 transition-opacity"
-              style={{
-                background:
-                  'conic-gradient(from 0deg at 50% 50%, transparent 0deg, transparent 200deg, rgba(255,255,255,0.75) 250deg, rgba(215,222,230,0.88) 285deg, rgba(255,255,255,0.98) 320deg, transparent 350deg)',
-              }}
-            />
-          </div>
-
-          {/* Apple Liquid Glass 3D Inner Body */}
+          {/* 1. Authentic Apple Liquid Glass Body (Original 52% opacity & blur for true translucency) */}
           <div className="relative z-10 apple-liquid-glass-badge px-3.5 py-2 flex items-center gap-3 rounded-full">
             {/* 3D Specular curved glass sheen overlay */}
             <div
@@ -540,6 +516,28 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 {data && data.length > 0 ? `${data.length} PO Terdeteksi` : 'Tanya Data ERP'}
               </span>
             </div>
+          </div>
+
+          {/* 2. Clockwise Moving Bright Light Blue Beam (Strictly masked to the 2px perimeter stroke) */}
+          <div className="liquid-glass-beam-ring" aria-hidden="true">
+            <div
+              className="absolute left-1/2 top-1/2 w-[340px] h-[340px] pointer-events-none animate-border-beam-clockwise"
+              style={{
+                background:
+                  'conic-gradient(from 0deg, transparent 0deg, transparent 265deg, rgba(25,113,156,0.3) 285deg, #19719C 305deg, #0284C7 325deg, #38BDF8 345deg, #BAE6FD 356deg, #FFFFFF 360deg)',
+              }}
+            />
+          </div>
+
+          {/* 3. Subtle ambient light blue glow halo on the outer edge, also masked from the center */}
+          <div className="liquid-glass-beam-halo" aria-hidden="true">
+            <div
+              className="absolute left-1/2 top-1/2 w-[340px] h-[340px] pointer-events-none animate-border-beam-clockwise"
+              style={{
+                background:
+                  'conic-gradient(from 0deg, transparent 0deg, transparent 280deg, #19719C 310deg, #0EA5E9 335deg, #38BDF8 350deg, #FFFFFF 360deg)',
+              }}
+            />
           </div>
         </button>
       )}
