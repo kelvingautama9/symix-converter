@@ -18,6 +18,8 @@ export interface ExtractedRecord {
   'Sisa OS (kg)': number;
   'Terkirim (PCS)': number;
   'Terkirim (KG)': number;
+  'Over Produksi (PCS)'?: number;
+  'Over Produksi (KG)'?: number;
   Harga: number;
   _has_delivery?: boolean;
   _parentIndex?: number;
@@ -38,6 +40,9 @@ export interface ParseSummary {
   totalSisaOSKg: number;
   totalTerkirimPcs: number;
   totalTerkirimKg: number;
+  totalOverProduksiPcs?: number;
+  totalOverProduksiKg?: number;
+  totalOverProduksiPOs?: number;
   totalValue: number;
   itemsWithDelivery: number;
   itemsWithoutDelivery: number;
@@ -49,7 +54,7 @@ export interface ParseSummary {
   totalRawRows: number;
 }
 
-export type FilterStatus = 'ALL' | 'PARTIAL_DELIVERY' | 'FULL_PENDING' | 'STOCK_READY';
+export type FilterStatus = 'ALL' | 'PARTIAL_DELIVERY' | 'FULL_PENDING' | 'STOCK_READY' | 'OVER_PRODUCTION';
 export type CoFilterStatus = 'ALL' | 'OPEN' | 'CLOSED';
 export type ExcelExportScope =
   | 'ALL'
@@ -57,7 +62,8 @@ export type ExcelExportScope =
   | 'CLOSED_ONLY'
   | 'STOCK_READY_ALL'
   | 'STOCK_READY_OPEN'
-  | 'STOCK_READY_CLOSED';
+  | 'STOCK_READY_CLOSED'
+  | 'OVER_PRODUCTION_ONLY';
 
 export type WhatsAppReportScope =
   | 'ALL'
@@ -65,7 +71,8 @@ export type WhatsAppReportScope =
   | 'CLOSED_ONLY'
   | 'STOCK_READY_ALL'
   | 'STOCK_READY_OPEN'
-  | 'STOCK_READY_CLOSED';
+  | 'STOCK_READY_CLOSED'
+  | 'OVER_PRODUCTION_ONLY';
 
 export type BatchItemStatus = 'pending' | 'processing' | 'success' | 'error';
 

@@ -810,6 +810,7 @@ export function BatchConverter({
                       <th className="p-2 border-r border-[#333] text-right">Stock (pcs)</th>
                       <th className="p-2 border-r border-[#333] text-right">Sisa OS</th>
                       <th className="p-2 border-r border-[#333] text-right">Terkirim</th>
+                      <th className="p-2 border-r border-[#333] text-right bg-indigo-950 text-indigo-200">Over (pcs)</th>
                       <th className="p-2 text-right">Harga</th>
                     </tr>
                   </thead>
@@ -859,10 +860,27 @@ export function BatchConverter({
                           {row['Stock (pcs)']}
                         </td>
                         <td className="p-2 border-r border-[#141414]/20 text-right text-amber-700 font-bold">
-                          {row['Sisa OS (pcs)']}
+                          <div>
+                            {row['Sisa OS (pcs)']}
+                          </div>
+                          {(row['Over Produksi (PCS)'] || 0) > 0 && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1 py-0.2 rounded-full text-[8px] font-bold font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/25"
+                              title={`Over: +${(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs`}
+                            >
+                              +{(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over
+                            </span>
+                          )}
                         </td>
                         <td className="p-2 border-r border-[#141414]/20 text-right text-green-700 font-bold">
                           {row['Terkirim (PCS)']}
+                        </td>
+                        <td className="p-2 border-r border-[#141414]/20 text-right text-indigo-700 font-bold bg-indigo-50/50">
+                          {(row['Over Produksi (PCS)'] || 0) > 0 ? (
+                            `+${(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')}`
+                          ) : (
+                            <span className="text-zinc-400 font-normal">0</span>
+                          )}
                         </td>
                         <td className="p-2 text-right">
                           {row.Harga ? row.Harga.toLocaleString('id-ID') : '-'}

@@ -59,6 +59,13 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
     () => openScoped.filter((d) => d.coStatus === 'OPEN' && (d['Stock (pcs)'] || 0) > 0).length,
     [openScoped]
   );
+  const countOverProduksi = useMemo(
+    () =>
+      allScoped.filter(
+        (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+      ).length,
+    [allScoped]
+  );
 
   const scopeFileName = useMemo(() => {
     return getExportFileName(currentFileName, activeScope as ExcelExportScope);
@@ -74,10 +81,12 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
         return countStockReadyAll;
       case 'STOCK_READY_OPEN':
         return countStockReadyOpen;
+      case 'OVER_PRODUCTION_ONLY':
+        return countOverProduksi;
       default:
         return countAll;
     }
-  }, [activeScope, countAll, countOpen, countClosed, countStockReadyAll, countStockReadyOpen]);
+  }, [activeScope, countAll, countOpen, countClosed, countStockReadyAll, countStockReadyOpen, countOverProduksi]);
 
   const summaryText = useMemo(() => generateWhatsAppSummary(data, activeScope), [data, activeScope]);
 
@@ -300,6 +309,24 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             <span>Stock Ready (CO Open)</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeScope === 'STOCK_READY_OPEN' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'}`}>
               {countStockReadyOpen}
+            </span>
+          </button>
+
+          {/* Tab 5: Over Produksi (Surplus) */}
+          <button
+            type="button"
+            id="wa-tab-over-produksi"
+            onClick={() => handleScopeChange('OVER_PRODUCTION_ONLY')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeScope === 'OVER_PRODUCTION_ONLY'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'liquid-glass-clear text-indigo-700'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-indigo-500" />
+            <span>Over Produksi</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeScope === 'OVER_PRODUCTION_ONLY' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-900 border border-indigo-200'}`}>
+              {countOverProduksi}
             </span>
           </button>
         </div>

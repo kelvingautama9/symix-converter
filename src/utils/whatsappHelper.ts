@@ -171,6 +171,11 @@ export function generateWhatsAppSummary(
   } else if (scope === 'CLOSED_ONLY') {
     filtered = scopedData.filter((d) => d.coStatus === 'CLOSED' && (d['Sisa OS (pcs)'] || 0) > 0);
     headerTitle = '*Update Sisa OS :*';
+  } else if (scope === 'OVER_PRODUCTION_ONLY') {
+    filtered = scopedData.filter(
+      (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+    );
+    headerTitle = '*Update Over Produksi (Surplus) :*';
   } else {
     // Default 'ALL': if stock ready items exist, prioritize clean Stock Ready report
     const stockItems = scopedData.filter((d) => (d['Stock (pcs)'] || 0) > 0);
@@ -195,7 +200,15 @@ export function generateWhatsAppSummary(
     const artShort = formatArtikelShort(item.Artikel || '');
     const ukuran = formatUkuran(item['Item Description'] || '');
 
-    if (isStockReadyScope || headerTitle.includes('Stock')) {
+    if (scope === 'OVER_PRODUCTION_ONLY' || headerTitle.includes('Over Produksi')) {
+      const overPcs = Math.round(item['Over Produksi (PCS)'] || 0);
+      let overKg = Math.round(item['Over Produksi (KG)'] || 0);
+      if (overKg === 0 && overPcs > 0 && (item['QTY PO (pcs)'] || 0) > 0 && (item['Berat PO (KG)'] || 0) > 0) {
+        overKg = Math.round((overPcs / item['QTY PO (pcs)']) * item['Berat PO (KG)']);
+      }
+      totalKg += overKg;
+      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg) [Over-Qty]`);
+    } else if (isStockReadyScope || headerTitle.includes('Stock')) {
       const stockPcs = Math.round(item['Stock (pcs)'] || 0);
       let stockKg = Math.round(item['Stock (kg)'] || 0);
 

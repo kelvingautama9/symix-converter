@@ -17,6 +17,8 @@ export const EXCEL_COLUMNS = [
   'Sisa OS (kg)',
   'Terkirim (PCS)',
   'Terkirim (KG)',
+  'Over Produksi (PCS)',
+  'Over Produksi (KG)',
   'Harga',
 ] as const;
 
@@ -45,6 +47,7 @@ export interface ShareExcelResult {
  * - 'STOCK_READY_ALL' -> "jirec_STOCK_READY_SEMUA_CO.xlsx"
  * - 'STOCK_READY_OPEN' -> "jirec_STOCK_READY_CO_OPEN.xlsx"
  * - 'STOCK_READY_CLOSED' -> "jirec_STOCK_READY_CO_CLOSED.xlsx"
+ * - 'OVER_PRODUCTION_ONLY' -> "jirec_OVER_PRODUKSI.xlsx"
  *
  * If no uploaded filename is provided, defaults to "Rekap_Customer.xlsx".
  */
@@ -75,6 +78,8 @@ export function getExportFileName(
       return `${baseName}_STOCK_READY_CO_OPEN.xlsx`;
     case 'STOCK_READY_CLOSED':
       return `${baseName}_STOCK_READY_CO_CLOSED.xlsx`;
+    case 'OVER_PRODUCTION_ONLY':
+      return `${baseName}_OVER_PRODUKSI.xlsx`;
     case 'ALL':
     default:
       return `${baseName}.xlsx`;
@@ -127,6 +132,13 @@ export function generateExcelBlobAndFile(
     scopeTitleSuffix = 'STOCK READY (KHUSUS CO CLOSED)';
     defaultFilePrefix = 'Rekap_Customer_Stock_Ready_CO_Closed_Only';
     sheetName = 'Stock Ready (CO Closed)';
+  } else if (scope === 'OVER_PRODUCTION_ONLY') {
+    filteredData = scopedData.filter(
+      (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+    );
+    scopeTitleSuffix = 'KHUSUS OVER PRODUKSI (SURPLUS)';
+    defaultFilePrefix = 'Rekap_Customer_Over_Produksi_Only';
+    sheetName = 'Over Produksi Only';
   }
 
   if (filteredData.length === 0) {
@@ -136,6 +148,7 @@ export function generateExcelBlobAndFile(
     else if (scope === 'STOCK_READY_ALL') scopeDesc = 'kriteria "Stock Ready" (Semua CO)';
     else if (scope === 'STOCK_READY_OPEN') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Open)';
     else if (scope === 'STOCK_READY_CLOSED') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Closed)';
+    else if (scope === 'OVER_PRODUCTION_ONLY') scopeDesc = 'kriteria "Over Produksi / Surplus"';
     throw new Error(`Tidak ada data dengan ${scopeDesc} untuk diekspor.`);
   }
 
@@ -155,7 +168,7 @@ export function generateExcelBlobAndFile(
   // Row 3: Empty spacing row (index 2)
   sheetData.push([]);
 
-  // Row 4: Data headers start at row 4 (index 3) - 15 columns strictly ordered
+  // Row 4: Data headers start at row 4 (index 3) - 17 columns strictly ordered
   sheetData.push([...EXCEL_COLUMNS]);
 
   // Row 5+: Data rows (index 4+)
@@ -167,6 +180,8 @@ export function generateExcelBlobAndFile(
   let sumSisaKg = 0;
   let sumTerkirimPcs = 0;
   let sumTerkirimKg = 0;
+  let sumOverPcs = 0;
+  let sumOverKg = 0;
 
   for (const item of filteredData) {
     const qtyPcs = Number(item['QTY PO (pcs)']) || 0;
@@ -177,6 +192,8 @@ export function generateExcelBlobAndFile(
     const sisaKg = Number(item['Sisa OS (kg)']) || 0;
     const terkirimPcs = item['Terkirim (PCS)'] !== undefined ? Number(item['Terkirim (PCS)']) : Math.max(0, qtyPcs - sisaPcs);
     const terkirimKg = item['Terkirim (KG)'] !== undefined ? Number(item['Terkirim (KG)']) : Math.max(0, beratKg - sisaKg);
+    const overPcs = Number(item['Over Produksi (PCS)']) || 0;
+    const overKg = Number(item['Over Produksi (KG)']) || 0;
     const harga = Number(item.Harga) || 0;
 
     sumQtyPcs += qtyPcs;
@@ -187,6 +204,8 @@ export function generateExcelBlobAndFile(
     sumSisaKg += sisaKg;
     sumTerkirimPcs += terkirimPcs;
     sumTerkirimKg += terkirimKg;
+    sumOverPcs += overPcs;
+    sumOverKg += overKg;
 
     sheetData.push([
       item.CO || '',
@@ -203,6 +222,8 @@ export function generateExcelBlobAndFile(
       sisaKg,
       terkirimPcs,
       terkirimKg,
+      overPcs,
+      overKg,
       harga,
     ]);
   }
@@ -223,12 +244,14 @@ export function generateExcelBlobAndFile(
     sumSisaKg,
     sumTerkirimPcs,
     sumTerkirimKg,
+    sumOverPcs,
+    sumOverKg,
     '',
   ]);
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
-  // Set column widths for optimal legibility (15 columns)
+  // Set column widths for optimal legibility (17 columns)
   worksheet['!cols'] = [
     { wch: 18 }, // CO
     { wch: 18 }, // Artikel
@@ -244,13 +267,15 @@ export function generateExcelBlobAndFile(
     { wch: 15 }, // Sisa OS (kg)
     { wch: 16 }, // Terkirim (PCS)
     { wch: 16 }, // Terkirim (KG)
+    { wch: 18 }, // Over Produksi (PCS)
+    { wch: 18 }, // Over Produksi (KG)
     { wch: 14 }, // Harga
   ];
 
-  // Set merges for Title row (A1 to O1, index 0 to 14)
+  // Set merges for Title row (A1 to Q1, index 0 to 16)
   worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } }, // Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } }, // Subtitle
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 16 } }, // Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 16 } }, // Subtitle
     { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 5 } }, // Total label
   ];
 

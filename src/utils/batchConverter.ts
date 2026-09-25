@@ -165,6 +165,8 @@ export function exportCombinedMasterWorkbook(
   let grandSisaKg = 0;
   let grandTerkirimPcs = 0;
   let grandTerkirimKg = 0;
+  let grandOverPcs = 0;
+  let grandOverKg = 0;
 
   for (const item of validItems) {
     if (!item.data) continue;
@@ -186,6 +188,10 @@ export function exportCombinedMasterWorkbook(
       filtered = scopedData.filter(
         (d) => d.coStatus === 'CLOSED' && (d['Stock (pcs)'] || 0) > 0
       );
+    } else if (scope === 'OVER_PRODUCTION_ONLY') {
+      filtered = scopedData.filter(
+        (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+      );
     }
 
     const cleanSource = item.rawFileName.replace(/\.[^/.]+$/, '');
@@ -205,6 +211,8 @@ export function exportCombinedMasterWorkbook(
         row['Terkirim (KG)'] !== undefined
           ? Number(row['Terkirim (KG)'])
           : Math.max(0, beratKg - sisaKg);
+      const overPcs = Number(row['Over Produksi (PCS)']) || 0;
+      const overKg = Number(row['Over Produksi (KG)']) || 0;
 
       grandQtyPcs += qtyPcs;
       grandBeratKg += beratKg;
@@ -214,6 +222,8 @@ export function exportCombinedMasterWorkbook(
       grandSisaKg += sisaKg;
       grandTerkirimPcs += terkirimPcs;
       grandTerkirimKg += terkirimKg;
+      grandOverPcs += overPcs;
+      grandOverKg += overKg;
 
       masterRows.push([
         cleanSource,
@@ -231,6 +241,8 @@ export function exportCombinedMasterWorkbook(
         sisaKg,
         terkirimPcs,
         terkirimKg,
+        overPcs,
+        overKg,
         Number(row.Harga) || 0,
       ]);
     }
@@ -253,6 +265,8 @@ export function exportCombinedMasterWorkbook(
     grandSisaKg,
     grandTerkirimPcs,
     grandTerkirimKg,
+    grandOverPcs,
+    grandOverKg,
     '',
   ]);
 
@@ -273,6 +287,8 @@ export function exportCombinedMasterWorkbook(
     { wch: 15 }, // Sisa OS (kg)
     { wch: 16 }, // Terkirim (PCS)
     { wch: 16 }, // Terkirim (KG)
+    { wch: 18 }, // Over Produksi (PCS)
+    { wch: 18 }, // Over Produksi (KG)
     { wch: 14 }, // Harga
   ];
 

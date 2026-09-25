@@ -125,9 +125,19 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
             {summary.totalStockPcs.toLocaleString('id-ID')}{' '}
             <span className="text-xs font-normal text-[#5C6068]">pcs</span>
           </div>
-          <p className="text-[11px] text-[#5C6068] mt-1 font-mono truncate">
-            {summary.totalStockKg.toLocaleString('id-ID')} kg inventory
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-1 mt-1 font-mono text-[11px]">
+            <span className="text-[#5C6068] truncate">
+              {summary.totalStockKg.toLocaleString('id-ID')} kg inventory
+            </span>
+            {(summary.totalOverProduksiPcs || 0) > 0 && (
+              <span
+                className="px-1.5 py-0.2 bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 rounded-full text-[10px] font-semibold"
+                title={`Kelebihan produksi (surplus): ${(summary.totalOverProduksiPcs || 0).toLocaleString('id-ID')} pcs (${(summary.totalOverProduksiKg || 0).toLocaleString('id-ID')} kg)`}
+              >
+                +{(summary.totalOverProduksiPcs || 0).toLocaleString('id-ID')} Over
+              </span>
+            )}
+          </div>
         </div>
       </div>
 

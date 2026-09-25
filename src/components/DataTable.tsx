@@ -43,6 +43,8 @@ export type ColumnKey =
   | 'sisaOsKg'
   | 'terkirimPcs'
   | 'terkirimKg'
+  | 'overProduksiPcs'
+  | 'overProduksiKg'
   | 'harga';
 
 export interface ColumnDefinition {
@@ -69,7 +71,9 @@ export const ERP_COLUMNS: ColumnDefinition[] = [
   { key: 'sisaOsKg', number: 12, label: '12. Sisa OS (kg)', field: 'Sisa OS (kg)', description: 'Sisa order belum terkirim (kg)', badge: 'Kuantitas' },
   { key: 'terkirimPcs', number: 13, label: '13. Terkirim (PCS)', field: 'Terkirim (PCS)', description: 'Total kuantitas yang sudah dikirim (pcs)', badge: 'Logistik' },
   { key: 'terkirimKg', number: 14, label: '14. Terkirim (KG)', field: 'Terkirim (KG)', description: 'Total tonase yang sudah dikirim (kg)', badge: 'Logistik' },
-  { key: 'harga', number: 15, label: '15. Harga', field: 'Harga', description: 'Total nilai uang / harga pesanan PO', badge: 'Finansial' },
+  { key: 'overProduksiPcs', number: 15, label: '15. Over Produksi (PCS)', field: 'Over Produksi (PCS)', description: 'Kelebihan kuantitas produksi di atas pesanan (pcs)', badge: 'Surplus' },
+  { key: 'overProduksiKg', number: 16, label: '16. Over Produksi (KG)', field: 'Over Produksi (KG)', description: 'Kelebihan tonase produksi di atas pesanan (kg)', badge: 'Surplus' },
+  { key: 'harga', number: 17, label: '17. Harga', field: 'Harga', description: 'Total nilai uang / harga pesanan PO', badge: 'Finansial' },
 ];
 
 export const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = {
@@ -87,6 +91,8 @@ export const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = {
   sisaOsKg: true,
   terkirimPcs: true,
   terkirimKg: true,
+  overProduksiPcs: true,
+  overProduksiKg: true,
   harga: true,
 };
 
@@ -184,6 +190,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
     let partial = 0;
     let pending = 0;
     let stockReady = 0;
+    let overProduction = 0;
     let totalInCoScope = 0;
 
     scopedData.forEach((item) => {
@@ -195,13 +202,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       const sisa = item['Sisa OS (pcs)'] || 0;
       const stockPcs = item['Stock (pcs)'] || 0;
       const stockKg = item['Stock (kg)'] || 0;
+      const overPcs = item['Over Produksi (PCS)'] || 0;
+      const overKg = item['Over Produksi (KG)'] || 0;
 
       if (sisa < qty && sisa > 0) partial++;
       if (sisa >= qty) pending++;
       if (stockPcs > 0 || stockKg > 0) stockReady++;
+      if (overPcs > 0 || overKg > 0) overProduction++;
     });
 
-    return { partial, pending, stockReady, all: totalInCoScope };
+    return { partial, pending, stockReady, overProduction, all: totalInCoScope };
   }, [scopedData, coFilter]);
 
   // Aging counts based on current CO filter scope
@@ -261,6 +271,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       }
       if (filterStatus === 'STOCK_READY') {
         return stockPcs > 0 || stockKg > 0;
+      }
+      if (filterStatus === 'OVER_PRODUCTION') {
+        const overPcs = item['Over Produksi (PCS)'] || 0;
+        const overKg = item['Over Produksi (KG)'] || 0;
+        return overPcs > 0 || overKg > 0;
       }
 
       // 4. Aging PO Filter (< 7 Hari, 8–14 Hari, > 14 Hari)
@@ -621,6 +636,19 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 }`}
               >
                 Stock Ready ({filterCounts.stockReady})
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeliveryFilterChange('OVER_PRODUCTION')}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  filterStatus === 'OVER_PRODUCTION'
+                    ? 'bg-indigo-600 text-white shadow-sm'
+                    : 'text-[#5C6068] hover:text-indigo-700'
+                }`}
+                title="Tampilkan hanya PO yang memiliki kelebihan produksi (Over-Qty / Surplus)"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_PRODUCTION' ? 'bg-white' : 'bg-indigo-500'}`} />
+                <span>Over Produksi ({filterCounts.overProduction})</span>
               </button>
             </div>
 
@@ -983,13 +1011,39 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 </th>
               )}
 
+              {visibleColumns.overProduksiPcs && (
+                <th
+                  onClick={() => handleSort('Over Produksi (PCS)' as keyof ExtractedRecord)}
+                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-indigo-900/90 text-indigo-100`}
+                  title="Kelebihan kuantitas produksi di atas pesanan PO (pcs)"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>15. Over Produksi (PCS)</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-indigo-300" />
+                  </div>
+                </th>
+              )}
+
+              {visibleColumns.overProduksiKg && (
+                <th
+                  onClick={() => handleSort('Over Produksi (KG)' as keyof ExtractedRecord)}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  title="Kelebihan tonase produksi di atas pesanan PO (kg)"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>16. Over Produksi (KG)</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                  </div>
+                </th>
+              )}
+
               {visibleColumns.harga && (
                 <th
                   onClick={() => handleSort('Harga')}
                   className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black/30 transition-colors`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>15. Harga</span>
+                    <span>17. Harga</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
@@ -1135,12 +1189,25 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
 
                     {visibleColumns.sisaOsPcs && (
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-[#EA5413] border-r border-zinc-200/40 bg-[#EA5413]/5">
-                        {row['Sisa OS (pcs)'].toLocaleString('id-ID')}
-                        {isDeliveredPartial && (
-                          <span className="ml-1 inline-block text-[10px] text-emerald-700 font-sans font-semibold">
-                            (SJ✓)
-                          </span>
-                        )}
+                        <div className="flex flex-col items-end">
+                          <div>
+                            {row['Sisa OS (pcs)'].toLocaleString('id-ID')}
+                            {isDeliveredPartial && (
+                              <span className="ml-1 inline-block text-[10px] text-emerald-700 font-sans font-semibold">
+                                (SJ✓)
+                              </span>
+                            )}
+                          </div>
+                          {(row['Over Produksi (PCS)'] || 0) > 0 && (
+                            <span
+                              className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/25"
+                              title={`Produksi melebihi PO sebesar ${(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')} kg). Siap ditawarkan ke customer atau disimpan sebagai buffer stock.`}
+                            >
+                              <span className="w-1 h-1 rounded-full bg-indigo-500" />
+                              <span>+{(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over-Qty</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
                     )}
 
@@ -1159,6 +1226,30 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     {visibleColumns.terkirimKg && (
                       <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
                         {terkirimKg > 0 ? terkirimKg.toLocaleString('id-ID') : '0'}
+                      </td>
+                    )}
+
+                    {visibleColumns.overProduksiPcs && (
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-indigo-700 border-r border-zinc-200/40 bg-indigo-500/5">
+                        {(row['Over Produksi (PCS)'] || 0) > 0 ? (
+                          <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/25">
+                            +{(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 font-normal">0</span>
+                        )}
+                      </td>
+                    )}
+
+                    {visibleColumns.overProduksiKg && (
+                      <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
+                        {(row['Over Produksi (KG)'] || 0) > 0 ? (
+                          <span className="text-indigo-900 font-semibold">
+                            +{(row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 font-normal">0</span>
+                        )}
                       </td>
                     )}
 

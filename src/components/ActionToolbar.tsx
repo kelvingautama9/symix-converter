@@ -33,6 +33,7 @@ interface ActionToolbarProps {
   totalCOClosed?: number;
   totalStockReadyAll?: number;
   totalStockReadyOpen?: number;
+  totalOverProduksiPOs?: number;
 }
 
 export const ActionToolbar: React.FC<ActionToolbarProps> = ({
@@ -51,6 +52,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   totalCOClosed = 0,
   totalStockReadyAll = 0,
   totalStockReadyOpen = 0,
+  totalOverProduksiPOs = 0,
 }) => {
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isCopyMenuOpen, setIsCopyMenuOpen] = useState(false);
@@ -239,6 +241,23 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                     {totalStockReadyAll} PO
                   </span>
                 </button>
+
+                {/* Over Produksi Option */}
+                <button
+                  type="button"
+                  id="btn-export-over-produksi"
+                  onClick={() => triggerExport('OVER_PRODUCTION_ONLY')}
+                  disabled={totalOverProduksiPOs === 0}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                    <span>Khusus Over Produksi (Surplus)</span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] font-mono font-bold rounded-full">
+                    {totalOverProduksiPOs} PO
+                  </span>
+                </button>
               </div>
 
               {/* Direct Excel Share to WhatsApp Section */}
@@ -411,6 +430,22 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                   </div>
                   <span className="px-2 py-0.5 bg-zinc-200/60 text-[#000013] text-[10px] font-mono font-bold rounded-full shrink-0">
                     {totalRecords}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="dropdown-copy-over-produksi"
+                  onClick={() => handleQuickCopy('OVER_PRODUCTION_ONLY')}
+                  disabled={totalOverProduksiPOs === 0}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-indigo-500" />
+                    <span>Khusus Over Produksi (Surplus)</span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] font-mono font-bold rounded-full shrink-0">
+                    {totalOverProduksiPOs}
                   </span>
                 </button>
               </div>
