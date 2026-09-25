@@ -98,7 +98,10 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
     }
   }, [activeScope, countAll, countOpen, countClosed, countStockReadyAll, countStockReadyOpen, countOverStockGudang, countOverKiriman]);
 
-  const summaryText = useMemo(() => generateWhatsAppSummary(data, activeScope), [data, activeScope]);
+  const summaryText = useMemo(
+    () => generateWhatsAppSummary(data, activeScope, currentFileName),
+    [data, activeScope, currentFileName]
+  );
 
   if (!isOpen) return null;
 

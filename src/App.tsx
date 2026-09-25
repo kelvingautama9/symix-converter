@@ -376,7 +376,7 @@ export default function App() {
   const handleCopyWhatsAppText = async (scope: WhatsAppReportScope = 'ALL') => {
     if (!data || data.length === 0) return;
     haptic.light();
-    const text = generateWhatsAppSummary(data, scope);
+    const text = generateWhatsAppSummary(data, scope, currentFileName);
     const success = await copyToClipboard(text);
     if (success) {
       haptic.success();

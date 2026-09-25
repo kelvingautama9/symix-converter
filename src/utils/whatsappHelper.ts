@@ -121,16 +121,46 @@ export function formatTonAndKg(totalKg: number): string {
 }
 
 /**
+ * Resolves customer name or clean file name without extension, e.g.:
+ * - "DwiGlobal.xls" -> "DwiGlobal"
+ * - "PT_Dwi_Global.xlsx" -> "PT_Dwi_Global"
+ * - records[0].Customer -> customer code / name
+ */
+export function extractCustomerBadge(
+  fileName?: string | null,
+  records?: ExtractedRecord[]
+): string {
+  if (fileName && fileName.trim()) {
+    const base = fileName.split(/[/\\]/).pop() || fileName;
+    const clean = base.replace(/\.[a-zA-Z0-9]+$/, '').trim();
+    if (clean) return clean;
+  }
+  if (records && records.length > 0) {
+    if (records[0]._sourceFileName) {
+      const base = records[0]._sourceFileName.split(/[/\\]/).pop() || records[0]._sourceFileName;
+      const clean = base.replace(/\.[a-zA-Z0-9]+$/, '').trim();
+      if (clean) return clean;
+    }
+    if (records[0].Customer && records[0].Customer !== '-' && records[0].Customer.toUpperCase() !== 'UNKNOWN') {
+      return records[0].Customer.trim();
+    }
+  }
+  return '';
+}
+
+/**
  * Generates clean, WhatsApp-native report text strictly matching the user's template:
  *
- * *Update Stock :*
- * > (8420)-(Art 607) 1157X529 = 1000 (567kg)
+ * *Update Stok Gudang Over PO :*
+ * `DwiGlobal`
+ * > (6491)-(Art 481) 590X995 = +200 (39kg)
  *
- * total = 0.5 ton (567kg)
+ * total = 0.2 ton (260kg)
  */
 export function generateWhatsAppSummary(
   data: ExtractedRecord[],
-  scope: WhatsAppReportScope = 'ALL'
+  scope: WhatsAppReportScope = 'ALL',
+  fileName?: string | null
 ): string {
   if (!data || data.length === 0) {
     return '*Update Stock :*\nTidak ada data untuk ditampilkan.';
@@ -198,6 +228,11 @@ export function generateWhatsAppSummary(
   }
 
   const lines: string[] = [headerTitle];
+  const customerBadge = extractCustomerBadge(fileName, filtered);
+  if (customerBadge) {
+    lines.push(`\`${customerBadge}\``);
+  }
+
   let totalKg = 0;
 
   filtered.forEach((item) => {
@@ -205,14 +240,19 @@ export function generateWhatsAppSummary(
     const artShort = formatArtikelShort(item.Artikel || '');
     const ukuran = formatUkuran(item['Item Description'] || '');
 
-    if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY' || headerTitle.includes('Stok Gudang Over') || headerTitle.includes('Over Produksi')) {
+    if (
+      scope === 'OVER_STOCK_GUDANG' ||
+      scope === 'OVER_PRODUCTION_ONLY' ||
+      headerTitle.includes('Stok Gudang Over') ||
+      headerTitle.includes('Over Produksi')
+    ) {
       const overPcs = Math.round(item['Over Stock Gudang (PCS)'] || item['Over Produksi (PCS)'] || 0);
       let overKg = Math.round(item['Over Stock Gudang (KG)'] || item['Over Produksi (KG)'] || 0);
       if (overKg === 0 && overPcs > 0 && (item['QTY PO (pcs)'] || 0) > 0 && (item['Berat PO (KG)'] || 0) > 0) {
         overKg = Math.round((overPcs / item['QTY PO (pcs)']) * item['Berat PO (KG)']);
       }
       totalKg += overKg;
-      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg) [Ready Gudang - Belum Ada SJ]`);
+      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg)`);
     } else if (scope === 'OVER_KIRIMAN' || headerTitle.includes('Over Kiriman')) {
       const overPcs = Math.round(item['Over Kiriman (PCS)'] || 0);
       let overKg = Math.round(item['Over Kiriman (KG)'] || 0);
@@ -220,7 +260,7 @@ export function generateWhatsAppSummary(
         overKg = Math.round((overPcs / item['QTY PO (pcs)']) * item['Berat PO (KG)']);
       }
       totalKg += overKg;
-      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg) [Terkirim SJ]`);
+      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg)`);
     } else if (isStockReadyScope || headerTitle.includes('Stock')) {
       const stockPcs = Math.round(item['Stock (pcs)'] || 0);
       let stockKg = Math.round(item['Stock (kg)'] || 0);
