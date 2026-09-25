@@ -59,10 +59,17 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
     () => openScoped.filter((d) => d.coStatus === 'OPEN' && (d['Stock (pcs)'] || 0) > 0).length,
     [openScoped]
   );
-  const countOverProduksi = useMemo(
+  const countOverStockGudang = useMemo(
     () =>
       allScoped.filter(
-        (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+        (d) => (d['Over Stock Gudang (PCS)'] || d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Stock Gudang (KG)'] || d['Over Produksi (KG)'] || 0) > 0
+      ).length,
+    [allScoped]
+  );
+  const countOverKiriman = useMemo(
+    () =>
+      allScoped.filter(
+        (d) => (d['Over Kiriman (PCS)'] || 0) > 0 || (d['Over Kiriman (KG)'] || 0) > 0
       ).length,
     [allScoped]
   );
@@ -81,12 +88,15 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
         return countStockReadyAll;
       case 'STOCK_READY_OPEN':
         return countStockReadyOpen;
+      case 'OVER_STOCK_GUDANG':
       case 'OVER_PRODUCTION_ONLY':
-        return countOverProduksi;
+        return countOverStockGudang;
+      case 'OVER_KIRIMAN':
+        return countOverKiriman;
       default:
         return countAll;
     }
-  }, [activeScope, countAll, countOpen, countClosed, countStockReadyAll, countStockReadyOpen, countOverProduksi]);
+  }, [activeScope, countAll, countOpen, countClosed, countStockReadyAll, countStockReadyOpen, countOverStockGudang, countOverKiriman]);
 
   const summaryText = useMemo(() => generateWhatsAppSummary(data, activeScope), [data, activeScope]);
 
@@ -312,21 +322,39 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             </span>
           </button>
 
-          {/* Tab 5: Over Produksi (Surplus) */}
+          {/* Tab 5: Over Stock Gudang (Surplus Fisik) */}
           <button
             type="button"
-            id="wa-tab-over-produksi"
-            onClick={() => handleScopeChange('OVER_PRODUCTION_ONLY')}
+            id="wa-tab-over-stock-gudang"
+            onClick={() => handleScopeChange('OVER_STOCK_GUDANG')}
             className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
-              activeScope === 'OVER_PRODUCTION_ONLY'
+              activeScope === 'OVER_STOCK_GUDANG' || activeScope === 'OVER_PRODUCTION_ONLY'
                 ? 'bg-indigo-600 text-white shadow-xs'
                 : 'liquid-glass-clear text-indigo-700'
             }`}
           >
             <span className="w-2 h-2 rounded-full bg-indigo-500" />
-            <span>Over Produksi</span>
-            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeScope === 'OVER_PRODUCTION_ONLY' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-900 border border-indigo-200'}`}>
-              {countOverProduksi}
+            <span>Over Stock Gudang</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeScope === 'OVER_STOCK_GUDANG' || activeScope === 'OVER_PRODUCTION_ONLY' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-900 border border-indigo-200'}`}>
+              {countOverStockGudang}
+            </span>
+          </button>
+
+          {/* Tab 6: Over Kiriman (SJ di Atas PO) */}
+          <button
+            type="button"
+            id="wa-tab-over-kiriman"
+            onClick={() => handleScopeChange('OVER_KIRIMAN')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+              activeScope === 'OVER_KIRIMAN'
+                ? 'bg-teal-700 text-white shadow-xs'
+                : 'liquid-glass-clear text-teal-700'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-teal-500" />
+            <span>Over Kiriman</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono font-bold ${activeScope === 'OVER_KIRIMAN' ? 'bg-white/20 text-white' : 'bg-teal-100 text-teal-900 border border-teal-200'}`}>
+              {countOverKiriman}
             </span>
           </button>
         </div>

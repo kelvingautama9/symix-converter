@@ -17,8 +17,10 @@ export const EXCEL_COLUMNS = [
   'Sisa OS (kg)',
   'Terkirim (PCS)',
   'Terkirim (KG)',
-  'Over Produksi (PCS)',
-  'Over Produksi (KG)',
+  'Over Stock Gudang (PCS)',
+  'Over Stock Gudang (KG)',
+  'Over Kiriman (PCS)',
+  'Over Kiriman (KG)',
   'Harga',
 ] as const;
 
@@ -78,8 +80,11 @@ export function getExportFileName(
       return `${baseName}_STOCK_READY_CO_OPEN.xlsx`;
     case 'STOCK_READY_CLOSED':
       return `${baseName}_STOCK_READY_CO_CLOSED.xlsx`;
+    case 'OVER_STOCK_GUDANG':
     case 'OVER_PRODUCTION_ONLY':
-      return `${baseName}_OVER_PRODUKSI.xlsx`;
+      return `${baseName}_OVER_STOCK_GUDANG.xlsx`;
+    case 'OVER_KIRIMAN':
+      return `${baseName}_OVER_KIRIMAN.xlsx`;
     case 'ALL':
     default:
       return `${baseName}.xlsx`;
@@ -132,13 +137,20 @@ export function generateExcelBlobAndFile(
     scopeTitleSuffix = 'STOCK READY (KHUSUS CO CLOSED)';
     defaultFilePrefix = 'Rekap_Customer_Stock_Ready_CO_Closed_Only';
     sheetName = 'Stock Ready (CO Closed)';
-  } else if (scope === 'OVER_PRODUCTION_ONLY') {
+  } else if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY') {
     filteredData = scopedData.filter(
-      (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+      (d) => (d['Over Stock Gudang (PCS)'] || 0) > 0 || (d['Over Stock Gudang (KG)'] || 0) > 0
     );
-    scopeTitleSuffix = 'KHUSUS OVER PRODUKSI (SURPLUS)';
-    defaultFilePrefix = 'Rekap_Customer_Over_Produksi_Only';
-    sheetName = 'Over Produksi Only';
+    scopeTitleSuffix = 'KHUSUS OVER STOCK GUDANG (READY GUDANG)';
+    defaultFilePrefix = 'Rekap_Customer_Over_Stock_Gudang_Only';
+    sheetName = 'Over Stock Gudang';
+  } else if (scope === 'OVER_KIRIMAN') {
+    filteredData = scopedData.filter(
+      (d) => (d['Over Kiriman (PCS)'] || 0) > 0 || (d['Over Kiriman (KG)'] || 0) > 0
+    );
+    scopeTitleSuffix = 'KHUSUS OVER KIRIMAN (SJ DI ATAS PO)';
+    defaultFilePrefix = 'Rekap_Customer_Over_Kiriman_Only';
+    sheetName = 'Over Kiriman';
   }
 
   if (filteredData.length === 0) {
@@ -148,7 +160,8 @@ export function generateExcelBlobAndFile(
     else if (scope === 'STOCK_READY_ALL') scopeDesc = 'kriteria "Stock Ready" (Semua CO)';
     else if (scope === 'STOCK_READY_OPEN') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Open)';
     else if (scope === 'STOCK_READY_CLOSED') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Closed)';
-    else if (scope === 'OVER_PRODUCTION_ONLY') scopeDesc = 'kriteria "Over Produksi / Surplus"';
+    else if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY') scopeDesc = 'kriteria "Over Stock Gudang"';
+    else if (scope === 'OVER_KIRIMAN') scopeDesc = 'kriteria "Over Kiriman"';
     throw new Error(`Tidak ada data dengan ${scopeDesc} untuk diekspor.`);
   }
 
@@ -168,7 +181,7 @@ export function generateExcelBlobAndFile(
   // Row 3: Empty spacing row (index 2)
   sheetData.push([]);
 
-  // Row 4: Data headers start at row 4 (index 3) - 17 columns strictly ordered
+  // Row 4: Data headers start at row 4 (index 3) - 19 columns strictly ordered
   sheetData.push([...EXCEL_COLUMNS]);
 
   // Row 5+: Data rows (index 4+)
@@ -180,8 +193,10 @@ export function generateExcelBlobAndFile(
   let sumSisaKg = 0;
   let sumTerkirimPcs = 0;
   let sumTerkirimKg = 0;
-  let sumOverPcs = 0;
-  let sumOverKg = 0;
+  let sumOverStockPcs = 0;
+  let sumOverStockKg = 0;
+  let sumOverKirimanPcs = 0;
+  let sumOverKirimanKg = 0;
 
   for (const item of filteredData) {
     const qtyPcs = Number(item['QTY PO (pcs)']) || 0;
@@ -192,8 +207,10 @@ export function generateExcelBlobAndFile(
     const sisaKg = Number(item['Sisa OS (kg)']) || 0;
     const terkirimPcs = item['Terkirim (PCS)'] !== undefined ? Number(item['Terkirim (PCS)']) : Math.max(0, qtyPcs - sisaPcs);
     const terkirimKg = item['Terkirim (KG)'] !== undefined ? Number(item['Terkirim (KG)']) : Math.max(0, beratKg - sisaKg);
-    const overPcs = Number(item['Over Produksi (PCS)']) || 0;
-    const overKg = Number(item['Over Produksi (KG)']) || 0;
+    const overStockPcs = Number(item['Over Stock Gudang (PCS)']) || 0;
+    const overStockKg = Number(item['Over Stock Gudang (KG)']) || 0;
+    const overKirimanPcs = Number(item['Over Kiriman (PCS)']) || 0;
+    const overKirimanKg = Number(item['Over Kiriman (KG)']) || 0;
     const harga = Number(item.Harga) || 0;
 
     sumQtyPcs += qtyPcs;
@@ -204,8 +221,10 @@ export function generateExcelBlobAndFile(
     sumSisaKg += sisaKg;
     sumTerkirimPcs += terkirimPcs;
     sumTerkirimKg += terkirimKg;
-    sumOverPcs += overPcs;
-    sumOverKg += overKg;
+    sumOverStockPcs += overStockPcs;
+    sumOverStockKg += overStockKg;
+    sumOverKirimanPcs += overKirimanPcs;
+    sumOverKirimanKg += overKirimanKg;
 
     sheetData.push([
       item.CO || '',
@@ -222,8 +241,10 @@ export function generateExcelBlobAndFile(
       sisaKg,
       terkirimPcs,
       terkirimKg,
-      overPcs,
-      overKg,
+      overStockPcs,
+      overStockKg,
+      overKirimanPcs,
+      overKirimanKg,
       harga,
     ]);
   }
@@ -244,14 +265,16 @@ export function generateExcelBlobAndFile(
     sumSisaKg,
     sumTerkirimPcs,
     sumTerkirimKg,
-    sumOverPcs,
-    sumOverKg,
+    sumOverStockPcs,
+    sumOverStockKg,
+    sumOverKirimanPcs,
+    sumOverKirimanKg,
     '',
   ]);
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
-  // Set column widths for optimal legibility (17 columns)
+  // Set column widths for optimal legibility (19 columns)
   worksheet['!cols'] = [
     { wch: 18 }, // CO
     { wch: 18 }, // Artikel
@@ -267,15 +290,17 @@ export function generateExcelBlobAndFile(
     { wch: 15 }, // Sisa OS (kg)
     { wch: 16 }, // Terkirim (PCS)
     { wch: 16 }, // Terkirim (KG)
-    { wch: 18 }, // Over Produksi (PCS)
-    { wch: 18 }, // Over Produksi (KG)
+    { wch: 22 }, // Over Stock Gudang (PCS)
+    { wch: 22 }, // Over Stock Gudang (KG)
+    { wch: 18 }, // Over Kiriman (PCS)
+    { wch: 18 }, // Over Kiriman (KG)
     { wch: 14 }, // Harga
   ];
 
-  // Set merges for Title row (A1 to Q1, index 0 to 16)
+  // Set merges for Title row (A1 to S1, index 0 to 18)
   worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 16 } }, // Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 16 } }, // Subtitle
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 18 } }, // Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 18 } }, // Subtitle
     { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 5 } }, // Total label
   ];
 

@@ -810,7 +810,8 @@ export function BatchConverter({
                       <th className="p-2 border-r border-[#333] text-right">Stock (pcs)</th>
                       <th className="p-2 border-r border-[#333] text-right">Sisa OS</th>
                       <th className="p-2 border-r border-[#333] text-right">Terkirim</th>
-                      <th className="p-2 border-r border-[#333] text-right bg-indigo-950 text-indigo-200">Over (pcs)</th>
+                      <th className="p-2 border-r border-[#333] text-right bg-indigo-950 text-indigo-200">Over Stock</th>
+                      <th className="p-2 border-r border-[#333] text-right bg-teal-950 text-teal-200">Over Kirim</th>
                       <th className="p-2 text-right">Harga</th>
                     </tr>
                   </thead>
@@ -863,21 +864,36 @@ export function BatchConverter({
                           <div>
                             {row['Sisa OS (pcs)']}
                           </div>
-                          {(row['Over Produksi (PCS)'] || 0) > 0 && (
+                          {((row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0) > 0) && (
                             <span
                               className="inline-flex items-center gap-1 px-1 py-0.2 rounded-full text-[8px] font-bold font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/25"
-                              title={`Over: +${(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs`}
+                              title={`Over Stock: +${(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs`}
                             >
-                              +{(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over
+                              +{(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over Stock
                             </span>
                           )}
                         </td>
                         <td className="p-2 border-r border-[#141414]/20 text-right text-green-700 font-bold">
-                          {row['Terkirim (PCS)']}
+                          <div>{row['Terkirim (PCS)']}</div>
+                          {((row['Over Kiriman (PCS)'] || 0) > 0) && (
+                            <span
+                              className="inline-flex items-center gap-1 px-1 py-0.2 rounded-full text-[8px] font-bold font-mono bg-teal-500/15 text-teal-800 border border-teal-500/30"
+                              title={`Over Kirim: +${(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} pcs`}
+                            >
+                              +{(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} Over SJ
+                            </span>
+                          )}
                         </td>
                         <td className="p-2 border-r border-[#141414]/20 text-right text-indigo-700 font-bold bg-indigo-50/50">
-                          {(row['Over Produksi (PCS)'] || 0) > 0 ? (
-                            `+${(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')}`
+                          {((row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0) > 0) ? (
+                            `+${(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')}`
+                          ) : (
+                            <span className="text-zinc-400 font-normal">0</span>
+                          )}
+                        </td>
+                        <td className="p-2 border-r border-[#141414]/20 text-right text-teal-700 font-bold bg-teal-50/50">
+                          {((row['Over Kiriman (PCS)'] || 0) > 0) ? (
+                            `+${(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')}`
                           ) : (
                             <span className="text-zinc-400 font-normal">0</span>
                           )}

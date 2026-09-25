@@ -171,11 +171,16 @@ export function generateWhatsAppSummary(
   } else if (scope === 'CLOSED_ONLY') {
     filtered = scopedData.filter((d) => d.coStatus === 'CLOSED' && (d['Sisa OS (pcs)'] || 0) > 0);
     headerTitle = '*Update Sisa OS :*';
-  } else if (scope === 'OVER_PRODUCTION_ONLY') {
+  } else if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY') {
     filtered = scopedData.filter(
-      (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+      (d) => (d['Over Stock Gudang (PCS)'] || 0) > 0 || (d['Over Stock Gudang (KG)'] || 0) > 0
     );
-    headerTitle = '*Update Over Produksi (Surplus) :*';
+    headerTitle = '*Update Stok Gudang Over PO :*';
+  } else if (scope === 'OVER_KIRIMAN') {
+    filtered = scopedData.filter(
+      (d) => (d['Over Kiriman (PCS)'] || 0) > 0 || (d['Over Kiriman (KG)'] || 0) > 0
+    );
+    headerTitle = '*Update Over Kiriman (SJ di Atas PO) :*';
   } else {
     // Default 'ALL': if stock ready items exist, prioritize clean Stock Ready report
     const stockItems = scopedData.filter((d) => (d['Stock (pcs)'] || 0) > 0);
@@ -200,14 +205,22 @@ export function generateWhatsAppSummary(
     const artShort = formatArtikelShort(item.Artikel || '');
     const ukuran = formatUkuran(item['Item Description'] || '');
 
-    if (scope === 'OVER_PRODUCTION_ONLY' || headerTitle.includes('Over Produksi')) {
-      const overPcs = Math.round(item['Over Produksi (PCS)'] || 0);
-      let overKg = Math.round(item['Over Produksi (KG)'] || 0);
+    if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY' || headerTitle.includes('Stok Gudang Over') || headerTitle.includes('Over Produksi')) {
+      const overPcs = Math.round(item['Over Stock Gudang (PCS)'] || item['Over Produksi (PCS)'] || 0);
+      let overKg = Math.round(item['Over Stock Gudang (KG)'] || item['Over Produksi (KG)'] || 0);
       if (overKg === 0 && overPcs > 0 && (item['QTY PO (pcs)'] || 0) > 0 && (item['Berat PO (KG)'] || 0) > 0) {
         overKg = Math.round((overPcs / item['QTY PO (pcs)']) * item['Berat PO (KG)']);
       }
       totalKg += overKg;
-      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg) [Over-Qty]`);
+      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg) [Ready Gudang - Belum Ada SJ]`);
+    } else if (scope === 'OVER_KIRIMAN' || headerTitle.includes('Over Kiriman')) {
+      const overPcs = Math.round(item['Over Kiriman (PCS)'] || 0);
+      let overKg = Math.round(item['Over Kiriman (KG)'] || 0);
+      if (overKg === 0 && overPcs > 0 && (item['QTY PO (pcs)'] || 0) > 0 && (item['Berat PO (KG)'] || 0) > 0) {
+        overKg = Math.round((overPcs / item['QTY PO (pcs)']) * item['Berat PO (KG)']);
+      }
+      totalKg += overKg;
+      lines.push(`> (${coShort})-(${artShort}) ${ukuran} = +${overPcs} (${overKg}kg) [Terkirim SJ]`);
     } else if (isStockReadyScope || headerTitle.includes('Stock')) {
       const stockPcs = Math.round(item['Stock (pcs)'] || 0);
       let stockKg = Math.round(item['Stock (kg)'] || 0);

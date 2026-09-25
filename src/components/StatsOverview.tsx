@@ -129,12 +129,12 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
             <span className="text-[#5C6068] truncate">
               {summary.totalStockKg.toLocaleString('id-ID')} kg inventory
             </span>
-            {(summary.totalOverProduksiPcs || 0) > 0 && (
+            {((summary.totalOverStockGudangPcs || summary.totalOverProduksiPcs || 0) > 0) && (
               <span
                 className="px-1.5 py-0.2 bg-indigo-500/10 text-indigo-700 border border-indigo-500/20 rounded-full text-[10px] font-semibold"
-                title={`Kelebihan produksi (surplus): ${(summary.totalOverProduksiPcs || 0).toLocaleString('id-ID')} pcs (${(summary.totalOverProduksiKg || 0).toLocaleString('id-ID')} kg)`}
+                title={`Kelebihan stok fisik di gudang di atas PO Open: ${(summary.totalOverStockGudangPcs || summary.totalOverProduksiPcs || 0).toLocaleString('id-ID')} pcs (${(summary.totalOverStockGudangKg || summary.totalOverProduksiKg || 0).toLocaleString('id-ID')} kg)`}
               >
-                +{(summary.totalOverProduksiPcs || 0).toLocaleString('id-ID')} Over
+                +{(summary.totalOverStockGudangPcs || summary.totalOverProduksiPcs || 0).toLocaleString('id-ID')} Over Stock
               </span>
             )}
           </div>
@@ -158,13 +158,23 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
             ).toLocaleString('id-ID')}{' '}
             <span className="text-xs font-normal text-[#5C6068]">pcs</span>
           </div>
-          <p className="text-[11px] text-[#5C6068] mt-1 font-mono truncate">
-            {(
-              summary.totalTerkirimKg ??
-              summary.totalBeratOrderKg - summary.totalSisaOSKg
-            ).toLocaleString('id-ID')}{' '}
-            kg ({fulfillmentPct}%)
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-1 mt-1 font-mono text-[11px]">
+            <span className="text-[#5C6068] truncate">
+              {(
+                summary.totalTerkirimKg ??
+                summary.totalBeratOrderKg - summary.totalSisaOSKg
+              ).toLocaleString('id-ID')}{' '}
+              kg ({fulfillmentPct}%)
+            </span>
+            {(summary.totalOverKirimanPcs || 0) > 0 && (
+              <span
+                className="px-1.5 py-0.2 bg-teal-500/10 text-teal-800 border border-teal-500/20 rounded-full text-[10px] font-semibold"
+                title={`Kuantitas pengiriman melebihi PO: ${(summary.totalOverKirimanPcs || 0).toLocaleString('id-ID')} pcs (${(summary.totalOverKirimanKg || 0).toLocaleString('id-ID')} kg)`}
+              >
+                +{(summary.totalOverKirimanPcs || 0).toLocaleString('id-ID')} Over SJ
+              </span>
+            )}
+          </div>
           <div className="w-full bg-zinc-200/70 rounded-full h-1.5 sm:h-2 mt-2 overflow-hidden p-0.5 backdrop-blur-sm">
             <div
               className="bg-gradient-to-r from-emerald-500 to-teal-600 h-full rounded-full transition-all duration-500 shadow-sm"

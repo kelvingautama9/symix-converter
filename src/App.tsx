@@ -90,10 +90,23 @@ export default function App() {
     return scoped.filter((d) => d.coStatus === 'OPEN' && (d['Stock (pcs)'] || 0) > 0).length;
   }, [data]);
 
-  const totalOverProduksiPOs = useMemo(() => {
+  const totalOverStockGudangPOs = useMemo(() => {
     if (!data || data.length === 0) return 0;
-    return data.filter((d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0).length;
+    return data.filter(
+      (d) =>
+        (d['Over Stock Gudang (PCS)'] || d['Over Produksi (PCS)'] || 0) > 0 ||
+        (d['Over Stock Gudang (KG)'] || d['Over Produksi (KG)'] || 0) > 0
+    ).length;
   }, [data]);
+
+  const totalOverKirimanPOs = useMemo(() => {
+    if (!data || data.length === 0) return 0;
+    return data.filter(
+      (d) => (d['Over Kiriman (PCS)'] || 0) > 0 || (d['Over Kiriman (KG)'] || 0) > 0
+    ).length;
+  }, [data]);
+
+  const totalOverProduksiPOs = totalOverStockGudangPOs;
 
   // Convert a single File instance to ConvertedFileItem
   const processRawFile = async (file: File): Promise<ConvertedFileItem> => {
@@ -550,6 +563,8 @@ export default function App() {
               totalCOClosed={summary.totalCOClosed}
               totalStockReadyAll={totalStockReadyAll}
               totalStockReadyOpen={totalStockReadyOpen}
+              totalOverStockGudangPOs={totalOverStockGudangPOs}
+              totalOverKirimanPOs={totalOverKirimanPOs}
               totalOverProduksiPOs={totalOverProduksiPOs}
             />
 

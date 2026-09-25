@@ -33,6 +33,8 @@ interface ActionToolbarProps {
   totalCOClosed?: number;
   totalStockReadyAll?: number;
   totalStockReadyOpen?: number;
+  totalOverStockGudangPOs?: number;
+  totalOverKirimanPOs?: number;
   totalOverProduksiPOs?: number;
 }
 
@@ -52,8 +54,11 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   totalCOClosed = 0,
   totalStockReadyAll = 0,
   totalStockReadyOpen = 0,
+  totalOverStockGudangPOs = 0,
+  totalOverKirimanPOs = 0,
   totalOverProduksiPOs = 0,
 }) => {
+  const effectiveOverStockPOs = totalOverStockGudangPOs || totalOverProduksiPOs;
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isCopyMenuOpen, setIsCopyMenuOpen] = useState(false);
 
@@ -242,20 +247,37 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                   </span>
                 </button>
 
-                {/* Over Produksi Option */}
+                {/* Over Stock Gudang Option */}
                 <button
                   type="button"
-                  id="btn-export-over-produksi"
-                  onClick={() => triggerExport('OVER_PRODUCTION_ONLY')}
-                  disabled={totalOverProduksiPOs === 0}
+                  id="btn-export-over-stock-gudang"
+                  onClick={() => triggerExport('OVER_STOCK_GUDANG')}
+                  disabled={effectiveOverStockPOs === 0}
                   className="w-full text-left px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                    <span>Khusus Over Produksi (Surplus)</span>
+                    <span>Khusus Over Stock Gudang</span>
                   </div>
                   <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] font-mono font-bold rounded-full">
-                    {totalOverProduksiPOs} PO
+                    {effectiveOverStockPOs} PO
+                  </span>
+                </button>
+
+                {/* Over Kiriman Option */}
+                <button
+                  type="button"
+                  id="btn-export-over-kiriman"
+                  onClick={() => triggerExport('OVER_KIRIMAN')}
+                  disabled={totalOverKirimanPOs === 0}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-teal-600" />
+                    <span>Khusus Over Kiriman (SJ)</span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-teal-100 text-teal-800 text-[10px] font-mono font-bold rounded-full">
+                    {totalOverKirimanPOs} PO
                   </span>
                 </button>
               </div>
@@ -435,17 +457,33 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
 
                 <button
                   type="button"
-                  id="dropdown-copy-over-produksi"
-                  onClick={() => handleQuickCopy('OVER_PRODUCTION_ONLY')}
-                  disabled={totalOverProduksiPOs === 0}
+                  id="dropdown-copy-over-stock-gudang"
+                  onClick={() => handleQuickCopy('OVER_STOCK_GUDANG')}
+                  disabled={effectiveOverStockPOs === 0}
                   className="w-full text-left px-3 py-2 text-xs font-semibold text-indigo-700 hover:bg-indigo-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-indigo-500" />
-                    <span>Khusus Over Produksi (Surplus)</span>
+                    <span>Khusus Over Stock Gudang</span>
                   </div>
                   <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] font-mono font-bold rounded-full shrink-0">
-                    {totalOverProduksiPOs}
+                    {effectiveOverStockPOs}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="dropdown-copy-over-kiriman"
+                  onClick={() => handleQuickCopy('OVER_KIRIMAN')}
+                  disabled={totalOverKirimanPOs === 0}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-teal-800 hover:bg-teal-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-teal-600" />
+                    <span>Khusus Over Kiriman (SJ)</span>
+                  </div>
+                  <span className="px-2 py-0.5 bg-teal-100 text-teal-800 text-[10px] font-mono font-bold rounded-full shrink-0">
+                    {totalOverKirimanPOs}
                   </span>
                 </button>
               </div>

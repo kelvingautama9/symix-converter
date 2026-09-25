@@ -43,8 +43,10 @@ export type ColumnKey =
   | 'sisaOsKg'
   | 'terkirimPcs'
   | 'terkirimKg'
-  | 'overProduksiPcs'
-  | 'overProduksiKg'
+  | 'overStockGudangPcs'
+  | 'overStockGudangKg'
+  | 'overKirimanPcs'
+  | 'overKirimanKg'
   | 'harga';
 
 export interface ColumnDefinition {
@@ -71,9 +73,11 @@ export const ERP_COLUMNS: ColumnDefinition[] = [
   { key: 'sisaOsKg', number: 12, label: '12. Sisa OS (kg)', field: 'Sisa OS (kg)', description: 'Sisa order belum terkirim (kg)', badge: 'Kuantitas' },
   { key: 'terkirimPcs', number: 13, label: '13. Terkirim (PCS)', field: 'Terkirim (PCS)', description: 'Total kuantitas yang sudah dikirim (pcs)', badge: 'Logistik' },
   { key: 'terkirimKg', number: 14, label: '14. Terkirim (KG)', field: 'Terkirim (KG)', description: 'Total tonase yang sudah dikirim (kg)', badge: 'Logistik' },
-  { key: 'overProduksiPcs', number: 15, label: '15. Over Produksi (PCS)', field: 'Over Produksi (PCS)', description: 'Kelebihan kuantitas produksi di atas pesanan (pcs)', badge: 'Surplus' },
-  { key: 'overProduksiKg', number: 16, label: '16. Over Produksi (KG)', field: 'Over Produksi (KG)', description: 'Kelebihan tonase produksi di atas pesanan (kg)', badge: 'Surplus' },
-  { key: 'harga', number: 17, label: '17. Harga', field: 'Harga', description: 'Total nilai uang / harga pesanan PO', badge: 'Finansial' },
+  { key: 'overStockGudangPcs', number: 15, label: '15. Over Stock Gudang (PCS)', field: 'Over Stock Gudang (PCS)', description: 'Sisa stok fisik di gudang melebihi PO Open (pcs)', badge: 'Surplus' },
+  { key: 'overStockGudangKg', number: 16, label: '16. Over Stock Gudang (KG)', field: 'Over Stock Gudang (KG)', description: 'Sisa tonase fisik di gudang melebihi PO Open (kg)', badge: 'Surplus' },
+  { key: 'overKirimanPcs', number: 17, label: '17. Over Kiriman (PCS)', field: 'Over Kiriman (PCS)', description: 'Kuantitas aktual terkirim melebihi kuota PO (pcs)', badge: 'Logistik' },
+  { key: 'overKirimanKg', number: 18, label: '18. Over Kiriman (KG)', field: 'Over Kiriman (KG)', description: 'Tonase aktual terkirim melebihi kuota PO (kg)', badge: 'Logistik' },
+  { key: 'harga', number: 19, label: '19. Harga', field: 'Harga', description: 'Total nilai uang / harga pesanan PO', badge: 'Finansial' },
 ];
 
 export const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = {
@@ -91,8 +95,10 @@ export const DEFAULT_VISIBLE_COLUMNS: Record<ColumnKey, boolean> = {
   sisaOsKg: true,
   terkirimPcs: true,
   terkirimKg: true,
-  overProduksiPcs: true,
-  overProduksiKg: true,
+  overStockGudangPcs: true,
+  overStockGudangKg: true,
+  overKirimanPcs: true,
+  overKirimanKg: true,
   harga: true,
 };
 
@@ -190,7 +196,8 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
     let partial = 0;
     let pending = 0;
     let stockReady = 0;
-    let overProduction = 0;
+    let overStockGudang = 0;
+    let overKiriman = 0;
     let totalInCoScope = 0;
 
     scopedData.forEach((item) => {
@@ -202,16 +209,27 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       const sisa = item['Sisa OS (pcs)'] || 0;
       const stockPcs = item['Stock (pcs)'] || 0;
       const stockKg = item['Stock (kg)'] || 0;
-      const overPcs = item['Over Produksi (PCS)'] || 0;
-      const overKg = item['Over Produksi (KG)'] || 0;
+      const overStockPcs = item['Over Stock Gudang (PCS)'] || item['Over Produksi (PCS)'] || 0;
+      const overStockKg = item['Over Stock Gudang (KG)'] || item['Over Produksi (KG)'] || 0;
+      const overKirimanPcs = item['Over Kiriman (PCS)'] || 0;
+      const overKirimanKg = item['Over Kiriman (KG)'] || 0;
 
       if (sisa < qty && sisa > 0) partial++;
       if (sisa >= qty) pending++;
       if (stockPcs > 0 || stockKg > 0) stockReady++;
-      if (overPcs > 0 || overKg > 0) overProduction++;
+      if (overStockPcs > 0 || overStockKg > 0) overStockGudang++;
+      if (overKirimanPcs > 0 || overKirimanKg > 0) overKiriman++;
     });
 
-    return { partial, pending, stockReady, overProduction, all: totalInCoScope };
+    return {
+      partial,
+      pending,
+      stockReady,
+      overStockGudang,
+      overKiriman,
+      overProduction: overStockGudang,
+      all: totalInCoScope,
+    };
   }, [scopedData, coFilter]);
 
   // Aging counts based on current CO filter scope
@@ -272,9 +290,14 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       if (filterStatus === 'STOCK_READY') {
         return stockPcs > 0 || stockKg > 0;
       }
-      if (filterStatus === 'OVER_PRODUCTION') {
-        const overPcs = item['Over Produksi (PCS)'] || 0;
-        const overKg = item['Over Produksi (KG)'] || 0;
+      if (filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION') {
+        const overPcs = item['Over Stock Gudang (PCS)'] || item['Over Produksi (PCS)'] || 0;
+        const overKg = item['Over Stock Gudang (KG)'] || item['Over Produksi (KG)'] || 0;
+        return overPcs > 0 || overKg > 0;
+      }
+      if (filterStatus === 'OVER_KIRIMAN') {
+        const overPcs = item['Over Kiriman (PCS)'] || 0;
+        const overKg = item['Over Kiriman (KG)'] || 0;
         return overPcs > 0 || overKg > 0;
       }
 
@@ -639,16 +662,29 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               </button>
               <button
                 type="button"
-                onClick={() => handleDeliveryFilterChange('OVER_PRODUCTION')}
+                onClick={() => handleDeliveryFilterChange('OVER_STOCK_GUDANG')}
                 className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  filterStatus === 'OVER_PRODUCTION'
+                  filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION'
                     ? 'bg-indigo-600 text-white shadow-sm'
                     : 'text-[#5C6068] hover:text-indigo-700'
                 }`}
-                title="Tampilkan hanya PO yang memiliki kelebihan produksi (Over-Qty / Surplus)"
+                title="Tampilkan PO dengan kelebihan fisik di gudang melebihi sisa PO Open (Siap ditawarkan sales)"
               >
-                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_PRODUCTION' ? 'bg-white' : 'bg-indigo-500'}`} />
-                <span>Over Produksi ({filterCounts.overProduction})</span>
+                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION' ? 'bg-white' : 'bg-indigo-500'}`} />
+                <span>Over Stock Gudang ({filterCounts.overStockGudang})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeliveryFilterChange('OVER_KIRIMAN')}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  filterStatus === 'OVER_KIRIMAN'
+                    ? 'bg-teal-700 text-white shadow-sm'
+                    : 'text-[#5C6068] hover:text-teal-700'
+                }`}
+                title="Tampilkan PO dengan total pengiriman (SJ) yang melebihi kuota PO awal"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_KIRIMAN' ? 'bg-white' : 'bg-teal-600'}`} />
+                <span>Over Kiriman ({filterCounts.overKiriman})</span>
               </button>
             </div>
 
@@ -1011,27 +1047,53 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 </th>
               )}
 
-              {visibleColumns.overProduksiPcs && (
+              {visibleColumns.overStockGudangPcs && (
                 <th
-                  onClick={() => handleSort('Over Produksi (PCS)' as keyof ExtractedRecord)}
+                  onClick={() => handleSort('Over Stock Gudang (PCS)' as keyof ExtractedRecord)}
                   className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-indigo-900/90 text-indigo-100`}
-                  title="Kelebihan kuantitas produksi di atas pesanan PO (pcs)"
+                  title="Sisa stok fisik di gudang yang belum ada tuannya / melebihi PO Open (pcs)"
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>15. Over Produksi (PCS)</span>
+                    <span>15. Over Stock Gudang (PCS)</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-indigo-300" />
                   </div>
                 </th>
               )}
 
-              {visibleColumns.overProduksiKg && (
+              {visibleColumns.overStockGudangKg && (
                 <th
-                  onClick={() => handleSort('Over Produksi (KG)' as keyof ExtractedRecord)}
+                  onClick={() => handleSort('Over Stock Gudang (KG)' as keyof ExtractedRecord)}
                   className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
-                  title="Kelebihan tonase produksi di atas pesanan PO (kg)"
+                  title="Sisa tonase fisik di gudang melebihi PO Open (kg)"
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>16. Over Produksi (KG)</span>
+                    <span>16. Over Stock Gudang (KG)</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                  </div>
+                </th>
+              )}
+
+              {visibleColumns.overKirimanPcs && (
+                <th
+                  onClick={() => handleSort('Over Kiriman (PCS)' as keyof ExtractedRecord)}
+                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-teal-900/90 text-teal-100`}
+                  title="Kuantitas pengiriman Surat Jalan (SJ) yang melebihi kuota PO awal (pcs)"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>17. Over Kiriman (PCS)</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-teal-300" />
+                  </div>
+                </th>
+              )}
+
+              {visibleColumns.overKirimanKg && (
+                <th
+                  onClick={() => handleSort('Over Kiriman (KG)' as keyof ExtractedRecord)}
+                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  title="Tonase pengiriman Surat Jalan (SJ) yang melebihi kuota PO awal (kg)"
+                >
+                  <div className="flex items-center justify-end gap-1.5">
+                    <span>18. Over Kiriman (KG)</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
@@ -1043,7 +1105,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                   className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black/30 transition-colors`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>17. Harga</span>
+                    <span>19. Harga</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
                   </div>
                 </th>
@@ -1198,13 +1260,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                               </span>
                             )}
                           </div>
-                          {(row['Over Produksi (PCS)'] || 0) > 0 && (
+                          {((row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0) > 0) && (
                             <span
                               className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/25"
-                              title={`Produksi melebihi PO sebesar ${(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')} kg). Siap ditawarkan ke customer atau disimpan sebagai buffer stock.`}
+                              title={`Stok fisik gudang melebihi PO Open sebesar ${(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')} kg). Butuh penawaran sales ke customer.`}
                             >
                               <span className="w-1 h-1 rounded-full bg-indigo-500" />
-                              <span>+{(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over-Qty</span>
+                              <span>+{(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over Stock</span>
                             </span>
                           )}
                         </div>
@@ -1219,7 +1281,18 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
 
                     {visibleColumns.terkirimPcs && (
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-emerald-800 border-r border-zinc-200/40 bg-emerald-500/5">
-                        {terkirimPcs > 0 ? terkirimPcs.toLocaleString('id-ID') : '0'}
+                        <div className="flex flex-col items-end">
+                          <div>{terkirimPcs > 0 ? terkirimPcs.toLocaleString('id-ID') : '0'}</div>
+                          {((row['Over Kiriman (PCS)'] || 0) > 0) && (
+                            <span
+                              className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full text-[9px] font-bold font-mono bg-teal-500/15 text-teal-800 border border-teal-500/30"
+                              title={`Kuantitas terkirim di Surat Jalan (SJ) melebihi PO sebesar ${(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Kiriman (KG)'] || 0).toLocaleString('id-ID')} kg).`}
+                            >
+                              <span className="w-1 h-1 rounded-full bg-teal-600" />
+                              <span>+{(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} Over SJ</span>
+                            </span>
+                          )}
+                        </div>
                       </td>
                     )}
 
@@ -1229,11 +1302,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                       </td>
                     )}
 
-                    {visibleColumns.overProduksiPcs && (
+                    {visibleColumns.overStockGudangPcs && (
                       <td className="py-2.5 px-3 text-right font-mono font-bold text-indigo-700 border-r border-zinc-200/40 bg-indigo-500/5">
-                        {(row['Over Produksi (PCS)'] || 0) > 0 ? (
+                        {((row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0) > 0) ? (
                           <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 border border-indigo-500/25">
-                            +{(row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')}
+                            +{((row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0)).toLocaleString('id-ID')}
                           </span>
                         ) : (
                           <span className="text-zinc-400 font-normal">0</span>
@@ -1241,11 +1314,35 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                       </td>
                     )}
 
-                    {visibleColumns.overProduksiKg && (
+                    {visibleColumns.overStockGudangKg && (
                       <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
-                        {(row['Over Produksi (KG)'] || 0) > 0 ? (
+                        {((row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0) > 0) ? (
                           <span className="text-indigo-900 font-semibold">
-                            +{(row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')}
+                            +{((row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0)).toLocaleString('id-ID')}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 font-normal">0</span>
+                        )}
+                      </td>
+                    )}
+
+                    {visibleColumns.overKirimanPcs && (
+                      <td className="py-2.5 px-3 text-right font-mono font-bold text-teal-700 border-r border-zinc-200/40 bg-teal-500/5">
+                        {((row['Over Kiriman (PCS)'] || 0) > 0) ? (
+                          <span className="px-1.5 py-0.5 rounded bg-teal-500/15 border border-teal-500/25">
+                            +{((row['Over Kiriman (PCS)'] || 0)).toLocaleString('id-ID')}
+                          </span>
+                        ) : (
+                          <span className="text-zinc-400 font-normal">0</span>
+                        )}
+                      </td>
+                    )}
+
+                    {visibleColumns.overKirimanKg && (
+                      <td className="py-2.5 px-3 text-right font-mono text-[#5C6068] border-r border-zinc-200/40">
+                        {((row['Over Kiriman (KG)'] || 0) > 0) ? (
+                          <span className="text-teal-900 font-semibold">
+                            +{((row['Over Kiriman (KG)'] || 0)).toLocaleString('id-ID')}
                           </span>
                         ) : (
                           <span className="text-zinc-400 font-normal">0</span>

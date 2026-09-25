@@ -188,9 +188,13 @@ export function exportCombinedMasterWorkbook(
       filtered = scopedData.filter(
         (d) => d.coStatus === 'CLOSED' && (d['Stock (pcs)'] || 0) > 0
       );
-    } else if (scope === 'OVER_PRODUCTION_ONLY') {
+    } else if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY') {
       filtered = scopedData.filter(
-        (d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0
+        (d) => (d['Over Stock Gudang (PCS)'] || d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Stock Gudang (KG)'] || d['Over Produksi (KG)'] || 0) > 0
+      );
+    } else if (scope === 'OVER_KIRIMAN') {
+      filtered = scopedData.filter(
+        (d) => (d['Over Kiriman (PCS)'] || 0) > 0 || (d['Over Kiriman (KG)'] || 0) > 0
       );
     }
 
@@ -211,8 +215,10 @@ export function exportCombinedMasterWorkbook(
         row['Terkirim (KG)'] !== undefined
           ? Number(row['Terkirim (KG)'])
           : Math.max(0, beratKg - sisaKg);
-      const overPcs = Number(row['Over Produksi (PCS)']) || 0;
-      const overKg = Number(row['Over Produksi (KG)']) || 0;
+      const overStockPcs = Number(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)']) || 0;
+      const overStockKg = Number(row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)']) || 0;
+      const overKirimanPcs = Number(row['Over Kiriman (PCS)']) || 0;
+      const overKirimanKg = Number(row['Over Kiriman (KG)']) || 0;
 
       grandQtyPcs += qtyPcs;
       grandBeratKg += beratKg;
@@ -222,8 +228,10 @@ export function exportCombinedMasterWorkbook(
       grandSisaKg += sisaKg;
       grandTerkirimPcs += terkirimPcs;
       grandTerkirimKg += terkirimKg;
-      grandOverPcs += overPcs;
-      grandOverKg += overKg;
+      grandOverStockPcs += overStockPcs;
+      grandOverStockKg += overStockKg;
+      grandOverKirimanPcs += overKirimanPcs;
+      grandOverKirimanKg += overKirimanKg;
 
       masterRows.push([
         cleanSource,
@@ -241,8 +249,10 @@ export function exportCombinedMasterWorkbook(
         sisaKg,
         terkirimPcs,
         terkirimKg,
-        overPcs,
-        overKg,
+        overStockPcs,
+        overStockKg,
+        overKirimanPcs,
+        overKirimanKg,
         Number(row.Harga) || 0,
       ]);
     }
@@ -265,8 +275,10 @@ export function exportCombinedMasterWorkbook(
     grandSisaKg,
     grandTerkirimPcs,
     grandTerkirimKg,
-    grandOverPcs,
-    grandOverKg,
+    grandOverStockPcs,
+    grandOverStockKg,
+    grandOverKirimanPcs,
+    grandOverKirimanKg,
     '',
   ]);
 
@@ -287,8 +299,10 @@ export function exportCombinedMasterWorkbook(
     { wch: 15 }, // Sisa OS (kg)
     { wch: 16 }, // Terkirim (PCS)
     { wch: 16 }, // Terkirim (KG)
-    { wch: 18 }, // Over Produksi (PCS)
-    { wch: 18 }, // Over Produksi (KG)
+    { wch: 22 }, // Over Stock Gudang (PCS)
+    { wch: 22 }, // Over Stock Gudang (KG)
+    { wch: 18 }, // Over Kiriman (PCS)
+    { wch: 18 }, // Over Kiriman (KG)
     { wch: 14 }, // Harga
   ];
 

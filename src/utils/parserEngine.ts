@@ -357,9 +357,9 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         const rawSisaPcsVal = isNumericCell(sisaPcsRaw) ? parseCleanInt(sisaPcsRaw) : 0;
         const rawSisaKgVal = isNumericCell(sisaKgRaw) ? parseCleanInt(sisaKgRaw) : 0;
 
-        // Jangan biarkan Sisa OS negatif. Jika ada pengiriman melebihi QTY, catat sebagai Over Produksi
-        const initialOverPcs = rawSisaPcsVal < 0 ? Math.abs(rawSisaPcsVal) : 0;
-        const initialOverKg = rawSisaKgVal < 0 ? Math.abs(rawSisaKgVal) : 0;
+        // Jangan biarkan Sisa OS negatif. Jika ada pengiriman melebihi QTY, catat sebagai Over Kiriman
+        const initialOverKirimanPcs = rawSisaPcsVal < 0 ? Math.abs(rawSisaPcsVal) : 0;
+        const initialOverKirimanKg = rawSisaKgVal < 0 ? Math.abs(rawSisaKgVal) : 0;
         const sisaPcsVal = Math.max(0, rawSisaPcsVal);
         const sisaKgVal = Math.max(0, rawSisaKgVal);
 
@@ -378,10 +378,14 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           'Stock (kg)': 0,  // Dialokasikan secara proporsional/FIFO setelah seluruh Sisa OS terhitung
           'Sisa OS (pcs)': sisaPcsVal,
           'Sisa OS (kg)': sisaKgVal,
-          'Terkirim (PCS)': Math.max(0, qtyOrderPcs - sisaPcsVal + initialOverPcs),
-          'Terkirim (KG)': Math.max(0, qtyOrderKg - sisaKgVal + initialOverKg),
-          'Over Produksi (PCS)': initialOverPcs,
-          'Over Produksi (KG)': initialOverKg,
+          'Terkirim (PCS)': Math.max(0, qtyOrderPcs - sisaPcsVal + initialOverKirimanPcs),
+          'Terkirim (KG)': Math.max(0, qtyOrderKg - sisaKgVal + initialOverKirimanKg),
+          'Over Stock Gudang (PCS)': 0,
+          'Over Stock Gudang (KG)': 0,
+          'Over Kiriman (PCS)': initialOverKirimanPcs,
+          'Over Kiriman (KG)': initialOverKirimanKg,
+          'Over Produksi (PCS)': 0,
+          'Over Produksi (KG)': 0,
           Harga: priceVal,
           _has_delivery: hasInitialDelivery,
           _parentIndex: parentCount,
@@ -414,10 +418,11 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         if (isNumericCell(sisaPcs)) {
           const pVal = parseCleanInt(sisaPcs);
           if (pVal < 0) {
-            currentPO['Over Produksi (PCS)'] = (currentPO['Over Produksi (PCS)'] || 0) + Math.abs(pVal);
+            currentPO['Over Kiriman (PCS)'] = Math.abs(pVal);
             currentPO['Sisa OS (pcs)'] = 0;
             currentPO['Terkirim (PCS)'] = (currentPO['QTY PO (pcs)'] || 0) + Math.abs(pVal);
           } else {
+            currentPO['Over Kiriman (PCS)'] = 0;
             currentPO['Sisa OS (pcs)'] = pVal;
             currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - pVal);
           }
@@ -426,10 +431,11 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         if (isNumericCell(sisaKg)) {
           const kVal = parseCleanInt(sisaKg);
           if (kVal < 0) {
-            currentPO['Over Produksi (KG)'] = (currentPO['Over Produksi (KG)'] || 0) + Math.abs(kVal);
+            currentPO['Over Kiriman (KG)'] = Math.abs(kVal);
             currentPO['Sisa OS (kg)'] = 0;
             currentPO['Terkirim (KG)'] = (currentPO['Berat PO (KG)'] || 0) + Math.abs(kVal);
           } else {
+            currentPO['Over Kiriman (KG)'] = 0;
             currentPO['Sisa OS (kg)'] = kVal;
             currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - kVal);
           }
@@ -481,18 +487,31 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     const qtyKg = item['Berat PO (KG)'] || 0;
     const sisaPcs = Math.max(0, item['Sisa OS (pcs)'] || 0);
     const sisaKg = Math.max(0, item['Sisa OS (kg)'] || 0);
-    const overPcs = item['Over Produksi (PCS)'] || 0;
-    const overKg = item['Over Produksi (KG)'] || 0;
+    const terkirimPcs = item['Terkirim (PCS)'] || 0;
+    const terkirimKg = item['Terkirim (KG)'] || 0;
+
+    const overStockPcs = item['Over Stock Gudang (PCS)'] || 0;
+    const overStockKg = item['Over Stock Gudang (KG)'] || 0;
+    const overKirimanPcs = item['Over Kiriman (PCS)'] !== undefined
+      ? item['Over Kiriman (PCS)']!
+      : Math.max(0, terkirimPcs - qtyPcs);
+    const overKirimanKg = item['Over Kiriman (KG)'] !== undefined
+      ? item['Over Kiriman (KG)']!
+      : Math.max(0, terkirimKg - qtyKg);
 
     const cleaned: ExtractedRecord = {
       ...item,
       id: item.id || `po_rec_${idx + 1}`,
       'Sisa OS (pcs)': sisaPcs,
       'Sisa OS (kg)': sisaKg,
-      'Over Produksi (PCS)': overPcs,
-      'Over Produksi (KG)': overKg,
-      'Terkirim (PCS)': Math.max(0, qtyPcs - sisaPcs + (overPcs > 0 && sisaPcs === 0 ? 0 : 0)),
-      'Terkirim (KG)': Math.max(0, qtyKg - sisaKg),
+      'Over Stock Gudang (PCS)': overStockPcs,
+      'Over Stock Gudang (KG)': overStockKg,
+      'Over Kiriman (PCS)': overKirimanPcs,
+      'Over Kiriman (KG)': overKirimanKg,
+      'Over Produksi (PCS)': overStockPcs, // backward-compatible alias
+      'Over Produksi (KG)': overStockKg,
+      'Terkirim (PCS)': terkirimPcs,
+      'Terkirim (KG)': terkirimKg,
     };
     delete cleaned._has_delivery;
     return cleaned;
@@ -501,13 +520,14 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
 /**
  * Recalculates FIFO stock allocation for records dynamically based on the active CO scope:
- * - 'ALL' | 'STOCK_READY_ALL': Allocates stock across both OPEN and CLOSED records in sequence.
- * - 'OPEN' | 'OPEN_ONLY' | 'STOCK_READY_OPEN': Allocates total warehouse stock strictly across OPEN records in sequence (closed POs are skipped and don't consume stock).
- * - 'CLOSED' | 'CLOSED_ONLY' | 'STOCK_READY_CLOSED': Allocates total warehouse stock strictly across CLOSED records in sequence.
+ * - 'ALL' | 'STOCK_READY_ALL': Allocates warehouse stock across OPEN records (over stock is physical stock exceeding open POs).
+ * - 'OPEN' | 'OPEN_ONLY' | 'STOCK_READY_OPEN': Allocates warehouse stock strictly across OPEN records.
+ * - 'CLOSED' | 'CLOSED_ONLY' | 'STOCK_READY_CLOSED': Allocates warehouse stock strictly across CLOSED records in sequence.
  *
  * Rules:
  * 1. Under 51 pcs threshold: If Sisa OS < 51 pcs, stock is set to 0 and not deducted from warehouse inventory.
  * 2. Sequential FIFO allocation per parent item (_parentIndex).
+ * 3. Over Stock Gudang is calculated exclusively from physical warehouse stock remaining after OPEN POs are fulfilled.
  */
 export function recalculateFIFOStock(
   records: ExtractedRecord[],
@@ -527,6 +547,8 @@ export function recalculateFIFOStock(
     ...r,
     'Stock (pcs)': 0,
     'Stock (kg)': 0,
+    'Over Stock Gudang (PCS)': 0,
+    'Over Stock Gudang (KG)': 0,
     'Over Produksi (PCS)': 0,
     'Over Produksi (KG)': 0,
   }));
@@ -546,9 +568,14 @@ export function recalculateFIFOStock(
     if (group.length === 0) continue;
     let remPcs = group[0]._parentStockPcs || 0;
     let remKg = group[0]._parentStockKg || 0;
+    let lastOpenItem: ExtractedRecord | null = null;
     let lastEligibleItem: ExtractedRecord | null = null;
 
     for (const item of group) {
+      if (item.coStatus === 'OPEN') {
+        lastOpenItem = item;
+      }
+
       if (targetScope === 'OPEN' && item.coStatus !== 'OPEN') {
         continue;
       }
@@ -576,10 +603,14 @@ export function recalculateFIFOStock(
       remKg = Math.max(0, remKg - allocKg);
     }
 
-    // Surplus (Over Produksi) allocation:
-    // Jika stok fisik gudang masih bersisa setelah seluruh Sisa OS PO terpenuhi (atau jika Sisa OS = 0):
+    // Over Stock Gudang (Physical Surplus) allocation:
+    // Sisa fisik gudang yang tidak terserap oleh PO OPEN (atau jika Sisa OS PO Open = 0)
+    // Khusus ditempatkan pada baris PO OPEN terakhir (atau group fallback jika belum ada)
     if (remPcs > 0 || remKg > 0) {
-      const targetItem = lastEligibleItem || group[group.length - 1];
+      // Prioritaskan ke baris PO OPEN terakhir agar terlihat oleh sales
+      const targetItem = lastOpenItem || lastEligibleItem || group[group.length - 1];
+      targetItem['Over Stock Gudang (PCS)'] = (targetItem['Over Stock Gudang (PCS)'] || 0) + remPcs;
+      targetItem['Over Stock Gudang (KG)'] = (targetItem['Over Stock Gudang (KG)'] || 0) + remKg;
       targetItem['Over Produksi (PCS)'] = (targetItem['Over Produksi (PCS)'] || 0) + remPcs;
       targetItem['Over Produksi (KG)'] = (targetItem['Over Produksi (KG)'] || 0) + remKg;
     }
@@ -628,9 +659,15 @@ export function parseExcelBuffer(
   const totalSisaOSKg = finalData.reduce((sum, d) => sum + (d['Sisa OS (kg)'] || 0), 0);
   const totalTerkirimPcs = finalData.reduce((sum, d) => sum + (d['Terkirim (PCS)'] || 0), 0);
   const totalTerkirimKg = finalData.reduce((sum, d) => sum + (d['Terkirim (KG)'] || 0), 0);
-  const totalOverProduksiPcs = finalData.reduce((sum, d) => sum + (d['Over Produksi (PCS)'] || 0), 0);
-  const totalOverProduksiKg = finalData.reduce((sum, d) => sum + (d['Over Produksi (KG)'] || 0), 0);
-  const totalOverProduksiPOs = finalData.filter((d) => (d['Over Produksi (PCS)'] || 0) > 0 || (d['Over Produksi (KG)'] || 0) > 0).length;
+
+  const totalOverStockGudangPcs = finalData.reduce((sum, d) => sum + (d['Over Stock Gudang (PCS)'] || 0), 0);
+  const totalOverStockGudangKg = finalData.reduce((sum, d) => sum + (d['Over Stock Gudang (KG)'] || 0), 0);
+  const totalOverStockGudangPOs = finalData.filter((d) => (d['Over Stock Gudang (PCS)'] || 0) > 0 || (d['Over Stock Gudang (KG)'] || 0) > 0).length;
+
+  const totalOverKirimanPcs = finalData.reduce((sum, d) => sum + (d['Over Kiriman (PCS)'] || 0), 0);
+  const totalOverKirimanKg = finalData.reduce((sum, d) => sum + (d['Over Kiriman (KG)'] || 0), 0);
+  const totalOverKirimanPOs = finalData.filter((d) => (d['Over Kiriman (PCS)'] || 0) > 0 || (d['Over Kiriman (KG)'] || 0) > 0).length;
+
   const totalValue = finalData.reduce((sum, d) => sum + (d['Sisa OS (pcs)'] || 0) * (d.Harga || 0), 0);
 
   const itemsWithDelivery = finalData.filter((d) => d['Sisa OS (pcs)'] < d['QTY PO (pcs)']).length;
@@ -653,9 +690,15 @@ export function parseExcelBuffer(
     totalSisaOSKg,
     totalTerkirimPcs,
     totalTerkirimKg,
-    totalOverProduksiPcs,
-    totalOverProduksiKg,
-    totalOverProduksiPOs,
+    totalOverStockGudangPcs,
+    totalOverStockGudangKg,
+    totalOverStockGudangPOs,
+    totalOverKirimanPcs,
+    totalOverKirimanKg,
+    totalOverKirimanPOs,
+    totalOverProduksiPcs: totalOverStockGudangPcs,
+    totalOverProduksiKg: totalOverStockGudangKg,
+    totalOverProduksiPOs: totalOverStockGudangPOs,
     totalValue,
     itemsWithDelivery,
     itemsWithoutDelivery,
