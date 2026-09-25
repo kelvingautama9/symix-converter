@@ -165,8 +165,10 @@ export function exportCombinedMasterWorkbook(
   let grandSisaKg = 0;
   let grandTerkirimPcs = 0;
   let grandTerkirimKg = 0;
-  let grandOverPcs = 0;
-  let grandOverKg = 0;
+  let grandOverStockPcs = 0;
+  let grandOverStockKg = 0;
+  let grandOverKirimanPcs = 0;
+  let grandOverKirimanKg = 0;
 
   for (const item of validItems) {
     if (!item.data) continue;
@@ -306,6 +308,12 @@ export function exportCombinedMasterWorkbook(
     { wch: 14 }, // Harga
   ];
 
+  masterSheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 19 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 19 } },
+    { s: { r: masterRows.length - 1, c: 0 }, e: { r: masterRows.length - 1, c: 6 } },
+  ];
+
   XLSX.utils.book_append_sheet(workbook, masterSheet, 'MASTER_GABUNGAN');
 
   // 2. Build Individual Sheet for each file
@@ -329,14 +337,18 @@ export function exportCombinedMasterWorkbook(
     }
     usedSheetNames.add(uniqueSheetName.toUpperCase());
 
-    const { workbook: singleWb } = generateExcelBlobAndFile(
-      item.data,
-      item.rawFileName,
-      scope
-    );
-    const firstSingleSheet = singleWb.Sheets[singleWb.SheetNames[0]];
-    if (firstSingleSheet) {
-      XLSX.utils.book_append_sheet(workbook, firstSingleSheet, uniqueSheetName);
+    try {
+      const { workbook: singleWb } = generateExcelBlobAndFile(
+        item.data,
+        item.rawFileName,
+        scope
+      );
+      const firstSingleSheet = singleWb.Sheets[singleWb.SheetNames[0]];
+      if (firstSingleSheet) {
+        XLSX.utils.book_append_sheet(workbook, firstSingleSheet, uniqueSheetName);
+      }
+    } catch (sheetErr) {
+      console.warn(`Could not generate individual sheet for ${item.rawFileName} with scope ${scope}:`, sheetErr);
     }
   }
 
@@ -346,7 +358,12 @@ export function exportCombinedMasterWorkbook(
   ).padStart(2, '0')}`;
   const fileName = `${masterBaseName}_${dateTag}.xlsx`;
 
-  XLSX.writeFile(workbook, fileName);
+  // Write array buffer, create Blob, and trigger browser download
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const blob = new Blob([excelBuffer], { type: mimeType });
+  downloadBlob(blob, fileName);
+
   return fileName;
 }
 
