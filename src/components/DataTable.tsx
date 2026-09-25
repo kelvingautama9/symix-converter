@@ -1266,7 +1266,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                               title={`Stok fisik gudang melebihi PO Open sebesar ${(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')} kg). Butuh penawaran sales ke customer.`}
                             >
                               <span className="w-1 h-1 rounded-full bg-indigo-500" />
-                              <span>+{(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over Stock</span>
+                              <span>
+                                +{(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs
+                                {((row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0) > 0) && ` (${(row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')} kg)`} Over Stock
+                              </span>
                             </span>
                           )}
                         </div>
@@ -1289,7 +1292,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                               title={`Kuantitas terkirim di Surat Jalan (SJ) melebihi PO sebesar ${(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Kiriman (KG)'] || 0).toLocaleString('id-ID')} kg).`}
                             >
                               <span className="w-1 h-1 rounded-full bg-teal-600" />
-                              <span>+{(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} Over SJ</span>
+                              <span>
+                                +{(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} pcs
+                                {((row['Over Kiriman (KG)'] || 0) > 0) && ` (${(row['Over Kiriman (KG)'] || 0).toLocaleString('id-ID')} kg)`} Over SJ
+                              </span>
                             </span>
                           )}
                         </div>

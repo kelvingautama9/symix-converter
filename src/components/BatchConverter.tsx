@@ -867,9 +867,10 @@ export function BatchConverter({
                           {((row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0) > 0) && (
                             <span
                               className="inline-flex items-center gap-1 px-1 py-0.2 rounded-full text-[8px] font-bold font-mono bg-indigo-500/10 text-indigo-700 border border-indigo-500/25"
-                              title={`Over Stock: +${(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs`}
+                              title={`Over Stock: +${(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')} kg)`}
                             >
-                              +{(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} Over Stock
+                              +{(row['Over Stock Gudang (PCS)'] || row['Over Produksi (PCS)'] || 0).toLocaleString('id-ID')} pcs
+                              {((row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0) > 0) && ` (${(row['Over Stock Gudang (KG)'] || row['Over Produksi (KG)'] || 0).toLocaleString('id-ID')} kg)`} Over Stock
                             </span>
                           )}
                         </td>
@@ -878,9 +879,10 @@ export function BatchConverter({
                           {((row['Over Kiriman (PCS)'] || 0) > 0) && (
                             <span
                               className="inline-flex items-center gap-1 px-1 py-0.2 rounded-full text-[8px] font-bold font-mono bg-teal-500/15 text-teal-800 border border-teal-500/30"
-                              title={`Over Kirim: +${(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} pcs`}
+                              title={`Over Kirim: +${(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} pcs (${(row['Over Kiriman (KG)'] || 0).toLocaleString('id-ID')} kg)`}
                             >
-                              +{(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} Over SJ
+                              +{(row['Over Kiriman (PCS)'] || 0).toLocaleString('id-ID')} pcs
+                              {((row['Over Kiriman (KG)'] || 0) > 0) && ` (${(row['Over Kiriman (KG)'] || 0).toLocaleString('id-ID')} kg)`} Over SJ
                             </span>
                           )}
                         </td>
