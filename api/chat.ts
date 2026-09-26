@@ -1,4 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
+import { calculatePoAging } from '../src/utils/agingUtils.ts';
 
 // In-memory cooldown & healthy model tracker:
 // If a model hits 429 (quota exhausted) or 503 (high demand), it gets a longer cooldown (e.g. 5-10 minutes).
@@ -113,6 +114,18 @@ export default async function handler(req: any, res: any) {
         (r: any) => (r['Over Kiriman (PCS)'] || 0) > 0 || (r['Over Kiriman (KG)'] || 0) > 0
       );
 
+      // Pre-calculate official Aging PO metrics directly from system engine
+      let agingSafeCount = 0;
+      let agingFollowUpCount = 0;
+      let agingCriticalCount = 0;
+
+      records.forEach((r: any) => {
+        const aging = calculatePoAging(r['Tanggal Input PO']);
+        if (aging.category === 'SAFE') agingSafeCount++;
+        else if (aging.category === 'FOLLOW_UP') agingFollowUpCount++;
+        else if (aging.category === 'CRITICAL') agingCriticalCount++;
+      });
+
       const overStockListText =
         confirmedOverStockItems.length === 0
           ? 'TIDAK ADA PO yang Over Stock Gudang (Seluruh 146 PO bernilai 0 pcs).'
@@ -162,7 +175,10 @@ export default async function handler(req: any, res: any) {
           const overStockP = r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)'] || 0;
           const overStockK = r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)'] || 0;
           const overKirimanP = r['Over Kiriman (PCS)'] || 0;
-          return `${rowNum}|${co}|${st}|${art}|${desc}|${po}|${tgl}|${qty}|${brt}|${stkP}|${stkK}|${osP}|${osK}|${krm}|${overStockP}|${overStockK}|${overKirimanP}`;
+          const aging = calculatePoAging(tgl);
+          const agingDays = aging.days >= 0 ? `${aging.days}h` : '-';
+          const agingCat = aging.category; // SAFE | FOLLOW_UP | CRITICAL | UNKNOWN
+          return `${rowNum}|${co}|${st}|${art}|${desc}|${po}|${tgl}|${qty}|${brt}|${stkP}|${stkK}|${osP}|${osK}|${krm}|${overStockP}|${overStockK}|${overKirimanP}|${agingDays}|${agingCat}`;
         })
         .join('\n');
 
@@ -179,6 +195,12 @@ Total Over Stock Gudang: ${summary.totalOverStockGudangPcs || summary.totalOverP
 Total Over Kiriman (SJ): ${summary.totalOverKirimanPcs || 0} Pcs (${summary.totalOverKirimanKg || 0} kg) - Tersebar di ${confirmedOverKirimanItems.length} PO
 Estimasi Valuasi Sisa OS: ${summary.totalValue ? 'Rp ' + summary.totalValue.toLocaleString('id-ID') : '-'}
 
+RINGKASAN RESMI KATEGORI UMUR PO (AGING PO HASIL KALKULASI SISTEM):
+- Kategori "< 7 Hari (Aman / Baru)": ${agingSafeCount} PO
+- Kategori "8 – 14 Hari (Follow Up)": ${agingFollowUpCount} PO
+- Kategori "> 14 Hari (Kritis / Telat)": ${agingCriticalCount} PO
+(CATATAN MUTLAK: Seluruh pembagian kategori umur di atas adalah hasil hitungan resmi sistem. DILARANG KERAS menghitung manual selisih tanggal kalender atau berasumsi tanggal referensi sendiri. Gunakan Kategori_Umur (SAFE/FOLLOW_UP/CRITICAL) dan Umur_Hari yang ada di tabel.)
+
 DAFTAR RESMI ITEM OVER STOCK GUDANG (> 0 PCS):
 ${overStockListText}
 (CATATAN MUTLAK: HANYA item-item di atas yang memiliki Over Stock Gudang! Di luar daftar ini, seluruh PO memiliki Over Stock = 0 pcs.)
@@ -187,7 +209,7 @@ DAFTAR RESMI ITEM OVER KIRIMAN / SURAT JALAN MELEBIHI PO (> 0 PCS):
 ${overKirimanListText}
 (CATATAN MUTLAK: HANYA item-item di atas yang memiliki Over Kiriman SJ! Di luar daftar ini, seluruh PO memiliki Over Kiriman = 0 pcs.)
 
-Seluruh Data Tabel ERP (Format Padat Kolom: Baris|CO|Status|Kode_Artikel|Deskripsi_Item|No_PO|Tgl_PO|Qty_PO_pcs|Berat_PO_kg|Stok_pcs|Stok_kg|Sisa_OS_pcs|Sisa_OS_kg|Terkirim_pcs|OverStockGudang_pcs|OverStockGudang_kg|OverKiriman_pcs):
+Seluruh Data Tabel ERP (Format Padat Kolom: Baris|CO|Status|Kode_Artikel|Deskripsi_Item|No_PO|Tgl_PO|Qty_PO_pcs|Berat_PO_kg|Stok_pcs|Stok_kg|Sisa_OS_pcs|Sisa_OS_kg|Terkirim_pcs|OverStockGudang_pcs|OverStockGudang_kg|OverKiriman_pcs|Umur_Hari|Kategori_Umur):
 ${tableRowsText}
 ${records.length > maxRowsToInclude ? `\n*(Catatan: Menampilkan ${maxRowsToInclude} dari ${records.length} PO)*` : ''}
 `;
@@ -219,12 +241,21 @@ PEDOMAN GAYA KOMUNIKASI & JAWABAN (SANGAT PENTING):
      * Jika ada dugaan perbedaan kalkulasi, data tidak sesuai, atau pengguna membutuhkan penambahan fitur:
        Sarankan dengan sopan: "Jika Anda mendapati adanya kejanggalan kalkulasi data, dugaan bug, atau ingin mengajukan penambahan fitur, silakan infokan temuan ini kepada Developer (Kelvin) agar dapat dilakukan kalibrasi sistem."
 
-3. FORMAT PENYAJIAN DATA:
+3. ATURAN UMUR PO (AGING PO) - BEBAS HALUSINASI:
+   - Kategori Umur PO telah dihitung secara resmi oleh sistem dan tercantum pada setiap baris data:
+     * "SAFE" = Umur <= 7 hari (< 7h Aman / Baru)
+     * "FOLLOW_UP" = Umur 8 sampai 14 hari (8–14h Follow Up)
+     * "CRITICAL" = Umur > 14 hari (> 14h Kritis / Telat)
+   - DILARANG KERAS menghitung sendiri selisih tanggal kalender atau membuat asumsi tanggal referensi sendiri.
+   - Jika pengguna meminta "Analisis Aging PO", "Daftar PO Kritis", "PO Aman", dsb:
+     Gunakan angka resmi dari "RINGKASAN RESMI KATEGORI UMUR PO" dan filter baris berdasarkan kolom "Kategori_Umur" (SAFE/FOLLOW_UP/CRITICAL) atau "Umur_Hari".
+
+4. FORMAT PENYAJIAN DATA:
    - Prioritaskan tabel Markdown yang rapi atau daftar poin tebal (bullet points).
    - Selalu sertakan angka pasti lengkap dengan satuannya (misal: pcs, kg, ton, atau Rp).
    - Pastikan informasi yang dibutuhkan pengguna tetap lengkap dan akurat (nomor PO, nomor CO, kode artikel, ukuran, status), jangan dipotong, tetapi hilangkan kalimat penjelasan yang tidak perlu.
 
-4. ISTILAH LOGISTIK & STATUS ERP:
+5. ISTILAH LOGISTIK & STATUS ERP:
    - Status CO:
      * "OPEN": Pesanan aktif / pengiriman belum selesai seluruhnya.
      * "CLOSED": Pesanan tuntas atau sudah ditutup.
