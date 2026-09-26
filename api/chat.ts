@@ -1,5 +1,57 @@
 import { GoogleGenAI } from '@google/genai';
-import { calculatePoAging } from '../src/utils/agingUtils.ts';
+
+/**
+ * Self-contained Date & PO Aging helper to ensure 100% compatibility with
+ * Vercel Serverless Functions without cross-folder module resolution issues.
+ */
+function parsePoDate(dateStr: string | null | undefined): Date | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const trimmed = dateStr.trim();
+  if (!trimmed || trimmed === '-' || trimmed === 'UNKNOWN') return null;
+
+  // Pattern: YYYY-MM-DD or YYYY/MM/DD
+  if (/^\d{4}[-/.]\d{1,2}[-/.]\d{1,2}/.test(trimmed)) {
+    const parts = trimmed.split(/[-/.]/);
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  // Pattern: DD/MM/YYYY or DD-MM-YYYY or DD.MM.YYYY
+  if (/^\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4}/.test(trimmed)) {
+    const parts = trimmed.split(/[-/.]/);
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    let year = parseInt(parts[2], 10);
+    if (year < 100) {
+      year += 2000;
+    }
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  const parsed = new Date(trimmed);
+  if (!isNaN(parsed.getTime())) return parsed;
+
+  return null;
+}
+
+function calculatePoAging(dateStr: string | null | undefined, refDate: Date = new Date()) {
+  const target = parsePoDate(dateStr);
+  if (!target) {
+    return { days: -1, category: 'UNKNOWN', shortLabel: '-' };
+  }
+  const refUtc = Date.UTC(refDate.getFullYear(), refDate.getMonth(), refDate.getDate());
+  const targetUtc = Date.UTC(target.getFullYear(), target.getMonth(), target.getDate());
+  const diffMs = refUtc - targetUtc;
+  const days = Math.max(0, Math.floor(diffMs / (1000 * 60 * 60 * 24)));
+
+  if (days <= 7) return { days, category: 'SAFE', shortLabel: `${days}h Aman` };
+  if (days <= 14) return { days, category: 'FOLLOW_UP', shortLabel: `${days}h Follow Up` };
+  return { days, category: 'CRITICAL', shortLabel: `${days}h Kritis` };
+}
 
 // In-memory cooldown & healthy model tracker:
 // If a model hits 429 (quota exhausted) or 503 (high demand), it gets a longer cooldown (e.g. 5-10 minutes).
@@ -291,16 +343,12 @@ ${datasetContextText}
     // Multi-model auto fallback chain to seamlessly handle server spikes (503), quota limits (429), or deprecations
     const baseCandidateModels = [
       'gemini-3.5-flash-lite',
-      'gemma-4-26b-a4b-it',
-      'gemini-3.6-flash',
-      'gemini-3-flash-preview',
-      'gemma-4-31b-it',
-      'gemini-3.5-flash',
-      'gemini-3.7-flash',
       'gemini-3.8-flash',
-      'gemini-flash-latest',
-      'gemini-flash-lite-latest',
       'gemini-3.1-flash-lite',
+      'gemini-3-flash-preview',
+      'gemma-4-26b-a4b-it',
+      'gemini-3.7-flash',
+      'gemma-4-31b-it',
     ];
 
     // Build optimized execution list

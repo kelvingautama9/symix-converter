@@ -283,17 +283,27 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
 
       if (!response.ok) {
         let errJson: any = null;
+        let rawText = '';
         try {
-          errJson = await response.json();
+          rawText = await response.text();
+          errJson = JSON.parse(rawText);
         } catch {
           // not json
         }
         if (errJson?.error === 'GEMINI_API_KEY_NOT_CONFIGURED') {
           throw new Error(
-            'GEMINI_API_KEY belum dikonfigurasi di Vercel Environment Variables. Silakan pasang di Vercel Dashboard, atau klik ikon kunci di atas untuk memasukkan API Key secara langsung.'
+            'GEMINI_API_KEY belum dikonfigurasi di Environment Variables. Silakan pasang di Vercel Dashboard (Project Settings > Environment Variables) atau gunakan tombol "Pasang API Key Pribadi" di bawah.'
           );
         }
-        throw new Error(errJson?.message || `Server error (${response.status})`);
+        if (errJson?.message) {
+          throw new Error(errJson.message);
+        }
+        if (response.status === 500) {
+          throw new Error(
+            'Server backend mengalami kendala (HTTP 500). Jika Anda membuka versi hosting di Vercel, pastikan GEMINI_API_KEY telah diatur di Vercel Project Settings > Environment Variables, atau masukkan API Key pribadi via tombol di bawah.'
+          );
+        }
+        throw new Error(rawText || `Server error (${response.status})`);
       }
 
       // Check if response is Server-Sent Events stream
