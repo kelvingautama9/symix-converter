@@ -479,10 +479,10 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-[#1E2024]">
-                    Format 15 Kolom Otomatis
+                    Convert ke Excel Otomatis
                   </h4>
                   <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                    Menyusun data mentah ERP ke dalam susunan 15 kolom standar secara rapi dan akurat.
+                    Menyusun data mentah dari ERP ke dalam format file excel yang terusun rapi dan akurat secara otomatis
                   </p>
                 </div>
               </div>
@@ -493,7 +493,7 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="text-xs font-bold text-[#1E2024]">
-                    Deteksi P26 & Fallback
+                    Deteksi SJ & Fallback
                   </h4>
                   <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
                     Membaca surat jalan terbaru (P26) dan otomatis fallback ke QTY PO jika belum dikirim.
@@ -612,9 +612,6 @@ export default function App() {
           <span>• ERP DATA ENGINE BROWSER_V2.0</span>
           <span className="text-zinc-300">•</span>
           <span className="font-medium text-[#1E2024]">Developed by <strong className="font-semibold text-[#EA5413]">VINNS</strong></span>
-        </div>
-        <div className="text-[11px] text-[#5C6068]">
-          Master Rekapitulasi Stock & Sisa Order Status (OS) Customer
         </div>
       </footer>
 

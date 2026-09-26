@@ -84,7 +84,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               htmlFor="active-file-dropdown"
               className="text-xs font-semibold text-[#1E2024] tracking-wide whitespace-nowrap"
             >
-              Pilih File Analisis:
+              Pilih File:
             </label>
           </div>
 

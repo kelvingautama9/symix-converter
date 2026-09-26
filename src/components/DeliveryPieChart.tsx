@@ -81,9 +81,6 @@ export const DeliveryPieChart: React.FC<DeliveryPieChartProps> = ({ summary }) =
             <h3 className="text-xs sm:text-sm font-bold tracking-tight text-[#1E2024] truncate">
               Rasio Pengiriman (Terkirim vs Sisa OS)
             </h3>
-            <span className="text-[11px] text-[#5C6068] hidden sm:inline">
-              Akumulasi Bobot & Sisa Order
-            </span>
           </div>
         </div>
 
