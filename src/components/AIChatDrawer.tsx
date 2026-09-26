@@ -97,7 +97,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       id: 'welcome',
       role: 'model',
       content:
-        'Halo! Saya **BlackEYE AI Assistant** *(develop by Kelvin)*. Saya siap membantu membaca dan menganalisis data hasil konversi ERP Anda secara langsung.\n\nSilakan tanyakan rekap status CO, detail ukuran tiap artikel, sisa tonase OS, ketersediaan stok ready gudang, atau pilih salah satu saran cepat di bawah.',
+        'Hey Yo! Saya **BlackEYE AI Assistant** *(develop by Kelvin)*. Saya siap bantu baca dan analisis data hasil konversi ERP Anda secara langsung.\n\nSilakan tanyakan rekap status CO, detail ukuran tiap artikel, sisa OS, stok ready, atau apapun terserah dah.\n\nJangan spam chat / banyak tanya yang ga penting :\nini makan token request per day. Kalo limit, gue ga bisa jawab pertanyaan lu yang penting nantinya.',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
