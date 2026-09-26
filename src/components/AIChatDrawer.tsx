@@ -27,6 +27,7 @@ interface Message {
   content: string;
   timestamp: string;
   modelUsed?: string;
+  isTyping?: boolean;
 }
 
 interface AIChatDrawerProps {
@@ -123,12 +124,20 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   const hasDraggedRef = useRef(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isStreamingRef = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Auto-scroll to bottom of chat
   useEffect(() => {
     if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      if (isStreamingRef.current) {
+        if (messagesContainerRef.current) {
+          messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+        }
+      } else {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   }, [messages, isOpen, isLoading]);
 
@@ -296,11 +305,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
     const modelMsgId = `model-${Date.now()}`;
     setMessages((prev) => [...prev, userMessage]);
     setIsLoading(true);
+    isStreamingRef.current = true;
 
     try {
       const apiHistory = messages
         .filter((m) => m.id !== 'welcome' && m.id !== 'welcome-reset' && m.id !== 'welcome-data-loaded')
-        .slice(-8)
+        .slice(-4)
         .map((m) => ({
           role: m.role,
           content: m.content,
@@ -355,11 +365,88 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       if (contentType.includes('text/event-stream') && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder('utf-8');
-        let accumulatedReply = '';
+        let targetText = '';
+        let displayedLength = 0;
+        let isStreamFinished = false;
         let detectedModel: string | undefined = undefined;
         let hasInitializedBubble = false;
+        let animationFrameId: number | null = null;
 
         const timeString = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+        // Adaptive 60fps ticker: smoothly glides forward without jumps or pauses
+        const pumpTicker = () => {
+          if (displayedLength < targetText.length) {
+            const distance = targetText.length - displayedLength;
+
+            // Adaptive step size:
+            // - If network dumps a large block (>160 chars), smoothly catch up in small sips
+            // - If moderate buffer (40-160 chars), 3-5 chars per frame
+            // - If close to tip (1-40 chars), 1-2 chars per frame (natural, fluid typing)
+            let step = 1;
+            if (distance > 160) {
+              step = Math.min(distance, Math.ceil(distance / 6));
+            } else if (distance > 60) {
+              step = Math.min(distance, Math.ceil(distance / 10));
+            } else if (distance > 20) {
+              step = 3;
+            } else if (distance > 6) {
+              step = 2;
+            } else {
+              step = 1;
+            }
+
+            displayedLength = Math.min(targetText.length, displayedLength + step);
+            const currentSlice = targetText.slice(0, displayedLength);
+
+            if (!hasInitializedBubble) {
+              hasInitializedBubble = true;
+              setIsLoading(false);
+              setMessages((prev) => [
+                ...prev,
+                {
+                  id: modelMsgId,
+                  role: 'model',
+                  content: currentSlice,
+                  timestamp: timeString,
+                  modelUsed: detectedModel,
+                  isTyping: true,
+                },
+              ]);
+            } else {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === modelMsgId
+                    ? {
+                        ...msg,
+                        content: currentSlice,
+                        modelUsed: detectedModel || msg.modelUsed,
+                        isTyping: !isStreamFinished || displayedLength < targetText.length,
+                      }
+                    : msg
+                )
+              );
+            }
+
+            if (messagesContainerRef.current) {
+              messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+            }
+          }
+
+          if (!isStreamFinished || displayedLength < targetText.length) {
+            animationFrameId = requestAnimationFrame(pumpTicker);
+          } else {
+            // Ticker reached 100% of targetText and stream is closed
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === modelMsgId ? { ...msg, isTyping: false } : msg
+              )
+            );
+          }
+        };
+
+        // Launch the 60fps ticker
+        animationFrameId = requestAnimationFrame(pumpTicker);
 
         let buffer = '';
         while (true) {
@@ -402,43 +489,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 throw new Error(parseErr.message || 'Stream error');
               }
             } else if (eventType === 'done') {
-              // stream complete
               break;
             } else {
-              // Standard data event: contains text chunk
               try {
                 const parsed = JSON.parse(dataStr);
                 if (parsed.text) {
-                  accumulatedReply += parsed.text;
-
-                  if (!hasInitializedBubble) {
-                    hasInitializedBubble = true;
-                    // Stop spinner immediately as first word arrives
-                    setIsLoading(false);
-                    setMessages((prev) => [
-                      ...prev,
-                      {
-                        id: modelMsgId,
-                        role: 'model',
-                        content: accumulatedReply,
-                        timestamp: timeString,
-                        modelUsed: detectedModel,
-                      },
-                    ]);
-                  } else {
-                    // Update content progressively in real-time
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === modelMsgId
-                          ? { ...msg, content: accumulatedReply, modelUsed: detectedModel || msg.modelUsed }
-                          : msg
-                      )
-                    );
-                  }
-
-                  if (messagesEndRef.current) {
-                    messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
-                  }
+                  targetText += parsed.text;
                 }
               } catch {
                 // not json text chunk, ignore
@@ -447,18 +503,42 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           }
         }
 
-        if (!hasInitializedBubble && accumulatedReply) {
+        isStreamFinished = true;
+
+        // Smoothly glide until the ticker has fully typed out all buffered characters
+        await new Promise<void>((resolve) => {
+          const checkFinished = () => {
+            if (displayedLength >= targetText.length) {
+              resolve();
+            } else {
+              setTimeout(checkFinished, 20);
+            }
+          };
+          checkFinished();
+        });
+
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+
+        // Final sync to guarantee 100% precision
+        if (targetText) {
           setIsLoading(false);
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: modelMsgId,
-              role: 'model',
-              content: accumulatedReply,
-              timestamp: timeString,
-              modelUsed: detectedModel,
-            },
-          ]);
+          setMessages((prev) =>
+            prev.map((msg) =>
+              msg.id === modelMsgId
+                ? {
+                    ...msg,
+                    content: targetText,
+                    modelUsed: detectedModel || msg.modelUsed,
+                    isTyping: false,
+                  }
+                : msg
+            )
+          );
+          if (messagesContainerRef.current) {
+            messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+          }
         }
 
         setLastFailedQuery(null);
@@ -500,6 +580,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
       setErrorMessage(msg);
     } finally {
       setIsLoading(false);
+      isStreamingRef.current = false;
     }
   };
 
@@ -818,7 +899,10 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           )}
 
           {/* Messages Scroll Area */}
-          <div className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-5 bg-gradient-to-b from-[#F5F6F7]/50 via-[#E7EAED]/30 to-[#F2F4F6]/50 backdrop-blur-lg">
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto p-3.5 sm:p-5 space-y-5 bg-gradient-to-b from-[#F5F6F7]/50 via-[#E7EAED]/30 to-[#F2F4F6]/50 backdrop-blur-lg"
+          >
             {messages.map((msg) => {
               const isUser = msg.role === 'user';
               return (
@@ -997,6 +1081,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                         >
                           {msg.content}
                         </ReactMarkdown>
+                        {msg.isTyping && (
+                          <span
+                            className="inline-block w-1.5 h-3.5 bg-[#19719C] animate-pulse ml-0.5 align-middle rounded-xs"
+                            title="Sedang mengetik..."
+                          />
+                        )}
                       </div>
 
                       <div className="text-[10px] font-mono mt-2 text-right text-[#5C5C68]">

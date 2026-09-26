@@ -1,4 +1,4 @@
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, ThinkingLevel } from '@google/genai';
 
 /**
  * Self-contained Date & PO Aging helper to ensure 100% compatibility with
@@ -343,8 +343,9 @@ ${datasetContextText}
     // Multi-model auto fallback chain to seamlessly handle server spikes (503), quota limits (429), or deprecations
     const baseCandidateModels = [
       'gemini-3.5-flash-lite',
-      'gemini-3.8-flash',
       'gemini-3.1-flash-lite',
+      'gemini-flash-latest',
+      'gemini-3.8-flash',
       'gemini-3-flash-preview',
       'gemma-4-26b-a4b-it',
       'gemini-3.7-flash',
@@ -392,14 +393,19 @@ ${datasetContextText}
         try {
           console.log(`[AI Chat Stream] Mencoba model: ${modelName}...`);
 
+          const streamConfig: any = {
+            systemInstruction,
+            temperature: 0.2,
+            maxOutputTokens: 2500,
+          };
+          if (modelName.includes('gemini-3')) {
+            streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
+          }
+
           const stream = await ai.models.generateContentStream({
             model: modelName,
             contents,
-            config: {
-              systemInstruction,
-              temperature: 0.2,
-              maxOutputTokens: 2500,
-            },
+            config: streamConfig,
           });
 
           for await (const chunk of stream) {
@@ -414,6 +420,9 @@ ${datasetContextText}
               }
               // Send text chunk to browser
               res.write(`data: ${JSON.stringify({ text: textChunk })}\n\n`);
+              if (typeof (res as any).flush === 'function') {
+                (res as any).flush();
+              }
             }
           }
 
