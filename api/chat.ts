@@ -103,6 +103,40 @@ export default async function handler(req: any, res: any) {
       const records = dataContext.records;
       const summary = dataContext.summary || {};
 
+      // Pre-extract confirmed Over Stock Gudang and Over Kiriman items for 100% ground truth
+      const confirmedOverStockItems = records.filter(
+        (r: any) =>
+          (r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)'] || 0) > 0 ||
+          (r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)'] || 0) > 0
+      );
+      const confirmedOverKirimanItems = records.filter(
+        (r: any) => (r['Over Kiriman (PCS)'] || 0) > 0 || (r['Over Kiriman (KG)'] || 0) > 0
+      );
+
+      const overStockListText =
+        confirmedOverStockItems.length === 0
+          ? 'TIDAK ADA PO yang Over Stock Gudang (Seluruh 146 PO bernilai 0 pcs).'
+          : confirmedOverStockItems
+              .map((r: any) => {
+                const rowIdx = records.indexOf(r) + 1;
+                const p = r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)'] || 0;
+                const k = r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)'] || 0;
+                return `  * Baris ${rowIdx}: [${r.Artikel}] ${r['Item Description']} | PO: ${r['No PO']} | Over Stock: +${p.toLocaleString('id-ID')} pcs (${k.toLocaleString('id-ID')} kg)`;
+              })
+              .join('\n');
+
+      const overKirimanListText =
+        confirmedOverKirimanItems.length === 0
+          ? 'TIDAK ADA PO yang Over Kiriman (Seluruh PO bernilai 0 pcs).'
+          : confirmedOverKirimanItems
+              .map((r: any) => {
+                const rowIdx = records.indexOf(r) + 1;
+                const p = r['Over Kiriman (PCS)'] || 0;
+                const k = r['Over Kiriman (KG)'] || 0;
+                return `  * Baris ${rowIdx}: [${r.Artikel}] ${r['Item Description']} | PO: ${r['No PO']} | Over Kiriman SJ: +${p.toLocaleString('id-ID')} pcs (${k.toLocaleString('id-ID')} kg)`;
+              })
+              .join('\n');
+
       // Smart Compact Tabular Format (TSV / Pipe format):
       // Token-efficiency is 300% higher than repetitive JSON keys {"CO": "...", "Artikel": "..."}
       // Allows AI to read all 146+ rows (up to 1,500 rows) with zero missing items and low token footprint.
@@ -125,7 +159,10 @@ export default async function handler(req: any, res: any) {
           const osP = r['Sisa OS (pcs)'] || 0;
           const osK = r['Sisa OS (kg)'] || 0;
           const krm = r['Terkirim (PCS)'] || 0;
-          return `${rowNum}|${co}|${st}|${art}|${desc}|${po}|${tgl}|${qty}|${brt}|${stkP}|${stkK}|${osP}|${osK}|${krm}`;
+          const overStockP = r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)'] || 0;
+          const overStockK = r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)'] || 0;
+          const overKirimanP = r['Over Kiriman (PCS)'] || 0;
+          return `${rowNum}|${co}|${st}|${art}|${desc}|${po}|${tgl}|${qty}|${brt}|${stkP}|${stkK}|${osP}|${osK}|${krm}|${overStockP}|${overStockK}|${overKirimanP}`;
         })
         .join('\n');
 
@@ -133,14 +170,24 @@ export default async function handler(req: any, res: any) {
 Nama File Sumber: ${currentFileName || 'Dokumen_Excel.xlsx'}
 Total Baris PO: ${records.length} Baris PO Terbaca Lengkap
 Total Artikel Unik: ${summary.totalUniqueItems || '-'}
-Total PO Status OPEN: ${summary.openCount || records.filter((r: any) => r.coStatus === 'OPEN').length}
-Total PO Status CLOSED: ${summary.closedCount || records.filter((r: any) => r.coStatus === 'CLOSED').length}
-Total Tonase Sisa OS: ${summary.totalSisaKg ? (summary.totalSisaKg / 1000).toFixed(2) + ' Ton (' + summary.totalSisaKg.toLocaleString() + ' kg)' : '-'}
-Total Pcs Sisa OS: ${summary.totalSisaPcs ? summary.totalSisaPcs.toLocaleString() + ' Pcs' : '-'}
+Total PO Status OPEN: ${summary.totalCOOpen || summary.openCount || records.filter((r: any) => r.coStatus === 'OPEN').length}
+Total PO Status CLOSED: ${summary.totalCOClosed || summary.closedCount || records.filter((r: any) => r.coStatus === 'CLOSED').length}
+Total Tonase Sisa OS: ${summary.totalSisaOSKg || summary.totalSisaKg ? ((summary.totalSisaOSKg || summary.totalSisaKg) / 1000).toFixed(2) + ' Ton (' + (summary.totalSisaOSKg || summary.totalSisaKg).toLocaleString() + ' kg)' : '-'}
+Total Pcs Sisa OS: ${summary.totalSisaOSPcs || summary.totalSisaPcs ? (summary.totalSisaOSPcs || summary.totalSisaPcs).toLocaleString() + ' Pcs' : '-'}
 Total Stok Gudang: ${summary.totalStockPcs ? summary.totalStockPcs.toLocaleString() + ' Pcs (' + (summary.totalStockKg || 0).toLocaleString() + ' kg)' : '-'}
+Total Over Stock Gudang: ${summary.totalOverStockGudangPcs || summary.totalOverProduksiPcs || 0} Pcs (${summary.totalOverStockGudangKg || summary.totalOverProduksiKg || 0} kg) - Tersebar di ${confirmedOverStockItems.length} PO
+Total Over Kiriman (SJ): ${summary.totalOverKirimanPcs || 0} Pcs (${summary.totalOverKirimanKg || 0} kg) - Tersebar di ${confirmedOverKirimanItems.length} PO
 Estimasi Valuasi Sisa OS: ${summary.totalValue ? 'Rp ' + summary.totalValue.toLocaleString('id-ID') : '-'}
 
-Seluruh Data Tabel ERP (Format Padat Kolom: Baris|CO|Status|Kode_Artikel|Deskripsi_Item|No_PO|Tgl_PO|Qty_PO_pcs|Berat_PO_kg|Stok_pcs|Stok_kg|Sisa_OS_pcs|Sisa_OS_kg|Terkirim_pcs):
+DAFTAR RESMI ITEM OVER STOCK GUDANG (> 0 PCS):
+${overStockListText}
+(CATATAN MUTLAK: HANYA item-item di atas yang memiliki Over Stock Gudang! Di luar daftar ini, seluruh PO memiliki Over Stock = 0 pcs.)
+
+DAFTAR RESMI ITEM OVER KIRIMAN / SURAT JALAN MELEBIHI PO (> 0 PCS):
+${overKirimanListText}
+(CATATAN MUTLAK: HANYA item-item di atas yang memiliki Over Kiriman SJ! Di luar daftar ini, seluruh PO memiliki Over Kiriman = 0 pcs.)
+
+Seluruh Data Tabel ERP (Format Padat Kolom: Baris|CO|Status|Kode_Artikel|Deskripsi_Item|No_PO|Tgl_PO|Qty_PO_pcs|Berat_PO_kg|Stok_pcs|Stok_kg|Sisa_OS_pcs|Sisa_OS_kg|Terkirim_pcs|OverStockGudang_pcs|OverStockGudang_kg|OverKiriman_pcs):
 ${tableRowsText}
 ${records.length > maxRowsToInclude ? `\n*(Catatan: Menampilkan ${maxRowsToInclude} dari ${records.length} PO)*` : ''}
 `;
@@ -158,22 +205,32 @@ PEDOMAN GAYA KOMUNIKASI & JAWABAN (SANGAT PENTING):
      Selain dua kondisi di atas, LANGSUNG berikan jawaban data yang diminta tanpa kalimat pembuka!
    - Hindari pengantar bertele-tele seperti "Berdasarkan analisis terhadap data ERP...", "Tentu, saya akan membantu Anda...", atau pengantar panjang lainnya. Langsung tulis ringkasan atau tabelnya.
 
-2. FORMAT PENYAJIAN DATA:
+2. ATURAN ANTI-HALUSINASI & KETELITIAN DATA 100%:
+   - DILARANG KERAS MENGARANG ATAU MENEBAK DATA: Setiap jawaban harus 100% berakar pada fakta angka di tabel data di bawah.
+   - JANGAN MENGANGGAP SEMUA STOK SEBAGAI OVER STOCK!
+     * PERBEDAAN VITAL: "STOCK READY" vs "OVER STOCK GUDANG":
+       - "STOCK READY": Barang fisik yang ada di gudang (kolom Stok_pcs > 0) untuk memenuhi pesanan yang belum terkirim (kolom Sisa_OS_pcs > 0).
+         Contoh kasus nyata: Artikel "ST-D009-00001-A" (DOUBLE WALL DUMMY) memiliki Stok 100 pcs dan Sisa OS 100 pcs. Ini adalah STOCK READY MURNI (barang pesanan yang siap dikirim), BUKAN OVER STOCK! Kolom OverStockGudang_pcs nya adalah 0. Dilarang menyebut artikel ini sebagai over stock!
+       - "OVER STOCK GUDANG": HANYA berlaku untuk artikel/PO yang memiliki nilai kolom OverStockGudang_pcs > 0 (stok fisik gudang yang melebihi kebutuhan PO Open). Selalu cek "DAFTAR RESMI ITEM OVER STOCK GUDANG" di atas.
+       - "OVER KIRIMAN": HANYA berlaku jika kolom OverKiriman_pcs > 0 (Surat Jalan melebihi kuota PO).
+   - JIKA DATA TIDAK DITEMUKAN ATAU ADA DUGAAN BUG / MISSING DATA:
+     * Jika pengguna mencari artikel, nomor PO, atau kriteria yang TIDAK DITEMUKAN di dalam data tabel ERP:
+       Jawab secara jujur dan lugas: "Data [nama artikel/PO/kriteria] tidak ditemukan dalam dokumen ERP saat ini."
+     * Jika ada dugaan perbedaan kalkulasi, data tidak sesuai, atau pengguna membutuhkan penambahan fitur:
+       Sarankan dengan sopan: "Jika Anda mendapati adanya kejanggalan kalkulasi data, dugaan bug, atau ingin mengajukan penambahan fitur, silakan infokan temuan ini kepada Developer (Kelvin) agar dapat dilakukan kalibrasi sistem."
+
+3. FORMAT PENYAJIAN DATA:
    - Prioritaskan tabel Markdown yang rapi atau daftar poin tebal (bullet points).
    - Selalu sertakan angka pasti lengkap dengan satuannya (misal: pcs, kg, ton, atau Rp).
    - Pastikan informasi yang dibutuhkan pengguna tetap lengkap dan akurat (nomor PO, nomor CO, kode artikel, ukuran, status), jangan dipotong, tetapi hilangkan kalimat penjelasan yang tidak perlu.
 
-3. ISTILAH LOGISTIK & STATUS ERP:
+4. ISTILAH LOGISTIK & STATUS ERP:
    - Status CO:
      * "OPEN": Pesanan aktif / pengiriman belum selesai seluruhnya.
      * "CLOSED": Pesanan tuntas atau sudah ditutup.
    - Sisa OS (Outstanding): Barang yang belum terkirim ke customer.
    - Over Stock Gudang: Stok fisik di gudang melebihi sisa PO Open.
    - Over SJ / Kiriman: Pengiriman Surat Jalan melebihi kuota PO awal.
-
-4. KETELITIAN DATA:
-   - Selalu hitung dan verifikasi dengan cermat angka-angka dari ringkasan dan baris tabel data di bawah.
-   - Jika data yang diminta tidak terdapat di file, jawab lugas dalam satu kalimat bahwa data tersebut tidak ada di dokumen.
 
 Berikut adalah informasi data saat ini:
 ===============================
