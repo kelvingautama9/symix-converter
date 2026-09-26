@@ -599,7 +599,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-zinc-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#5C6068]">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="w-6 h-6 rounded-lg bg-white/80 border border-white/90 overflow-hidden p-0.5 shadow-2xs">
             <img
               src="/logo.jpg"
@@ -610,6 +610,8 @@ export default function App() {
           </div>
           <span className="font-bold text-[#1E2024]">BLACKEYE</span>
           <span>• ERP DATA ENGINE BROWSER_V2.0</span>
+          <span className="text-zinc-300">•</span>
+          <span className="font-medium text-[#1E2024]">Developed by <strong className="font-semibold text-[#EA5413]">VINNS</strong></span>
         </div>
         <div className="text-[11px] text-[#5C6068]">
           Master Rekapitulasi Stock & Sisa Order Status (OS) Customer

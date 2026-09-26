@@ -486,11 +486,11 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
             haptic.medium();
             onOpen();
           }}
-          className="fixed bottom-5 right-5 z-40 rounded-full group cursor-pointer transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] select-none shadow-[0_16px_36px_-6px_rgba(0,0,19,0.14),0_4px_12px_-2px_rgba(25,113,156,0.10)]"
+          className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-40 rounded-full group cursor-pointer transition-all duration-300 hover:scale-[1.04] active:scale-[0.97] select-none shadow-[0_16px_36px_-6px_rgba(0,0,19,0.14),0_4px_12px_-2px_rgba(25,113,156,0.10)]"
           title="Buka AI Chatbot Asisten"
         >
           {/* 1. Authentic Apple Liquid Glass Body (Original 52% opacity & blur for true translucency) */}
-          <div className="relative z-10 apple-liquid-glass-badge px-3.5 py-2 flex items-center gap-3 rounded-full">
+          <div className="relative z-10 apple-liquid-glass-badge p-2 sm:px-3.5 sm:py-2 flex items-center gap-2.5 sm:gap-3 rounded-full">
             {/* 3D Specular curved glass sheen overlay */}
             <div
               className="absolute inset-x-0 top-0 h-[48%] rounded-t-full pointer-events-none bg-gradient-to-b from-white/70 via-white/20 to-transparent"
@@ -505,8 +505,8 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               )}
             </div>
 
-            {/* Text Label & Status */}
-            <div className="text-left font-sans select-none">
+            {/* Text Label & Status - Hidden on small mobile to avoid blocking table rows, fully visible on sm: desktop */}
+            <div className="hidden sm:block text-left font-sans select-none">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-[#000013] tracking-tight drop-shadow-[0_1px_1px_rgba(255,255,255,0.8)]">
                   AI Assistant

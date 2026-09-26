@@ -541,9 +541,9 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       )}
 
       {/* Table Controls Header */}
-      <div className="p-3.5 sm:p-4 border-b border-zinc-200/60 bg-white/40 flex flex-col gap-3 shrink-0">
+      <div className="p-3 sm:p-4 border-b border-zinc-200/60 bg-white/40 flex flex-col gap-2.5 sm:gap-3 shrink-0">
         {/* Row 1: Search & CO Status Quick Tabs */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 sm:gap-3">
           {/* Search Bar */}
           <div className="relative flex-1 max-w-full lg:max-w-md">
             <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
@@ -561,17 +561,17 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           </div>
 
           {/* Filter 1: CO Status (ALL / OPEN / CLOSED) */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[11px] font-semibold text-[#5C6068] mr-1 flex items-center gap-1">
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+            <span className="text-[11px] font-semibold text-[#5C6068] mr-1 flex items-center gap-1 shrink-0">
               <Layers className="w-3.5 h-3.5 text-[#EA5413]" />
               <span>Status CO:</span>
             </span>
-            <div className="glass-segmented inline-flex items-center">
+            <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
               <button
                 type="button"
                 id="filter-co-all"
                 onClick={() => handleCoFilterChange('ALL')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                   coFilter === 'ALL'
                     ? 'glass-segmented-active text-[#EA5413]'
                     : 'text-[#5C6068] hover:text-[#1E2024]'
@@ -583,7 +583,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 type="button"
                 id="filter-co-open"
                 onClick={() => handleCoFilterChange('OPEN')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   coFilter === 'OPEN'
                     ? 'bg-emerald-500 text-white shadow-sm'
                     : 'text-[#5C6068] hover:text-emerald-700'
@@ -596,7 +596,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 type="button"
                 id="filter-co-closed"
                 onClick={() => handleCoFilterChange('CLOSED')}
-                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                className={`px-3 py-1.5 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
                   coFilter === 'CLOSED'
                     ? 'bg-zinc-700 text-white shadow-sm'
                     : 'text-[#5C6068] hover:text-zinc-800'
@@ -610,97 +610,100 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         </div>
 
         {/* Row 2: Delivery Filters (Left) & Responsiveness/Scroll View Controls (Right) */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pt-2.5 border-t border-zinc-200/60">
-          <div className="flex flex-wrap items-center gap-1.5 text-xs">
-            <span className="text-[11px] font-semibold text-[#5C6068] mr-1">
-              Status Kirim:
-            </span>
-            <div className="glass-segmented inline-flex items-center flex-wrap">
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('ALL')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  filterStatus === 'ALL'
-                    ? 'glass-segmented-active text-[#1E2024]'
-                    : 'text-[#5C6068] hover:text-[#1E2024]'
-                }`}
-              >
-                Semua ({filterCounts.all})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('PARTIAL_DELIVERY')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  filterStatus === 'PARTIAL_DELIVERY'
-                    ? 'bg-[#EA5413] text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-[#EA5413]'
-                }`}
-              >
-                Partial ({filterCounts.partial})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('FULL_PENDING')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  filterStatus === 'FULL_PENDING'
-                    ? 'bg-zinc-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-zinc-800'
-                }`}
-              >
-                Pending ({filterCounts.pending})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('STOCK_READY')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  filterStatus === 'STOCK_READY'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-emerald-700'
-                }`}
-              >
-                Stock Ready ({filterCounts.stockReady})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('OVER_STOCK_GUDANG')}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-indigo-700'
-                }`}
-                title="Tampilkan PO dengan kelebihan fisik di gudang melebihi sisa PO Open (Siap ditawarkan sales)"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION' ? 'bg-white' : 'bg-indigo-500'}`} />
-                <span>Over Stock Gudang ({filterCounts.overStockGudang})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('OVER_KIRIMAN')}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  filterStatus === 'OVER_KIRIMAN'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-teal-700'
-                }`}
-                title="Tampilkan PO dengan total pengiriman (SJ) yang melebihi kuota PO awal"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_KIRIMAN' ? 'bg-white' : 'bg-teal-600'}`} />
-                <span>Over Kiriman ({filterCounts.overKiriman})</span>
-              </button>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 sm:gap-2.5 pt-2 sm:pt-2.5 border-t border-zinc-200/60">
+          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 text-xs w-full md:w-auto">
+            {/* Status Kirim Track */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+              <span className="text-[11px] font-semibold text-[#5C6068] mr-0.5 shrink-0">
+                Status Kirim:
+              </span>
+              <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('ALL')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'ALL'
+                      ? 'glass-segmented-active text-[#1E2024]'
+                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                  }`}
+                >
+                  Semua ({filterCounts.all})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('PARTIAL_DELIVERY')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'PARTIAL_DELIVERY'
+                      ? 'bg-[#EA5413] text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-[#EA5413]'
+                  }`}
+                >
+                  Partial ({filterCounts.partial})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('FULL_PENDING')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'FULL_PENDING'
+                      ? 'bg-zinc-600 text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-zinc-800'
+                  }`}
+                >
+                  Pending ({filterCounts.pending})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('STOCK_READY')}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'STOCK_READY'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-emerald-700'
+                  }`}
+                >
+                  Stock Ready ({filterCounts.stockReady})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('OVER_STOCK_GUDANG')}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-indigo-700'
+                  }`}
+                  title="Tampilkan PO dengan kelebihan fisik di gudang melebihi sisa PO Open (Siap ditawarkan sales)"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION' ? 'bg-white' : 'bg-indigo-500'}`} />
+                  <span>Over Stock Gudang ({filterCounts.overStockGudang})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('OVER_KIRIMAN')}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'OVER_KIRIMAN'
+                      ? 'bg-teal-700 text-white shadow-sm'
+                      : 'text-[#5C6068] hover:text-teal-700'
+                  }`}
+                  title="Tampilkan PO dengan total pengiriman (SJ) yang melebihi kuota PO awal"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_KIRIMAN' ? 'bg-white' : 'bg-teal-600'}`} />
+                  <span>Over Kiriman ({filterCounts.overKiriman})</span>
+                </button>
+              </div>
             </div>
 
             {/* Aging PO Filter (< 7h, 8-14h, > 14h) */}
-            <div className="flex items-center gap-1.5 ml-0 sm:ml-2">
-              <span className="text-[11px] font-semibold text-[#5C6068]">
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5 max-w-full">
+              <span className="text-[11px] font-semibold text-[#5C6068] shrink-0">
                 Umur PO:
               </span>
-              <div className="glass-segmented inline-flex items-center flex-wrap">
+              <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
                 <button
                   type="button"
                   onClick={() => {
                     haptic.selection();
                     setAgingFilter('ALL');
                   }}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                     agingFilter === 'ALL'
                       ? 'glass-segmented-active text-[#1E2024]'
                       : 'text-[#5C6068] hover:text-[#1E2024]'
@@ -715,7 +718,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     haptic.selection();
                     setAgingFilter('SAFE');
                   }}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                     agingFilter === 'SAFE'
                       ? 'bg-emerald-600 text-white shadow-sm'
                       : 'text-[#5C6068] hover:text-emerald-700'
@@ -731,7 +734,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     haptic.selection();
                     setAgingFilter('FOLLOW_UP');
                   }}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                     agingFilter === 'FOLLOW_UP'
                       ? 'bg-amber-500 text-white shadow-sm'
                       : 'text-[#5C6068] hover:text-amber-700'
@@ -747,7 +750,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     haptic.selection();
                     setAgingFilter('CRITICAL');
                   }}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
                     agingFilter === 'CRITICAL'
                       ? 'bg-rose-600 text-white shadow-sm'
                       : 'text-[#5C6068] hover:text-rose-700'
@@ -762,103 +765,107 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           </div>
 
           {/* Opsi Scroll & View Mode */}
-          <div className="flex items-center gap-1.5 flex-wrap self-start md:self-auto">
-            <span className="text-[11px] font-semibold text-[#5C6068] mr-0.5">
-              Scroll:
-            </span>
-
+          <div className="flex items-center justify-between md:justify-end gap-2 flex-wrap pt-2 md:pt-0 border-t border-zinc-200/40 md:border-0 w-full md:w-auto shrink-0">
             {/* Segmented Control: Bebas Halaman vs Kunci Kotak */}
-            <div className="glass-segmented inline-flex items-center">
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  setScrollMode('page');
-                }}
-                className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  scrollMode === 'page'
-                    ? 'glass-segmented-active text-emerald-700'
-                    : 'text-[#5C6068] hover:text-[#1E2024]'
-                }`}
-                title="Scroll mouse bebas menggerakkan seluruh halaman web tanpa tersangkut di dalam tabel"
-              >
-                <Unlock className={`w-3 h-3 ${scrollMode === 'page' ? 'text-emerald-600' : 'text-zinc-400'}`} />
-                <span>Bebas</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  setScrollMode('box');
-                }}
-                className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                  scrollMode === 'box'
-                    ? 'glass-segmented-active text-[#EA5413]'
-                    : 'text-[#5C6068] hover:text-[#1E2024]'
-                }`}
-                title="Batasi tabel dalam kotak scroll 70vh dengan scrollbar internal"
-              >
-                <Lock className={`w-3 h-3 ${scrollMode === 'box' ? 'text-[#EA5413]' : 'text-zinc-400'}`} />
-                <span>Kotak</span>
-              </button>
-            </div>
-
-            {/* Fullscreen Table Mode Button */}
-            <button
-              type="button"
-              onClick={() => {
-                haptic.medium();
-                setIsFullscreen(!isFullscreen);
-              }}
-              className="liquid-glass-clear inline-flex items-center gap-1 px-3 py-1 text-[11px] uppercase tracking-wider cursor-pointer"
-              title={isFullscreen ? "Keluar layar penuh (ESC)" : "Buka tabel dalam mode layar penuh"}
-            >
-              {isFullscreen ? (
-                <>
-                  <Minimize2 className="w-3.5 h-3.5 text-[#EA5413]" />
-                  <span>Keluar</span>
-                </>
-              ) : (
-                <>
-                  <Maximize2 className="w-3.5 h-3.5 text-[#EA5413]" />
-                  <span>Layar Penuh</span>
-                </>
-              )}
-            </button>
-
-            {/* Custom Columns / Rows Button */}
-            {hiddenColumnCount > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[11px] font-medium rounded-full">
-                <EyeOff className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                <span>{hiddenColumnCount} Hide</span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="text-[11px] font-semibold text-[#5C6068] mr-0.5">
+                Scroll:
+              </span>
+              <div className="glass-segmented inline-flex items-center">
                 <button
                   type="button"
-                  onClick={showAllColumns}
-                  className="ml-0.5 px-1.5 py-0.2 bg-amber-700 hover:bg-amber-800 text-white text-[9px] font-bold rounded-full cursor-pointer flex items-center gap-0.5 transition-colors"
-                  title="Tampilkan semua row / kolom (Reset)"
+                  onClick={() => {
+                    haptic.selection();
+                    setScrollMode('page');
+                  }}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                    scrollMode === 'page'
+                      ? 'glass-segmented-active text-emerald-700'
+                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                  }`}
+                  title="Scroll mouse bebas menggerakkan seluruh halaman web tanpa tersangkut di dalam tabel"
                 >
-                  <RotateCcw className="w-2.5 h-2.5 text-white" />
-                  <span>Reset</span>
+                  <Unlock className={`w-3 h-3 ${scrollMode === 'page' ? 'text-emerald-600' : 'text-zinc-400'}`} />
+                  <span>Bebas</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setScrollMode('box');
+                  }}
+                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                    scrollMode === 'box'
+                      ? 'glass-segmented-active text-[#EA5413]'
+                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                  }`}
+                  title="Batasi tabel dalam kotak scroll 70vh dengan scrollbar internal"
+                >
+                  <Lock className={`w-3 h-3 ${scrollMode === 'box' ? 'text-[#EA5413]' : 'text-zinc-400'}`} />
+                  <span>Kotak</span>
                 </button>
               </div>
-            )}
+            </div>
 
-            <button
-              type="button"
-              id="btn-kustom-row"
-              onClick={() => {
-                haptic.light();
-                setIsManageColumnsOpen(true);
-              }}
-              className={`liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1 font-mono text-[11px] uppercase tracking-wider cursor-pointer ${
-                hiddenColumnCount > 0 ? 'border-[#EA5413]/40 text-[#EA5413]' : ''
-              }`}
-              title="Kustomisasi Row / Kolom"
-            >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#EA5413]" />
-              <span>Kustom Kolom {hiddenColumnCount > 0 ? `(${hiddenColumnCount})` : ''}</span>
-            </button>
+            {/* Action buttons (Layar Penuh & Kustom Kolom) */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {/* Fullscreen Table Mode Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.medium();
+                  setIsFullscreen(!isFullscreen);
+                }}
+                className="liquid-glass-clear inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 text-[11px] uppercase tracking-wider cursor-pointer"
+                title={isFullscreen ? "Keluar layar penuh (ESC)" : "Buka tabel dalam mode layar penuh"}
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5 text-[#EA5413]" />
+                    <span>Keluar</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5 text-[#EA5413]" />
+                    <span>Layar Penuh</span>
+                  </>
+                )}
+              </button>
+
+              {/* Custom Columns / Rows Button */}
+              {hiddenColumnCount > 0 && (
+                <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[11px] font-medium rounded-full">
+                  <EyeOff className="w-3.5 h-3.5 text-amber-700 shrink-0" />
+                  <span>{hiddenColumnCount} Hide</span>
+                  <button
+                    type="button"
+                    onClick={showAllColumns}
+                    className="ml-0.5 px-1.5 py-0.2 bg-amber-700 hover:bg-amber-800 text-white text-[9px] font-bold rounded-full cursor-pointer flex items-center gap-0.5 transition-colors"
+                    title="Tampilkan semua row / kolom (Reset)"
+                  >
+                    <RotateCcw className="w-2.5 h-2.5 text-white" />
+                    <span>Reset</span>
+                  </button>
+                </div>
+              )}
+
+              <button
+                type="button"
+                id="btn-kustom-row"
+                onClick={() => {
+                  haptic.light();
+                  setIsManageColumnsOpen(true);
+                }}
+                className={`liquid-glass-clear inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 font-mono text-[11px] uppercase tracking-wider cursor-pointer ${
+                  hiddenColumnCount > 0 ? 'border-[#EA5413]/40 text-[#EA5413]' : ''
+                }`}
+                title="Kustomisasi Row / Kolom"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#EA5413]" />
+                <span>Kustom Kolom{hiddenColumnCount > 0 ? ` (${hiddenColumnCount})` : ''}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
