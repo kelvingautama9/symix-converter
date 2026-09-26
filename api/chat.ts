@@ -156,137 +156,363 @@ export default async function handler(req: any, res: any) {
       const records = dataContext.records;
       const summary = dataContext.summary || {};
 
-      // Pre-extract confirmed Over Stock Gudang and Over Kiriman items for 100% ground truth
-      const confirmedOverStockItems = records.filter(
-        (r: any) =>
-          (r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)'] || 0) > 0 ||
-          (r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)'] || 0) > 0
-      );
-      const confirmedOverKirimanItems = records.filter(
-        (r: any) => (r['Over Kiriman (PCS)'] || 0) > 0 || (r['Over Kiriman (KG)'] || 0) > 0
-      );
+      // -------------------------------------------------------------
+      // 1. LEAN CLEANERS (Pembersihan Karakter Sampah & Redudansi)
+      // -------------------------------------------------------------
+      const cleanNum = (val: any): number => {
+        if (val === undefined || val === null || val === '') return 0;
+        const num = typeof val === 'number' ? val : Number(val);
+        if (isNaN(num)) return 0;
+        return num % 1 === 0 ? num : Number(num.toFixed(2));
+      };
 
-      // Pre-calculate official Aging PO metrics directly from system engine
+      const cleanStr = (val: any): string => {
+        if (!val || typeof val !== 'string') return '-';
+        const cleaned = val.replace(/[\r\n\t|]/g, ' ').replace(/\s+/g, ' ').trim();
+        return cleaned || '-';
+      };
+
+      const cleanDate = (val: any): string => {
+        if (!val || typeof val !== 'string') return '-';
+        const trimmed = val.trim();
+        const match = trimmed.match(/^(\d{4}[-/.]\d{1,2}[-/.]\d{1,2})/);
+        if (match) return match[1];
+        return trimmed || '-';
+      };
+
+      // -------------------------------------------------------------
+      // 2. DATA INTERPRETER ENGINE (Pre-Computed Aggregation Index)
+      //    100% Deterministic Ground Truth - 0% Calculation Hallucination
+      // -------------------------------------------------------------
+      let openCount = 0;
+      let openQtyPcs = 0;
+      let openBeratKg = 0;
+      let openSisaPcs = 0;
+      let openSisaKg = 0;
+      let openStockPcs = 0;
+      let openStockKg = 0;
+      let openTerkirimPcs = 0;
+
+      let closedCount = 0;
+      let closedQtyPcs = 0;
+      let closedBeratKg = 0;
+      let closedTerkirimPcs = 0;
+
       let agingSafeCount = 0;
-      let agingFollowUpCount = 0;
-      let agingCriticalCount = 0;
+      let agingSafeSisaPcs = 0;
+      let agingSafeSisaKg = 0;
 
-      records.forEach((r: any) => {
-        const aging = calculatePoAging(r['Tanggal Input PO']);
-        if (aging.category === 'SAFE') agingSafeCount++;
-        else if (aging.category === 'FOLLOW_UP') agingFollowUpCount++;
-        else if (aging.category === 'CRITICAL') agingCriticalCount++;
+      let agingFollowUpCount = 0;
+      let agingFollowUpSisaPcs = 0;
+      let agingFollowUpSisaKg = 0;
+
+      let agingCriticalCount = 0;
+      let agingCriticalSisaPcs = 0;
+      let agingCriticalSisaKg = 0;
+
+      const criticalItemsList: Array<{
+        row: number;
+        po: string;
+        art: string;
+        desc: string;
+        days: number;
+        sisaPcs: number;
+        sisaKg: number;
+      }> = [];
+
+      let readyPoCount = 0;
+      let fullyReadyCount = 0;
+      let partiallyReadyCount = 0;
+      let zeroStockCount = 0;
+
+      const confirmedOverStockItems: Array<{
+        row: number;
+        po: string;
+        art: string;
+        desc: string;
+        pcs: number;
+        kg: number;
+      }> = [];
+      let totalOverStockPcs = 0;
+      let totalOverStockKg = 0;
+
+      const confirmedOverKirimanItems: Array<{
+        row: number;
+        po: string;
+        art: string;
+        desc: string;
+        pcs: number;
+        kg: number;
+      }> = [];
+      let totalOverKirimanPcs = 0;
+      let totalOverKirimanKg = 0;
+
+      const prefixMap = new Map<string, { count: number; sisaPcs: number; sisaKg: number; stockPcs: number }>();
+      const articleSummaryMap = new Map<string, { desc: string; sisaPcs: number; sisaKg: number; stockPcs: number; poCount: number }>();
+
+      // -------------------------------------------------------------
+      // 3. EXECUTE ENGINE ON 100% OF ROWS (Zero Truncation)
+      // -------------------------------------------------------------
+      records.forEach((r: any, idx: number) => {
+        const rowNum = idx + 1;
+        const status = (r.coStatus || '').toUpperCase().trim();
+        const qtyPcs = cleanNum(r['QTY PO (pcs)']);
+        const beratKg = cleanNum(r['Berat PO (KG)']);
+        const sisaPcs = cleanNum(r['Sisa OS (pcs)']);
+        const sisaKg = cleanNum(r['Sisa OS (kg)']);
+        const stockPcs = cleanNum(r['Stock (pcs)']);
+        const stockKg = cleanNum(r['Stock (kg)']);
+        const terkirimPcs = cleanNum(r['Terkirim (PCS)']);
+        const tgl = r['Tanggal Input PO'];
+        const art = cleanStr(r.Artikel);
+        const desc = cleanStr(r['Item Description']);
+        const po = cleanStr(r['No PO']);
+
+        // Status-based indexing
+        if (status === 'OPEN') {
+          openCount++;
+          openQtyPcs += qtyPcs;
+          openBeratKg += beratKg;
+          openSisaPcs += sisaPcs;
+          openSisaKg += sisaKg;
+          openStockPcs += stockPcs;
+          openStockKg += stockKg;
+          openTerkirimPcs += terkirimPcs;
+
+          // Warehouse readiness
+          if (stockPcs > 0 && sisaPcs > 0) {
+            readyPoCount++;
+            if (stockPcs >= sisaPcs) {
+              fullyReadyCount++;
+            } else {
+              partiallyReadyCount++;
+            }
+          } else if (stockPcs === 0 && sisaPcs > 0) {
+            zeroStockCount++;
+          }
+        } else if (status === 'CLOSED') {
+          closedCount++;
+          closedQtyPcs += qtyPcs;
+          closedBeratKg += beratKg;
+          closedTerkirimPcs += terkirimPcs;
+        }
+
+        // Aging calculation
+        const aging = calculatePoAging(tgl);
+        if (aging.category === 'SAFE') {
+          agingSafeCount++;
+          agingSafeSisaPcs += sisaPcs;
+          agingSafeSisaKg += sisaKg;
+        } else if (aging.category === 'FOLLOW_UP') {
+          agingFollowUpCount++;
+          agingFollowUpSisaPcs += sisaPcs;
+          agingFollowUpSisaKg += sisaKg;
+        } else if (aging.category === 'CRITICAL') {
+          agingCriticalCount++;
+          agingCriticalSisaPcs += sisaPcs;
+          agingCriticalSisaKg += sisaKg;
+          criticalItemsList.push({
+            row: rowNum,
+            po,
+            art,
+            desc,
+            days: aging.days,
+            sisaPcs,
+            sisaKg,
+          });
+        }
+
+        // Over Stock
+        const ovStockP = cleanNum(r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)']);
+        const ovStockK = cleanNum(r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)']);
+        if (ovStockP > 0 || ovStockK > 0) {
+          totalOverStockPcs += ovStockP;
+          totalOverStockKg += ovStockK;
+          confirmedOverStockItems.push({
+            row: rowNum,
+            po,
+            art,
+            desc,
+            pcs: ovStockP,
+            kg: ovStockK,
+          });
+        }
+
+        // Over Kiriman
+        const ovKirimP = cleanNum(r['Over Kiriman (PCS)']);
+        const ovKirimK = cleanNum(r['Over Kiriman (KG)']);
+        if (ovKirimP > 0 || ovKirimK > 0) {
+          totalOverKirimanPcs += ovKirimP;
+          totalOverKirimanKg += ovKirimK;
+          confirmedOverKirimanItems.push({
+            row: rowNum,
+            po,
+            art,
+            desc,
+            pcs: ovKirimP,
+            kg: ovKirimK,
+          });
+        }
+
+        // Prefix Categorization
+        const prefixMatch = art.match(/^([A-Za-z0-9]+)-/);
+        const prefix = prefixMatch ? prefixMatch[1].toUpperCase() : 'LAINNYA';
+        const curPrefix = prefixMap.get(prefix) || { count: 0, sisaPcs: 0, sisaKg: 0, stockPcs: 0 };
+        curPrefix.count++;
+        curPrefix.sisaPcs += sisaPcs;
+        curPrefix.sisaKg += sisaKg;
+        curPrefix.stockPcs += stockPcs;
+        prefixMap.set(prefix, curPrefix);
+
+        // Article Outstanding Tracking
+        if (art !== '-') {
+          const curArt = articleSummaryMap.get(art) || { desc, sisaPcs: 0, sisaKg: 0, stockPcs: 0, poCount: 0 };
+          curArt.sisaPcs += sisaPcs;
+          curArt.sisaKg += sisaKg;
+          curArt.stockPcs += stockPcs;
+          curArt.poCount++;
+          articleSummaryMap.set(art, curArt);
+        }
       });
+
+      // Sort Critical items by days descending
+      criticalItemsList.sort((a, b) => b.days - a.days);
+
+      // Top 5 Highest Outstanding Articles (by Sisa OS kg)
+      const topOutstandingArticles = Array.from(articleSummaryMap.entries())
+        .map(([art, val]) => ({ art, ...val }))
+        .sort((a, b) => b.sisaKg - a.sisaKg)
+        .slice(0, 5);
+
+      // Prefix breakdown text
+      const prefixBreakdownText = Array.from(prefixMap.entries())
+        .map(([pfx, stats]) => `  * Kategori ${pfx}: ${stats.count} PO | Sisa OS: ${stats.sisaPcs.toLocaleString('id-ID')} pcs (${(stats.sisaKg / 1000).toFixed(2)} Ton) | Stok: ${stats.stockPcs.toLocaleString('id-ID')} pcs`)
+        .join('\n');
+
+      // Top 5 Outstanding Text
+      const topOutstandingText = topOutstandingArticles
+        .map((a, i) => `  ${i + 1}. [${a.art}] ${a.desc} -> Sisa OS: ${a.sisaPcs.toLocaleString('id-ID')} pcs (${(a.sisaKg / 1000).toFixed(2)} Ton) | ${a.poCount} PO | Stok: ${a.stockPcs.toLocaleString('id-ID')} pcs`)
+        .join('\n');
+
+      // Top Critical POs Text
+      const topCriticalText = criticalItemsList.slice(0, 8)
+        .map((c) => `  * Baris ${c.row}: [${c.art}] PO: ${c.po} | Umur: ${c.days} Hari | Sisa OS: ${c.sisaPcs.toLocaleString('id-ID')} pcs (${(c.sisaKg / 1000).toFixed(2)} Ton)`)
+        .join('\n');
 
       const overStockListText =
         confirmedOverStockItems.length === 0
-          ? 'TIDAK ADA PO yang Over Stock Gudang (Seluruh 146 PO bernilai 0 pcs).'
+          ? 'TIDAK ADA PO yang Over Stock Gudang (Semua baris bernilai 0 pcs).'
           : confirmedOverStockItems
-              .map((r: any) => {
-                const rowIdx = records.indexOf(r) + 1;
-                const p = r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)'] || 0;
-                const k = r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)'] || 0;
-                return `  * Baris ${rowIdx}: [${r.Artikel}] ${r['Item Description']} | PO: ${r['No PO']} | Over Stock: +${p.toLocaleString('id-ID')} pcs (${k.toLocaleString('id-ID')} kg)`;
-              })
+              .map((r) => `  * Baris ${r.row}: [${r.art}] ${r.desc} | PO: ${r.po} | Over Stock: +${r.pcs.toLocaleString('id-ID')} pcs (${r.kg.toLocaleString('id-ID')} kg)`)
               .join('\n');
 
       const overKirimanListText =
         confirmedOverKirimanItems.length === 0
-          ? 'TIDAK ADA PO yang Over Kiriman (Seluruh PO bernilai 0 pcs).'
+          ? 'TIDAK ADA PO yang Over Kiriman (Semua baris bernilai 0 pcs).'
           : confirmedOverKirimanItems
-              .map((r: any) => {
-                const rowIdx = records.indexOf(r) + 1;
-                const p = r['Over Kiriman (PCS)'] || 0;
-                const k = r['Over Kiriman (KG)'] || 0;
-                return `  * Baris ${rowIdx}: [${r.Artikel}] ${r['Item Description']} | PO: ${r['No PO']} | Over Kiriman SJ: +${p.toLocaleString('id-ID')} pcs (${k.toLocaleString('id-ID')} kg)`;
-              })
+              .map((r) => `  * Baris ${r.row}: [${r.art}] ${r.desc} | PO: ${r.po} | Over Kiriman: +${r.pcs.toLocaleString('id-ID')} pcs (${r.kg.toLocaleString('id-ID')} kg)`)
               .join('\n');
 
-      // Smart Compact Tabular Format (TSV / Pipe format):
-      // Token-efficiency is 300% higher than repetitive JSON keys {"CO": "...", "Artikel": "..."}
-      // Allows AI to read all 146+ rows (up to 1,500 rows) with zero missing items and low token footprint.
-      const maxRowsToInclude = Math.min(records.length, 1200);
-      const rowsToRender = records.slice(0, maxRowsToInclude);
-
-      const tableRowsText = rowsToRender
+      // -------------------------------------------------------------
+      // 4. 100% UNTRUNCATED FULL ERP TABLE (LEAN COMPACT SCHEMA)
+      //    Zero rows dropped, zero records truncated!
+      // -------------------------------------------------------------
+      const tableRowsText = records
         .map((r: any, idx: number) => {
           const rowNum = idx + 1;
-          const co = (r.CO || '').trim();
-          const st = (r.coStatus || '').trim();
-          const art = (r.Artikel || '').trim();
-          const desc = (r['Item Description'] || '').replace(/[\r\n\t]/g, ' ').trim();
-          const po = (r['No PO'] || '').trim();
-          const tgl = (r['Tanggal Input PO'] || '').trim();
-          const qty = r['QTY PO (pcs)'] || 0;
-          const brt = r['Berat PO (KG)'] || 0;
-          const stkP = r['Stock (pcs)'] || 0;
-          const stkK = r['Stock (kg)'] || 0;
-          const osP = r['Sisa OS (pcs)'] || 0;
-          const osK = r['Sisa OS (kg)'] || 0;
-          const krm = r['Terkirim (PCS)'] || 0;
-          const overStockP = r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)'] || 0;
-          const overStockK = r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)'] || 0;
-          const overKirimanP = r['Over Kiriman (PCS)'] || 0;
-          const aging = calculatePoAging(tgl);
+          const co = cleanStr(r.CO);
+          const st = cleanStr(r.coStatus);
+          const art = cleanStr(r.Artikel);
+          const desc = cleanStr(r['Item Description']);
+          const po = cleanStr(r['No PO']);
+          const tgl = cleanDate(r['Tanggal Input PO']);
+          const qty = cleanNum(r['QTY PO (pcs)']);
+          const brt = cleanNum(r['Berat PO (KG)']);
+          const stkP = cleanNum(r['Stock (pcs)']);
+          const stkK = cleanNum(r['Stock (kg)']);
+          const osP = cleanNum(r['Sisa OS (pcs)']);
+          const osK = cleanNum(r['Sisa OS (kg)']);
+          const krm = cleanNum(r['Terkirim (PCS)']);
+          const ovStkP = cleanNum(r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)']);
+          const ovStkK = cleanNum(r['Over Stock Gudang (KG)'] || r['Over Produksi (KG)']);
+          const ovKrmP = cleanNum(r['Over Kiriman (PCS)']);
+          const aging = calculatePoAging(r['Tanggal Input PO']);
           const agingDays = aging.days >= 0 ? `${aging.days}h` : '-';
-          const agingCat = aging.category; // SAFE | FOLLOW_UP | CRITICAL | UNKNOWN
-          return `${rowNum}|${co}|${st}|${art}|${desc}|${po}|${tgl}|${qty}|${brt}|${stkP}|${stkK}|${osP}|${osK}|${krm}|${overStockP}|${overStockK}|${overKirimanP}|${agingDays}|${agingCat}`;
+          const agingCat = aging.category;
+          return `${rowNum}|${co}|${st}|${art}|${desc}|${po}|${tgl}|${qty}|${brt}|${stkP}|${stkK}|${osP}|${osK}|${krm}|${ovStkP}|${ovStkK}|${ovKrmP}|${agingDays}|${agingCat}`;
         })
         .join('\n');
 
       datasetContextText = `
-Nama File Sumber: ${currentFileName || 'Dokumen_Excel.xlsx'}
-Total Baris PO: ${records.length} Baris PO Terbaca Lengkap
-Total Artikel Unik: ${summary.totalUniqueItems || '-'}
-Total PO Status OPEN: ${summary.totalCOOpen || summary.openCount || records.filter((r: any) => r.coStatus === 'OPEN').length}
-Total PO Status CLOSED: ${summary.totalCOClosed || summary.closedCount || records.filter((r: any) => r.coStatus === 'CLOSED').length}
-Total Tonase Sisa OS: ${summary.totalSisaOSKg || summary.totalSisaKg ? ((summary.totalSisaOSKg || summary.totalSisaKg) / 1000).toFixed(2) + ' Ton (' + (summary.totalSisaOSKg || summary.totalSisaKg).toLocaleString() + ' kg)' : '-'}
-Total Pcs Sisa OS: ${summary.totalSisaOSPcs || summary.totalSisaPcs ? (summary.totalSisaOSPcs || summary.totalSisaPcs).toLocaleString() + ' Pcs' : '-'}
-Total Stok Gudang: ${summary.totalStockPcs ? summary.totalStockPcs.toLocaleString() + ' Pcs (' + (summary.totalStockKg || 0).toLocaleString() + ' kg)' : '-'}
-Total Over Stock Gudang: ${summary.totalOverStockGudangPcs || summary.totalOverProduksiPcs || 0} Pcs (${summary.totalOverStockGudangKg || summary.totalOverProduksiKg || 0} kg) - Tersebar di ${confirmedOverStockItems.length} PO
-Total Over Kiriman (SJ): ${summary.totalOverKirimanPcs || 0} Pcs (${summary.totalOverKirimanKg || 0} kg) - Tersebar di ${confirmedOverKirimanItems.length} PO
-Estimasi Valuasi Sisa OS: ${summary.totalValue ? 'Rp ' + summary.totalValue.toLocaleString('id-ID') : '-'}
+=== [INDEX DATA INTERPRETER RESMI - KALKULASI PASTI 100% (GROUND TRUTH)] ===
+Nama File: ${currentFileName || 'Dokumen_Excel.xlsx'}
+Total Baris PO Diimpor: ${records.length} Baris PO (100% UTUH TERSEDIA DI TABEL)
+Total Artikel Unik: ${articleSummaryMap.size || summary.totalUniqueItems || '-'}
 
-RINGKASAN RESMI KATEGORI UMUR PO (AGING PO HASIL KALKULASI SISTEM):
-- Kategori "< 7 Hari (Aman / Baru)": ${agingSafeCount} PO
-- Kategori "8 – 14 Hari (Follow Up)": ${agingFollowUpCount} PO
-- Kategori "> 14 Hari (Kritis / Telat)": ${agingCriticalCount} PO
-(CATATAN MUTLAK: Seluruh pembagian kategori umur di atas adalah hasil hitungan resmi sistem. DILARANG KERAS menghitung manual selisih tanggal kalender atau berasumsi tanggal referensi sendiri. Gunakan Kategori_Umur (SAFE/FOLLOW_UP/CRITICAL) dan Umur_Hari yang ada di tabel.)
+A. STATUS PO & VOLUME:
+- PO Status OPEN: ${openCount} PO | Sisa OS Total: ${openSisaPcs.toLocaleString('id-ID')} pcs (${(openSisaKg / 1000).toFixed(2)} Ton / ${openSisaKg.toLocaleString('id-ID')} kg)
+- PO Status CLOSED: ${closedCount} PO | Volume Selesai: ${closedQtyPcs.toLocaleString('id-ID')} pcs (${(closedBeratKg / 1000).toFixed(2)} Ton)
+- Total Stok Gudang Tersimpan: ${openStockPcs.toLocaleString('id-ID')} pcs (${(openStockKg / 1000).toFixed(2)} Ton)
 
-DAFTAR RESMI ITEM OVER STOCK GUDANG (> 0 PCS):
+B. KESIAPAN PENGIRIMAN GUDANG (READY STOCK):
+- PO Memiliki Stok Siap Kirim (Stock > 0 & Sisa OS > 0): ${readyPoCount} PO
+  * Siap Kirim 100% Tuntas (Stock >= Sisa OS): ${fullyReadyCount} PO
+  * Siap Kirim Sebagian / Parsial: ${partiallyReadyCount} PO
+  * Menunggu Produksi (Stok Gudang = 0 & Sisa OS > 0): ${zeroStockCount} PO
+
+C. UMUR PO (AGING PO RESMI SISTEM):
+- "< 7 Hari (Aman / Baru)": ${agingSafeCount} PO | Sisa OS: ${agingSafeSisaPcs.toLocaleString('id-ID')} pcs (${(agingSafeSisaKg / 1000).toFixed(2)} Ton)
+- "8 – 14 Hari (Follow Up)": ${agingFollowUpCount} PO | Sisa OS: ${agingFollowUpSisaPcs.toLocaleString('id-ID')} pcs (${(agingFollowUpSisaKg / 1000).toFixed(2)} Ton)
+- "> 14 Hari (Kritis / Telat)": ${agingCriticalCount} PO | Sisa OS: ${agingCriticalSisaPcs.toLocaleString('id-ID')} pcs (${(agingCriticalSisaKg / 1000).toFixed(2)} Ton)
+Top PO Paling Kritis (Umur Terpanjang):
+${topCriticalText || '  (Tidak ada PO kritis)'}
+
+D. KELOMPOK ARTIKEL DENGAN OUTSTANDING TERTINGGI (TOP 5 SISA OS):
+${topOutstandingText || '  (Tidak ada)'}
+
+E. DISTRIBUSI KELOMPOK KODE ARTIKEL:
+${prefixBreakdownText || '  (Tidak ada)'}
+
+F. ANOMALI OVER STOCK & OVER KIRIMAN:
+- Over Stock Gudang (> 0 pcs): ${confirmedOverStockItems.length} PO | Total: +${totalOverStockPcs.toLocaleString('id-ID')} pcs (${totalOverStockKg.toLocaleString('id-ID')} kg)
 ${overStockListText}
-(CATATAN MUTLAK: HANYA item-item di atas yang memiliki Over Stock Gudang! Di luar daftar ini, seluruh PO memiliki Over Stock = 0 pcs.)
-
-DAFTAR RESMI ITEM OVER KIRIMAN / SURAT JALAN MELEBIHI PO (> 0 PCS):
+- Over Kiriman Surat Jalan (> 0 pcs): ${confirmedOverKirimanItems.length} PO | Total: +${totalOverKirimanPcs.toLocaleString('id-ID')} pcs (${totalOverKirimanKg.toLocaleString('id-ID')} kg)
 ${overKirimanListText}
-(CATATAN MUTLAK: HANYA item-item di atas yang memiliki Over Kiriman SJ! Di luar daftar ini, seluruh PO memiliki Over Kiriman = 0 pcs.)
 
-Seluruh Data Tabel ERP (Format Padat Kolom: Baris|CO|Status|Kode_Artikel|Deskripsi_Item|No_PO|Tgl_PO|Qty_PO_pcs|Berat_PO_kg|Stok_pcs|Stok_kg|Sisa_OS_pcs|Sisa_OS_kg|Terkirim_pcs|OverStockGudang_pcs|OverStockGudang_kg|OverKiriman_pcs|Umur_Hari|Kategori_Umur):
+=== [TABEL LENGKAP ERP (100% BARIS UTUH - LEAN COMPACT SCHEMA)] ===
+Keterangan Kolom: # (Baris) | CO | Status | Artikel | Deskripsi | PO | Tgl | Qty_pcs | Kg | Stk_pcs | Stk_kg | Os_pcs | Os_kg | Krm_pcs | OvStk_pcs | OvStk_kg | OvKrm_pcs | Umur | Kat
 ${tableRowsText}
-${records.length > maxRowsToInclude ? `\n*(Catatan: Menampilkan ${maxRowsToInclude} dari ${records.length} PO)*` : ''}
 `;
     }
 
     const systemInstruction = `Anda adalah "BlackEYE AI Assistant", asisten cerdas analisis data ERP logistik dan supply chain (dikembangkan oleh Kelvin).
 
+ARSITEKTUR DUAL-LAYER DATA (KECEPATAN MAKSIMAL & 100% AKURASI TANPA HALUSINASI):
+1. LAYER 1: "INDEX DATA INTERPRETER RESMI" (GROUND TRUTH MATEMATIS 100%):
+   - Gunakan data pada bagian Index untuk menjawab pertanyaan agregat, ringkasan, ranking Top 5, volume tonase, kesiapan gudang (Ready Stock), Aging PO, dan anomali.
+   - Angka-angka di Index sudah dihitung dengan presisi kalkulator sistem engine. DILARANG MENGHITUNG ULANG atau memodifikasi angka-angka agregat ini.
+2. LAYER 2: "TABEL LENGKAP ERP (100% BARIS UTUH)":
+   - Seluruh baris data PO diimpor secara utuh 100% (tidak ada satu baris pun yang dipotong).
+   - Gunakan tabel ini untuk pencarian spesifik (nomor PO, nomor CO, kode artikel, pengecekan detail item, perbandingan antar baris, atau pertanyaan multi-kondisi).
+
 PEDOMAN GAYA KOMUNIKASI & JAWABAN (SANGAT PENTING):
-1. TO THE POINT & BEBAS BASA-BASI:
-   - Langsung jawab ke inti data atau pertanyaan pengguna secara singkat, padat, dan jelas.
+1. TO THE POINT & INTERAKTIF LUWES:
+   - Langsung jawab ke inti data atau pertanyaan pengguna secara tajam, berwawasan, dan jelas.
    - JANGAN SELALU MEMPERKENALKAN DIRI: Dilarang keras membuka jawaban dengan "Halo! Saya BlackEYE AI Assistant, develop by Kelvin..." pada setiap percakapan.
    - ATURAN PERKENALAN: Anda HANYA boleh menyapa atau memperkenalkan nama/pembuat ("Halo! Saya BlackEYE AI Assistant, dikembangkan oleh Kelvin") JIKA:
      a) Pengguna memulai dengan sapaan murni (seperti: "Halo", "Hai", "Hi", "Selamat pagi/siang", "P"), ATAU
      b) Pengguna secara spesifik menanyakan identitas (misal: "Siapa kamu?", "Siapa yang membuatmu?", "Kamu siapa?").
-     Selain dua kondisi di atas, LANGSUNG berikan jawaban data yang diminta tanpa kalimat pembuka!
-   - Hindari pengantar bertele-tele seperti "Berdasarkan analisis terhadap data ERP...", "Tentu, saya akan membantu Anda...", atau pengantar panjang lainnya. Langsung tulis ringkasan atau tabelnya.
+     Selain dua kondisi di atas, LANGSUNG berikan jawaban data yang diminta tanpa kalimat basa-basi!
+   - Hindari kalimat pengantar klise seperti "Berdasarkan analisis terhadap data ERP...", "Tentu, saya akan membantu Anda...", dsb. Langsung sampaikan data, tabel, atau poin strategisnya.
 
 2. ATURAN ANTI-HALUSINASI & KETELITIAN DATA 100%:
-   - DILARANG KERAS MENGARANG ATAU MENEBAK DATA: Setiap jawaban harus 100% berakar pada fakta angka di tabel data di bawah.
+   - DILARANG KERAS MENGARANG ATAU MENEBAK DATA: Setiap jawaban harus 100% berakar pada fakta angka di Index dan Tabel data di bawah.
    - JANGAN MENGANGGAP SEMUA STOK SEBAGAI OVER STOCK!
      * PERBEDAAN VITAL: "STOCK READY" vs "OVER STOCK GUDANG":
-       - "STOCK READY": Barang fisik yang ada di gudang (kolom Stok_pcs > 0) untuk memenuhi pesanan yang belum terkirim (kolom Sisa_OS_pcs > 0).
-         Contoh kasus nyata: Artikel "ST-D009-00001-A" (DOUBLE WALL DUMMY) memiliki Stok 100 pcs dan Sisa OS 100 pcs. Ini adalah STOCK READY MURNI (barang pesanan yang siap dikirim), BUKAN OVER STOCK! Kolom OverStockGudang_pcs nya adalah 0. Dilarang menyebut artikel ini sebagai over stock!
-       - "OVER STOCK GUDANG": HANYA berlaku untuk artikel/PO yang memiliki nilai kolom OverStockGudang_pcs > 0 (stok fisik gudang yang melebihi kebutuhan PO Open). Selalu cek "DAFTAR RESMI ITEM OVER STOCK GUDANG" di atas.
-       - "OVER KIRIMAN": HANYA berlaku jika kolom OverKiriman_pcs > 0 (Surat Jalan melebihi kuota PO).
+       - "STOCK READY": Barang fisik yang ada di gudang (kolom Stk_pcs > 0) untuk memenuhi pesanan yang belum terkirim (kolom Os_pcs > 0).
+         Contoh kasus nyata: Artikel "ST-D009-00001-A" memiliki Stok 100 pcs dan Sisa OS 100 pcs. Ini adalah STOCK READY MURNI (barang pesanan yang siap dikirim), BUKAN OVER STOCK! Kolom OvStk_pcs nya adalah 0. Dilarang menyebut artikel ini sebagai over stock!
+       - "OVER STOCK GUDANG": HANYA berlaku untuk artikel/PO yang memiliki nilai kolom OvStk_pcs > 0 (stok fisik gudang yang melebihi kebutuhan PO Open). Selalu cek "DAFTAR ANOMALI OVER STOCK" di atas.
+       - "OVER KIRIMAN": HANYA berlaku jika kolom OvKrm_pcs > 0 (Surat Jalan melebihi kuota PO).
    - JIKA DATA TIDAK DITEMUKAN ATAU ADA DUGAAN BUG / MISSING DATA:
      * Jika pengguna mencari artikel, nomor PO, atau kriteria yang TIDAK DITEMUKAN di dalam data tabel ERP:
        Jawab secara jujur dan lugas: "Data [nama artikel/PO/kriteria] tidak ditemukan dalam dokumen ERP saat ini."
@@ -300,7 +526,7 @@ PEDOMAN GAYA KOMUNIKASI & JAWABAN (SANGAT PENTING):
      * "CRITICAL" = Umur > 14 hari (> 14h Kritis / Telat)
    - DILARANG KERAS menghitung sendiri selisih tanggal kalender atau membuat asumsi tanggal referensi sendiri.
    - Jika pengguna meminta "Analisis Aging PO", "Daftar PO Kritis", "PO Aman", dsb:
-     Gunakan angka resmi dari "RINGKASAN RESMI KATEGORI UMUR PO" dan filter baris berdasarkan kolom "Kategori_Umur" (SAFE/FOLLOW_UP/CRITICAL) atau "Umur_Hari".
+     Gunakan angka resmi dari "INDEX DATA INTERPRETER" dan filter baris berdasarkan kolom "Kat" (SAFE/FOLLOW_UP/CRITICAL) atau "Umur".
 
 4. FORMAT PENYAJIAN DATA:
    - Prioritaskan tabel Markdown yang rapi atau daftar poin tebal (bullet points).
