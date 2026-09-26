@@ -40,6 +40,50 @@ interface AIChatDrawerProps {
 
 type ChatSizeMode = 'mini' | 'compact' | 'wide' | 'fullscreen';
 
+/**
+ * Minimalist typing animation loop indicator for "Private API Key"
+ * Compact, non-intrusive, and seamlessly animated.
+ */
+const TypingPrivateApiKey: React.FC = () => {
+  const fullText = 'Private API Key';
+  const [displayedText, setDisplayedText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+
+    if (!isDeleting && displayedText === fullText) {
+      // Pause at full text for 3.2 seconds so user can read comfortably
+      timer = setTimeout(() => setIsDeleting(true), 3200);
+    } else if (isDeleting && displayedText === '') {
+      // Short pause before typing again
+      timer = setTimeout(() => setIsDeleting(false), 500);
+    } else {
+      const speed = isDeleting ? 40 : 80;
+      timer = setTimeout(() => {
+        setDisplayedText((prev) =>
+          isDeleting
+            ? fullText.substring(0, prev.length - 1)
+            : fullText.substring(0, prev.length + 1)
+        );
+      }, speed);
+    }
+
+    return () => clearTimeout(timer);
+  }, [displayedText, isDeleting]);
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-[9px] font-mono font-medium text-emerald-700 tracking-tight shrink-0 select-none shadow-2xs"
+      title="Private API Key Anda sedang aktif (kuota terisolasi milik pribadi)"
+    >
+      <span className="w-1 h-1 rounded-full bg-emerald-500 animate-ping shrink-0" />
+      <span className="whitespace-nowrap">{displayedText}</span>
+      <span className="w-[1px] h-2 bg-emerald-600 animate-pulse shrink-0" />
+    </span>
+  );
+};
+
 export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   isOpen,
   onClose,
@@ -567,11 +611,12 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 <Bot className="w-4 h-4" />
               </div>
               <div className="min-w-0 truncate">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                   <h3 className="text-xs sm:text-sm font-bold tracking-tight text-[#000013] truncate">
                     BlackEYE AI
                   </h3>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                  {customApiKey && <TypingPrivateApiKey />}
                 </div>
                 <div className="text-[10px] text-[#5C5C68] truncate">
                   Asisten ERP SYMIX & Logistik
@@ -754,6 +799,20 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 >
                   {savedKeySuccess ? 'Tersimpan!' : 'Simpan'}
                 </button>
+                {customApiKey && (
+                  <button
+                    type="button"
+                    id="btn-reset-custom-api-key"
+                    onClick={() => {
+                      setCustomApiKey('');
+                      handleSaveCustomKey('');
+                    }}
+                    className="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200/80 rounded-xl text-xs font-semibold cursor-pointer shrink-0 transition-colors"
+                    title="Hapus API Key kustom dan kembali ke default"
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
             </div>
           )}
