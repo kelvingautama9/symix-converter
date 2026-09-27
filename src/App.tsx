@@ -25,6 +25,8 @@ import { DataTable } from './components/DataTable';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { ParserRulesModal } from './components/ParserRulesModal';
 import { AIChatDrawer } from './components/AIChatDrawer';
+import { LanguageSwitcher } from './components/LanguageSwitcher';
+import { useLanguage } from './i18n/LanguageContext';
 import {
   FileSpreadsheet,
   CheckCircle2,
@@ -37,6 +39,7 @@ import {
 import confetti from 'canvas-confetti';
 
 export default function App() {
+  const { t } = useLanguage();
   // All converted files state
   const [convertedFiles, setConvertedFiles] = useState<ConvertedFileItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
@@ -414,16 +417,21 @@ export default function App() {
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
                 <h1 className="text-xs sm:text-sm md:text-base font-bold tracking-tight text-[#17191D] truncate">
-                  BLACKEYE - SYMIX STOCK CONVERTER
+                  {t.appTitle}
                 </h1>
                 <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/25 text-[#EA5413] text-[9px] sm:text-[10px] font-mono font-semibold rounded-full tracking-wider shrink-0">
-                  BROWSER_V2.0
+                  {t.browserBadge}
                 </span>
               </div>
               <p className="text-[10px] sm:text-[11px] text-[#5C6068] hidden sm:block truncate">
-                Tools Rekapitulasi Stock & Sisa Order Status (OS) Customer
+                {t.appSubtitle}
               </p>
             </div>
+          </div>
+
+          {/* Right Header Navigation & Language Switcher */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+            <LanguageSwitcher />
           </div>
         </div>
       </header>

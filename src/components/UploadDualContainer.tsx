@@ -8,6 +8,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface UploadDualContainerProps {
   onSingleFileSelected: (file: File) => void;
@@ -26,6 +27,7 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
   loadingProgress,
   errorMessage,
 }) => {
+  const { t } = useLanguage();
   const [isDragSingle, setIsDragSingle] = useState(false);
   const [isDragMulti, setIsDragMulti] = useState(false);
 
@@ -170,9 +172,9 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 mb-3">
               <span className="px-2.5 py-0.5 bg-zinc-200/60 text-zinc-700 text-[11px] font-medium rounded-full border border-white/60">
-                Single Convert
+                {t.singleConvertTitle}
               </span>
-              <span className="text-[11px] font-mono text-zinc-400 font-medium">1 FILE</span>
+              <span className="text-[11px] font-mono text-zinc-400 font-medium">{t.singleConvertTag}</span>
             </div>
 
             <div className="w-12 h-12 rounded-2xl glass-card flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-zinc-700 shadow-sm">
@@ -180,10 +182,10 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
             </div>
 
             <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#1E2024]">
-              Konversi 1 File
+              {t.singleConvertTitle}
             </h3>
             <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-              Upload 1 file mentah untuk langsung dilihat dan dianalisis detail.
+              {t.singleConvertDesc}
             </p>
           </div>
 
@@ -200,7 +202,7 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
               className="w-full liquid-glass-clear inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider cursor-pointer disabled:opacity-50"
             >
               <Upload className="w-3.5 h-3.5 text-zinc-600" />
-              <span>Pilih 1 File</span>
+              <span>{t.singleConvertBtn}</span>
             </button>
 
             <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C6068]">
@@ -208,10 +210,10 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
                 .xlsx / .xls
               </span>
               <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80">
-                Maks. 50MB
+                {t.fileLimits}
               </span>
               <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80">
-                Pratinjau Langsung
+                {t.instantPreview}
               </span>
             </div>
           </div>
@@ -251,10 +253,10 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
           <div className="relative z-10">
             <div className="flex items-center justify-between gap-2 mb-3">
               <span className="px-2.5 py-0.5 bg-[#EA5413]/10 text-[#EA5413] text-[11px] font-semibold rounded-full border border-[#EA5413]/20">
-                Multi Convert
+                {t.multiConvertTitle}
               </span>
               <span className="text-[11px] font-mono text-[#EA5413]/70 font-semibold">
-                BANYAK FILE
+                {t.multiConvertTag}
               </span>
             </div>
 
@@ -263,10 +265,10 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
             </div>
 
             <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#1E2024]">
-              Konversi Banyak File
+              {t.multiConvertTitle}
             </h3>
             <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-              Upload banyak file sekaligus tanpa batas untuk auto-convert.
+              {t.multiConvertDesc}
             </p>
           </div>
 
@@ -283,18 +285,18 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
               className="w-full liquid-glass-primary inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider cursor-pointer disabled:opacity-50"
             >
               <Files className="w-3.5 h-3.5 text-white" />
-              <span>Pilih Banyak File</span>
+              <span>{t.multiConvertBtn}</span>
             </button>
 
             <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C5C68]">
               <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90 font-semibold text-[#19719C]">
-                Tanpa Batas
+                {t.parallelProcessing}
               </span>
               <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90">
-                Unduh Semua (.zip)
+                {t.downloadZipBtn}
               </span>
               <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90">
-                Master Gabungan
+                {t.mergeMasterBtn}
               </span>
             </div>
           </div>

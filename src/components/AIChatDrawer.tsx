@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import {
@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { ExtractedRecord, ParseSummary } from '../types';
 import { haptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface Message {
   id: string;
@@ -93,6 +94,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
   summary,
   currentFileName,
 }) => {
+  const { t, language } = useLanguage();
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
@@ -332,6 +334,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
           dataContext: data && data.length > 0 ? { records: data, summary } : null,
           currentFileName: currentFileName || null,
           stream: true, // Enable SSE streaming for fastest TTFT (~200ms)
+          language,
         }),
       });
 
@@ -584,16 +587,14 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
     }
   };
 
-  const quickPrompts = [
-    'Analisis Aging PO (< 7h, 8-14h, > 14h)',
-    'Daftar ukuran semua artikel',
-    'Rekap PO dengan status OPEN',
-    'Cek artikel yang memiliki Stok Ready gudang',
-    'Berapa total Sisa OS (kg & pcs)?',
-    'Bandingkan artikel SH- vs ST- vs BX- vs DC-',
-    'Tampilkan tabel rincian lengkap per PO',
-    'Daftar PO yang ada pengiriman parsial (P26)',
-  ];
+  const quickPrompts = useMemo(() => {
+    return [
+      t.aiSuggestedPrompt1,
+      t.aiSuggestedPrompt2,
+      t.aiSuggestedPrompt3,
+      t.aiSuggestedPrompt4,
+    ];
+  }, [t]);
 
   // Dynamic classes for drawer size modes
   const getContainerSizeClasses = () => {
@@ -1228,7 +1229,7 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
                 id="input-ai-chat-query"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Tanyakan apa saja tentang data tabel ERP..."
+                placeholder={t.aiInputPlaceholder}
                 disabled={isLoading}
                 className="w-full px-4 py-2.5 bg-white/80 backdrop-blur-md border border-white/90 rounded-full text-xs font-mono text-[#000013] placeholder-[#5C5C68]/60 focus:outline-none focus:ring-2 focus:ring-[#19719C]/30 focus:border-[#19719C] focus:bg-white shadow-2xs transition-all"
               />
@@ -1237,10 +1238,11 @@ export const AIChatDrawer: React.FC<AIChatDrawerProps> = ({
               type="submit"
               id="btn-ai-chat-send"
               disabled={isLoading || !input.trim()}
-              className="liquid-glass-primary px-4 sm:px-5 py-2.5 text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+              className="liquid-glass-primary px-4 sm:px-5 py-2.5 text-xs font-semibold tracking-wider flex items-center gap-1.5 transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+              title={t.aiSendTooltip}
             >
               <Send className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Kirim</span>
+              <span>{t.aiSendTooltip}</span>
             </button>
           </form>
         </div>

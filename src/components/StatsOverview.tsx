@@ -1,6 +1,7 @@
 import React from 'react';
 import { ParseSummary } from '../types';
 import { Package, ShoppingBag, Warehouse, TrendingUp, CheckCircle, Clock } from 'lucide-react';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface StatsOverviewProps {
   summary: ParseSummary;
@@ -29,6 +30,7 @@ const formatIndonesianCurrency = (value: number): string => {
 };
 
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
+  const { t } = useLanguage();
   const fulfillmentPct =
     summary.totalQtyOrderPcs > 0
       ? Math.round(
@@ -59,7 +61,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
       >
         <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">Total PO</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.totalPoCard}</span>
           <div className="w-7 h-7 rounded-lg bg-zinc-100/90 border border-zinc-200/50 flex items-center justify-center text-zinc-600 shrink-0">
             <ShoppingBag className="w-3.5 h-3.5" />
           </div>
@@ -70,7 +72,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
           </div>
           <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
             <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.totalUniqueItems || summary.totalPOs} unique artikel
+              {summary.totalUniqueItems || summary.totalPOs} unique
             </div>
             <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar">
               <span
@@ -104,11 +106,11 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         <div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none flex items-baseline gap-1">
             <span>{summary.totalQtyOrderPcs.toLocaleString('id-ID')}</span>
-            <span className="text-xs font-normal text-[#5C6068]">pcs</span>
+            <span className="text-xs font-normal text-[#5C6068]">{t.unitPcs}</span>
           </div>
           <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
             <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.totalBeratOrderKg.toLocaleString('id-ID')} kg bobot
+              {summary.totalBeratOrderKg.toLocaleString('id-ID')} kg
             </div>
             <div className="flex items-center">
               <span className="px-2 py-0.5 bg-zinc-100/80 text-zinc-600 border border-zinc-200/60 rounded-full font-medium font-mono text-[10px] whitespace-nowrap">
@@ -125,7 +127,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         className="glass-panel-warm rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/95 shadow-2xs"
       >
         <div className="flex items-center justify-between text-[#EA5413] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider truncate">Sisa OS Kirim</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider truncate">{t.sisaOSCard}</span>
           <div className="w-7 h-7 rounded-lg bg-[#EA5413]/10 border border-[#EA5413]/20 flex items-center justify-center text-[#EA5413] shrink-0">
             <Clock className="w-3.5 h-3.5" />
           </div>
@@ -133,15 +135,15 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         <div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-[#EA5413] tracking-tight leading-none flex items-baseline gap-1">
             <span>{summary.totalSisaOSPcs.toLocaleString('id-ID')}</span>
-            <span className="text-xs font-normal text-[#EA5413]/70">pcs</span>
+            <span className="text-xs font-normal text-[#EA5413]/70">{t.unitPcs}</span>
           </div>
           <div className="mt-2.5 pt-2 border-t border-[#EA5413]/15 flex flex-col gap-1">
             <div className="text-[11px] font-mono text-[#EA5413]/90 font-medium truncate">
-              {summary.totalSisaOSKg.toLocaleString('id-ID')} kg sisa
+              {summary.totalSisaOSKg.toLocaleString('id-ID')} kg
             </div>
             <div className="flex items-center">
               <span className="px-2 py-0.5 bg-amber-500/15 text-[#EA5413] border border-amber-500/25 rounded-full font-bold font-mono text-[10px] whitespace-nowrap">
-                {100 - fulfillmentPct}% Belum Kirim
+                {100 - fulfillmentPct}% {t.outstandingRate}
               </span>
             </div>
           </div>
@@ -154,7 +156,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
       >
         <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">Stock Gudang</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.stockGudangCard}</span>
           <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200/50 flex items-center justify-center text-indigo-600 shrink-0">
             <Warehouse className="w-3.5 h-3.5" />
           </div>
@@ -162,20 +164,20 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         <div>
           <div className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none flex items-baseline gap-1">
             <span>{summary.totalStockPcs.toLocaleString('id-ID')}</span>
-            <span className="text-xs font-normal text-[#5C6068]">pcs</span>
+            <span className="text-xs font-normal text-[#5C6068]">{t.unitPcs}</span>
           </div>
           <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
             <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.totalStockKg.toLocaleString('id-ID')} kg inventory
+              {summary.totalStockKg.toLocaleString('id-ID')} kg
             </div>
             <div className="flex items-center">
               {overStockPcs > 0 ? (
                 <span
                   className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-500/10 text-indigo-700 border border-indigo-500/25 rounded-full text-[10px] font-bold font-mono whitespace-nowrap truncate max-w-full"
-                  title={`Kelebihan stok fisik di gudang di atas PO Open: ${overStockPcs.toLocaleString('id-ID')} pcs (${overStockKg.toLocaleString('id-ID')} kg). Butuh penawaran sales ke customer.`}
+                  title={`Over Stock: ${overStockPcs.toLocaleString('id-ID')} pcs (${overStockKg.toLocaleString('id-ID')} kg).`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                  <span className="truncate">+{overStockPcs.toLocaleString('id-ID')} pcs ({overStockKg.toLocaleString('id-ID')} kg) Over</span>
+                  <span className="truncate">+{overStockPcs.toLocaleString('id-ID')} pcs Over</span>
                 </span>
               ) : (
                 <span className="px-2 py-0.5 bg-zinc-100/80 text-zinc-500 border border-zinc-200/60 rounded-full font-medium font-mono text-[10px] whitespace-nowrap">
@@ -193,7 +195,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
       >
         <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">Total Terkirim</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.terkirimCard}</span>
           <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200/50 flex items-center justify-center text-emerald-600 shrink-0">
             <CheckCircle className="w-3.5 h-3.5" />
           </div>
@@ -206,7 +208,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
                 summary.totalQtyOrderPcs - summary.totalSisaOSPcs
               ).toLocaleString('id-ID')}
             </span>
-            <span className="text-xs font-normal text-[#5C6068]">pcs</span>
+            <span className="text-xs font-normal text-[#5C6068]">{t.unitPcs}</span>
           </div>
           <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
             <div className="text-[11px] font-mono text-[#5C6068] truncate">
@@ -220,10 +222,10 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
               {overKirimanPcs > 0 ? (
                 <span
                   className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-500/15 text-teal-800 border border-teal-500/30 rounded-full text-[10px] font-bold font-mono whitespace-nowrap truncate max-w-full"
-                  title={`Kuantitas pengiriman Surat Jalan melebihi PO: ${overKirimanPcs.toLocaleString('id-ID')} pcs (${overKirimanKg.toLocaleString('id-ID')} kg).`}
+                  title={`Over Kiriman: ${overKirimanPcs.toLocaleString('id-ID')} pcs (${overKirimanKg.toLocaleString('id-ID')} kg).`}
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-teal-600 shrink-0" />
-                  <span className="truncate">+{overKirimanPcs.toLocaleString('id-ID')} pcs ({overKirimanKg.toLocaleString('id-ID')} kg) Over</span>
+                  <span className="truncate">+{overKirimanPcs.toLocaleString('id-ID')} pcs Over</span>
                 </span>
               ) : (
                 <div className="w-full bg-zinc-200/70 rounded-full h-1.5 overflow-hidden my-0.5">
@@ -244,7 +246,7 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
         className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
       >
         <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">Valuasi Sisa</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.valuasiOSCard}</span>
           <div className="w-7 h-7 rounded-lg bg-zinc-100/90 border border-zinc-200/50 flex items-center justify-center text-zinc-600 shrink-0">
             <TrendingUp className="w-3.5 h-3.5" />
           </div>
@@ -258,11 +260,11 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
           </div>
           <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
             <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.itemsWithDelivery} item parsial
+              {summary.itemsWithDelivery} items
             </div>
             <div className="flex items-center">
               <span className="px-2 py-0.5 bg-zinc-100/80 text-zinc-600 border border-zinc-200/60 rounded-full font-medium font-mono text-[10px] whitespace-nowrap">
-                Estimasi Nominal
+                Estimasi
               </span>
             </div>
           </div>
@@ -271,3 +273,4 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
     </div>
   );
 };
+

@@ -19,6 +19,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface WhatsAppModalProps {
   isOpen: boolean;
@@ -37,6 +38,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
   initialScope = 'ALL',
   initialMode = 'EXCEL_FILE',
 }) => {
+  const { t } = useLanguage();
   const [activeScope, setActiveScope] = useState<WhatsAppReportScope>(initialScope);
   const [activeMode, setActiveMode] = useState<'EXCEL_FILE' | 'TEXT_SUMMARY'>(initialMode);
   const [isCopied, setIsCopied] = useState(false);
@@ -196,17 +198,17 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
             </div>
             <div>
               <h3 className="text-sm sm:text-base font-bold tracking-tight text-[#1E2024]">
-                Kirim Laporan ke WhatsApp
+                {t.waModalTitle}
               </h3>
               <p className="text-[11px] sm:text-xs text-[#5C6068]">
-                Pilih format pengiriman: File Excel .xlsx atau Ringkasan Teks
+                {t.waModalSubtitle}
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
             className="liquid-glass-clear p-1.5 rounded-full text-zinc-500 hover:text-zinc-900 cursor-pointer"
-            aria-label="Tutup modal"
+            aria-label={t.closeBtn}
           >
             <X className="w-4 h-4" />
           </button>
@@ -226,10 +228,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
               }`}
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
-              <span className="truncate">File Excel (.xlsx)</span>
-              <span className="hidden sm:inline text-[10px] uppercase px-1.5 py-0.2 bg-emerald-100/80 text-emerald-800 rounded-full font-mono font-bold">
-                Hanya File
-              </span>
+              <span className="truncate">{t.waFormatFile}</span>
             </button>
 
             <button
@@ -243,10 +242,7 @@ export const WhatsAppModal: React.FC<WhatsAppModalProps> = ({
               }`}
             >
               <MessageSquare className="w-4 h-4 text-emerald-500" />
-              <span className="truncate">Ringkasan Teks</span>
-              <span className="hidden sm:inline text-[10px] uppercase px-1.5 py-0.2 bg-zinc-200/80 text-zinc-700 rounded-full font-mono font-bold">
-                Pesan Chat
-              </span>
+              <span className="truncate">{t.waFormatText}</span>
             </button>
           </div>
         </div>

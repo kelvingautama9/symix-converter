@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export interface ConvertedFileItem {
   id: string;
@@ -49,6 +50,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
   isZipping = false,
   isMerging = false,
 }) => {
+  const { t } = useLanguage();
   const addFileInputRef = useRef<HTMLInputElement>(null);
 
   const activeIndex = files.findIndex((f) => f.id === activeFileId);
@@ -84,7 +86,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               htmlFor="active-file-dropdown"
               className="text-xs font-semibold text-[#1E2024] tracking-wide whitespace-nowrap"
             >
-              Pilih File:
+              {t.activeDocument}:
             </label>
           </div>
 
@@ -102,7 +104,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
                 const poCount = file.data ? file.data.length : 0;
                 return (
                   <option key={file.id} value={file.id} className="bg-white text-[#1E2024]">
-                    {idx + 1}. {file.rawFileName} ({poCount} PO)
+                    {idx + 1}. {file.rawFileName} ({poCount} {t.unitPo})
                   </option>
                 );
               })}
@@ -112,7 +114,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
 
           {files.length > 1 && (
             <span className="text-[11px] font-mono text-[#5C6068] shrink-0 hidden sm:inline">
-              {activeIndex + 1} dari {files.length} File
+              {activeIndex + 1} {t.of} {files.length}
             </span>
           )}
         </div>
@@ -131,7 +133,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
             title="Download file Excel yang sedang dipilih"
           >
             <Download className="w-3.5 h-3.5" />
-            <span>Unduh Excel</span>
+            <span>{t.exportExcelBtn}</span>
           </button>
 
           {/* Download All as ZIP (if multiple files) */}
@@ -145,7 +147,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               title="Unduh seluruh file hasil konversi dalam 1 arsip .zip"
             >
               <FolderArchive className="w-3.5 h-3.5 text-[#19719C]" />
-              <span>{isZipping ? 'Mengompres...' : 'Unduh Zip'}</span>
+              <span>{isZipping ? t.processingMsg : t.downloadZipBtn}</span>
             </button>
           )}
 
@@ -160,7 +162,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               title="Gabungkan semua file menjadi 1 file Excel master"
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isMerging ? 'Menggabung...' : 'Gabung Master'}</span>
+              <span>{isMerging ? t.processingMsg : t.mergeMasterBtn}</span>
             </button>
           )}
 

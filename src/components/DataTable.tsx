@@ -25,6 +25,7 @@ import {
 import { haptic } from '../utils/haptics';
 import { recalculateFIFOStock } from '../utils/parserEngine';
 import { calculatePoAging, parsePoDate } from '../utils/agingUtils';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export type AgingFilterOption = 'ALL' | 'SAFE' | 'FOLLOW_UP' | 'CRITICAL';
 
@@ -107,6 +108,7 @@ interface DataTableProps {
 }
 
 export const DataTable: React.FC<DataTableProps> = ({ data }) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [coFilter, setCoFilter] = useState<CoFilterStatus>('ALL');
   const [filterStatus, setFilterStatus] = useState<FilterStatus>('ALL');
@@ -426,6 +428,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         sisaOsKg: false,
         terkirimPcs: true,
         terkirimKg: false,
+        overStockGudangPcs: false,
+        overStockGudangKg: false,
+        overKirimanPcs: false,
+        overKirimanKg: false,
         harga: false,
       });
     } else if (preset === 'logistics') {
@@ -444,6 +450,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         sisaOsKg: true,
         terkirimPcs: true,
         terkirimKg: true,
+        overStockGudangPcs: true,
+        overStockGudangKg: true,
+        overKirimanPcs: true,
+        overKirimanKg: true,
         harga: false,
       });
     } else if (preset === 'financial') {
@@ -462,6 +472,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         sisaOsKg: false,
         terkirimPcs: false,
         terkirimKg: false,
+        overStockGudangPcs: false,
+        overStockGudangKg: false,
+        overKirimanPcs: false,
+        overKirimanKg: false,
         harga: true,
       });
     }
@@ -555,7 +569,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 setSearchTerm(e.target.value);
                 setCurrentPage(1);
               }}
-              placeholder="Search PO, CO, Item, Description, Substance..."
+              placeholder={t.searchPlaceholder}
               className="w-full pl-9 pr-8 py-2 bg-white/80 border border-white/90 rounded-full text-xs font-mono text-[#1E2024] placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FF7B35]/40 shadow-sm min-h-[38px] transition-all"
             />
             {searchTerm && (
@@ -1152,7 +1166,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
             {paginatedData.length === 0 ? (
               <tr>
                 <td colSpan={visibleColumnCount} className="py-12 text-center text-[#5C6068] font-sans font-medium">
-                  Tidak ada data yang sesuai dengan filter atau pencarian saat ini.
+                  {t.noMatchingRecords}
                 </td>
               </tr>
             ) : (
@@ -1410,13 +1424,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
         <div className="flex items-center gap-2 flex-wrap text-center sm:text-left text-[11px] sm:text-xs">
           {isUnlimited ? (
             <span className="font-semibold text-[#1E2024]">
-              Menampilkan semua <span className="font-bold">{filteredData.length}</span> PO Records (Tanpa Limit)
+              {t.showing} <span className="font-bold">{filteredData.length}</span> {t.entries}
             </span>
           ) : (
             <span>
-              Menampilkan baris <span className="font-bold text-[#1E2024]">{filteredData.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}</span> -{' '}
-              <span className="font-bold text-[#1E2024]">{Math.min(currentPage * effectivePageSize, filteredData.length)}</span> dari{' '}
-              <span className="font-bold text-[#1E2024]">{filteredData.length}</span> PO
+              {t.showing} <span className="font-bold text-[#1E2024]">{filteredData.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}</span> -{' '}
+              <span className="font-bold text-[#1E2024]">{Math.min(currentPage * effectivePageSize, filteredData.length)}</span> {t.of}{' '}
+              <span className="font-bold text-[#1E2024]">{filteredData.length}</span> {t.unitPo}
             </span>
           )}
 

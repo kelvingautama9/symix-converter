@@ -3,12 +3,14 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ParseSummary } from '../types';
 import { PieChart as PieChartIcon, CheckCircle2, Clock, ChevronUp, ChevronDown } from 'lucide-react';
 import { haptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface DeliveryPieChartProps {
   summary: ParseSummary;
 }
 
 export const DeliveryPieChart: React.FC<DeliveryPieChartProps> = ({ summary }) => {
+  const { t } = useLanguage();
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const terkirimKg =
@@ -79,7 +81,7 @@ export const DeliveryPieChart: React.FC<DeliveryPieChartProps> = ({ summary }) =
           </div>
           <div className="flex items-baseline gap-2 truncate">
             <h3 className="text-xs sm:text-sm font-bold tracking-tight text-[#1E2024] truncate">
-              Rasio Pengiriman (Terkirim vs Sisa OS)
+              {t.deliveryChartTitle}
             </h3>
           </div>
         </div>

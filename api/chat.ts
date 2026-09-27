@@ -58,7 +58,7 @@ function calculatePoAging(dateStr: string | null | undefined, refDate: Date = ne
 // While in cooldown, requests SKIP that model immediately (0ms delay) and directly use healthy models.
 // As soon as the cooldown window expires, the model is tested again automatically!
 const modelCooldownUntil = new Map<string, number>();
-let lastSuccessfulModel: string = 'gemini-3.5-flash-lite';
+let lastSuccessfulModel: string = 'gemini-3.6-flash';
 
 function markModelCooldown(modelName: string, errorString: string) {
   // Optimal cooldown durations:
@@ -124,7 +124,16 @@ export default async function handler(req: any, res: any) {
   const isStreamRequest = req.body?.stream !== false; // Default to streaming SSE for fastest TTFT
 
   try {
-    const { message, history = [], dataContext, currentFileName } = req.body || {};
+    const { message, history = [], dataContext, currentFileName, language = 'id' } = req.body || {};
+
+    const langNameMap: Record<string, string> = {
+      id: 'Bahasa Indonesia',
+      en: 'English',
+      th: 'ภาษาไทย (Thai)',
+      zh: '中文 (Chinese / Mandarin)',
+      ja: '日本語 (Japanese)',
+    };
+    const targetLanguageName = langNameMap[language] || 'Bahasa Indonesia';
 
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message tidak boleh kosong.' });
@@ -184,6 +193,17 @@ export default async function handler(req: any, res: any) {
       // 2. DATA INTERPRETER ENGINE (Pre-Computed Aggregation Index)
       //    100% Deterministic Ground Truth - 0% Calculation Hallucination
       // -------------------------------------------------------------
+      // A. GRAND TOTAL SELURUH BARIS FILE ERP (Sesuai Dashboard & Excel)
+      let grandTotalStockPcs = 0;
+      let grandTotalStockKg = 0;
+      let grandTotalQtyPcs = 0;
+      let grandTotalBeratKg = 0;
+      let grandTotalSisaPcs = 0;
+      let grandTotalSisaKg = 0;
+      let grandTotalTerkirimPcs = 0;
+      let grandTotalTerkirimKg = 0;
+
+      // B. BREAKDOWN STATUS PO
       let openCount = 0;
       let openQtyPcs = 0;
       let openBeratKg = 0;
@@ -192,11 +212,17 @@ export default async function handler(req: any, res: any) {
       let openStockPcs = 0;
       let openStockKg = 0;
       let openTerkirimPcs = 0;
+      let openTerkirimKg = 0;
 
       let closedCount = 0;
       let closedQtyPcs = 0;
       let closedBeratKg = 0;
+      let closedSisaPcs = 0;
+      let closedSisaKg = 0;
+      let closedStockPcs = 0;
+      let closedStockKg = 0;
       let closedTerkirimPcs = 0;
+      let closedTerkirimKg = 0;
 
       let agingSafeCount = 0;
       let agingSafeSisaPcs = 0;
@@ -220,7 +246,21 @@ export default async function handler(req: any, res: any) {
         sisaKg: number;
       }> = [];
 
-      let readyPoCount = 0;
+      // C. READY STOCK DETAIL LIST (PO dengan Stok Siap Kirim)
+      const readyStockItemsList: Array<{
+        row: number;
+        po: string;
+        art: string;
+        desc: string;
+        qtyPcs: number;
+        stockPcs: number;
+        stockKg: number;
+        sisaPcs: number;
+        sisaKg: number;
+        readiness: string;
+      }> = [];
+      let totalReadyStockPcs = 0;
+      let totalReadyStockKg = 0;
       let fullyReadyCount = 0;
       let partiallyReadyCount = 0;
       let zeroStockCount = 0;
@@ -248,7 +288,16 @@ export default async function handler(req: any, res: any) {
       let totalOverKirimanKg = 0;
 
       const prefixMap = new Map<string, { count: number; sisaPcs: number; sisaKg: number; stockPcs: number }>();
-      const articleSummaryMap = new Map<string, { desc: string; sisaPcs: number; sisaKg: number; stockPcs: number; poCount: number }>();
+      const articleSummaryMap = new Map<string, {
+        desc: string;
+        sisaPcs: number;
+        sisaKg: number;
+        stockPcs: number;
+        stockKg: number;
+        qtyPcs: number;
+        poCount: number;
+        poNumbers: Set<string>;
+      }>();
 
       // -------------------------------------------------------------
       // 3. EXECUTE ENGINE ON 100% OF ROWS (Zero Truncation)
@@ -263,10 +312,21 @@ export default async function handler(req: any, res: any) {
         const stockPcs = cleanNum(r['Stock (pcs)']);
         const stockKg = cleanNum(r['Stock (kg)']);
         const terkirimPcs = cleanNum(r['Terkirim (PCS)']);
+        const terkirimKg = cleanNum(r['Terkirim (KG)']);
         const tgl = r['Tanggal Input PO'];
         const art = cleanStr(r.Artikel);
         const desc = cleanStr(r['Item Description']);
         const po = cleanStr(r['No PO']);
+
+        // Accumulate Grand Total Across ALL Rows
+        grandTotalStockPcs += stockPcs;
+        grandTotalStockKg += stockKg;
+        grandTotalQtyPcs += qtyPcs;
+        grandTotalBeratKg += beratKg;
+        grandTotalSisaPcs += sisaPcs;
+        grandTotalSisaKg += sisaKg;
+        grandTotalTerkirimPcs += terkirimPcs;
+        grandTotalTerkirimKg += terkirimKg;
 
         // Status-based indexing
         if (status === 'OPEN') {
@@ -278,15 +338,31 @@ export default async function handler(req: any, res: any) {
           openStockPcs += stockPcs;
           openStockKg += stockKg;
           openTerkirimPcs += terkirimPcs;
+          openTerkirimKg += terkirimKg;
 
-          // Warehouse readiness
+          // Warehouse readiness on OPEN POs
           if (stockPcs > 0 && sisaPcs > 0) {
-            readyPoCount++;
-            if (stockPcs >= sisaPcs) {
+            const isFull = stockPcs >= sisaPcs;
+            if (isFull) {
               fullyReadyCount++;
             } else {
               partiallyReadyCount++;
             }
+            totalReadyStockPcs += stockPcs;
+            totalReadyStockKg += stockKg;
+
+            readyStockItemsList.push({
+              row: rowNum,
+              po,
+              art,
+              desc,
+              qtyPcs,
+              stockPcs,
+              stockKg,
+              sisaPcs,
+              sisaKg,
+              readiness: isFull ? 'SIAP 100% (Stok >= Sisa OS)' : 'PARSIAL (Stok < Sisa OS)',
+            });
           } else if (stockPcs === 0 && sisaPcs > 0) {
             zeroStockCount++;
           }
@@ -294,7 +370,12 @@ export default async function handler(req: any, res: any) {
           closedCount++;
           closedQtyPcs += qtyPcs;
           closedBeratKg += beratKg;
+          closedSisaPcs += sisaPcs;
+          closedSisaKg += sisaKg;
+          closedStockPcs += stockPcs;
+          closedStockKg += stockKg;
           closedTerkirimPcs += terkirimPcs;
+          closedTerkirimKg += terkirimKg;
         }
 
         // Aging calculation
@@ -364,23 +445,77 @@ export default async function handler(req: any, res: any) {
         curPrefix.stockPcs += stockPcs;
         prefixMap.set(prefix, curPrefix);
 
-        // Article Outstanding Tracking
+        // Article Tracking with dimensions & metrics
         if (art !== '-') {
-          const curArt = articleSummaryMap.get(art) || { desc, sisaPcs: 0, sisaKg: 0, stockPcs: 0, poCount: 0 };
+          const curArt = articleSummaryMap.get(art) || {
+            desc,
+            sisaPcs: 0,
+            sisaKg: 0,
+            stockPcs: 0,
+            stockKg: 0,
+            qtyPcs: 0,
+            poCount: 0,
+            poNumbers: new Set<string>(),
+          };
           curArt.sisaPcs += sisaPcs;
           curArt.sisaKg += sisaKg;
           curArt.stockPcs += stockPcs;
+          curArt.stockKg += stockKg;
+          curArt.qtyPcs += qtyPcs;
           curArt.poCount++;
+          if (po !== '-') curArt.poNumbers.add(po);
           articleSummaryMap.set(art, curArt);
         }
       });
 
+      // Synchronize with summary from frontend if available
+      const officialTotalStockKg = summary.totalStockKg !== undefined ? summary.totalStockKg : grandTotalStockKg;
+      const officialTotalStockPcs = summary.totalStockPcs !== undefined ? summary.totalStockPcs : grandTotalStockPcs;
+      const officialTotalQtyPcs = summary.totalQtyOrderPcs !== undefined ? summary.totalQtyOrderPcs : grandTotalQtyPcs;
+      const officialTotalBeratKg = summary.totalBeratOrderKg !== undefined ? summary.totalBeratOrderKg : grandTotalBeratKg;
+      const officialTotalSisaPcs = summary.totalSisaOSPcs !== undefined ? summary.totalSisaOSPcs : grandTotalSisaPcs;
+      const officialTotalSisaKg = summary.totalSisaOSKg !== undefined ? summary.totalSisaOSKg : grandTotalSisaKg;
+      const officialTotalTerkirimPcs = summary.totalTerkirimPcs !== undefined ? summary.totalTerkirimPcs : grandTotalTerkirimPcs;
+      const officialTotalTerkirimKg = summary.totalTerkirimKg !== undefined ? summary.totalTerkirimKg : grandTotalTerkirimKg;
+
       // Sort Critical items by days descending
       criticalItemsList.sort((a, b) => b.days - a.days);
 
+      // Unique Articles List with dimensions
+      const uniqueArticlesList = Array.from(articleSummaryMap.entries())
+        .map(([art, val]) => ({
+          art,
+          desc: val.desc,
+          poCount: val.poCount,
+          sisaPcs: val.sisaPcs,
+          sisaKg: val.sisaKg,
+          stockPcs: val.stockPcs,
+          stockKg: val.stockKg,
+          qtyPcs: val.qtyPcs,
+        }))
+        .sort((a, b) => a.art.localeCompare(b.art));
+
+      // Ready Stock Detailed Table Text
+      const readyStockTableText =
+        readyStockItemsList.length === 0
+          ? 'TIDAK ADA PO dengan Stok Ready saat ini (Semua stok 0 pcs atau pesanan sudah tertutup).'
+          : readyStockItemsList
+              .map(
+                (item, i) =>
+                  `  ${i + 1}. [Baris #${item.row}] PO: ${item.po} | Artikel: ${item.art} | Ukuran: ${item.desc} | QTY PO: ${item.qtyPcs.toLocaleString('id-ID')} pcs | Stok Gudang: ${item.stockPcs.toLocaleString('id-ID')} pcs (${item.stockKg.toLocaleString('id-ID')} kg) | Sisa OS: ${item.sisaPcs.toLocaleString('id-ID')} pcs (${item.sisaKg.toLocaleString('id-ID')} kg) | Kesiapan: ${item.readiness}`
+              )
+              .join('\n');
+
+      // Unique Articles Dimensions Table Text
+      const uniqueArticlesTableText = uniqueArticlesList
+        .map(
+          (u, i) =>
+            `  ${i + 1}. [${u.art}] ${u.desc} | Total PO: ${u.poCount} | Sisa OS: ${u.sisaPcs.toLocaleString('id-ID')} pcs (${(u.sisaKg / 1000).toFixed(2)} Ton) | Stok Gudang: ${u.stockPcs.toLocaleString('id-ID')} pcs (${(u.stockKg / 1000).toFixed(2)} Ton)`
+        )
+        .join('\n');
+
       // Top 5 Highest Outstanding Articles (by Sisa OS kg)
-      const topOutstandingArticles = Array.from(articleSummaryMap.entries())
-        .map(([art, val]) => ({ art, ...val }))
+      const topOutstandingArticles = [...uniqueArticlesList]
         .sort((a, b) => b.sisaKg - a.sisaKg)
         .slice(0, 5);
 
@@ -447,99 +582,107 @@ export default async function handler(req: any, res: any) {
 === [INDEX DATA INTERPRETER RESMI - KALKULASI PASTI 100% (GROUND TRUTH)] ===
 Nama File: ${currentFileName || 'Dokumen_Excel.xlsx'}
 Total Baris PO Diimpor: ${records.length} Baris PO (100% UTUH TERSEDIA DI TABEL)
-Total Artikel Unik: ${articleSummaryMap.size || summary.totalUniqueItems || '-'}
+Total Artikel Unik: ${uniqueArticlesList.length} Artikel Unik
 
-A. STATUS PO & VOLUME:
-- PO Status OPEN: ${openCount} PO | Sisa OS Total: ${openSisaPcs.toLocaleString('id-ID')} pcs (${(openSisaKg / 1000).toFixed(2)} Ton / ${openSisaKg.toLocaleString('id-ID')} kg)
-- PO Status CLOSED: ${closedCount} PO | Volume Selesai: ${closedQtyPcs.toLocaleString('id-ID')} pcs (${(closedBeratKg / 1000).toFixed(2)} Ton)
-- Total Stok Gudang Tersimpan: ${openStockPcs.toLocaleString('id-ID')} pcs (${(openStockKg / 1000).toFixed(2)} Ton)
+A. REKAPITULASI RESMI STOK GUDANG & VOLUME DOKUMEN (GROUND TRUTH MATEMATIS):
+- TOTAL SELURUH STOK FISIK GUDANG (SEMUA BARIS DI EXCEL / SESUAI KARTU DASHBOARD):
+  * ${officialTotalStockPcs.toLocaleString('id-ID')} pcs (${(officialTotalStockKg / 1000).toFixed(2)} Ton / ${officialTotalStockKg.toLocaleString('id-ID')} kg)
+  * Rincian Distribusi Stok Fisik:
+    1. Stok pada PO Status OPEN: ${openStockPcs.toLocaleString('id-ID')} pcs (${(openStockKg / 1000).toFixed(2)} Ton / ${openStockKg.toLocaleString('id-ID')} kg)
+    2. Stok pada PO Status CLOSED: ${closedStockPcs.toLocaleString('id-ID')} pcs (${(closedStockKg / 1000).toFixed(2)} Ton / ${closedStockKg.toLocaleString('id-ID')} kg)
+    3. Stok Alokasi Siap Kirim (Ready Stock): ${totalReadyStockPcs.toLocaleString('id-ID')} pcs (${(totalReadyStockKg / 1000).toFixed(2)} Ton / ${totalReadyStockKg.toLocaleString('id-ID')} kg)
+- TOTAL SISA ORDER OUTSTANDING (SISA OS): ${officialTotalSisaPcs.toLocaleString('id-ID')} pcs (${(officialTotalSisaKg / 1000).toFixed(2)} Ton)
+- TOTAL KUOTA ORDER AWAL (QTY PO): ${officialTotalQtyPcs.toLocaleString('id-ID')} pcs (${(officialTotalBeratKg / 1000).toFixed(2)} Ton)
+- TOTAL BARANG TERKIRIM: ${officialTotalTerkirimPcs.toLocaleString('id-ID')} pcs (${(officialTotalTerkirimKg / 1000).toFixed(2)} Ton)
+- JUMLAH STATUS PO: ${openCount} PO Berstatus OPEN | ${closedCount} PO Berstatus CLOSED
 
 B. KESIAPAN PENGIRIMAN GUDANG (READY STOCK):
-- PO Memiliki Stok Siap Kirim (Stock > 0 & Sisa OS > 0): ${readyPoCount} PO
+- Total PO Memiliki Stok Siap Kirim (Stock > 0 & Sisa OS > 0): ${readyStockItemsList.length} PO | Total Stok Ready: ${totalReadyStockPcs.toLocaleString('id-ID')} pcs (${(totalReadyStockKg / 1000).toFixed(2)} Ton)
   * Siap Kirim 100% Tuntas (Stock >= Sisa OS): ${fullyReadyCount} PO
-  * Siap Kirim Sebagian / Parsial: ${partiallyReadyCount} PO
+  * Siap Kirim Sebagian / Parsial (Stock < Sisa OS): ${partiallyReadyCount} PO
   * Menunggu Produksi (Stok Gudang = 0 & Sisa OS > 0): ${zeroStockCount} PO
 
-C. UMUR PO (AGING PO RESMI SISTEM):
+DAFTAR LENGKAP PO DENGAN STOK READY (${readyStockItemsList.length} PO):
+${readyStockTableText}
+
+C. DAFTAR ARTIKEL UNIK & SPESIFIKASI UKURAN (${uniqueArticlesList.length} Artikel Unik):
+${uniqueArticlesTableText}
+
+D. UMUR PO (AGING PO RESMI SISTEM):
 - "< 7 Hari (Aman / Baru)": ${agingSafeCount} PO | Sisa OS: ${agingSafeSisaPcs.toLocaleString('id-ID')} pcs (${(agingSafeSisaKg / 1000).toFixed(2)} Ton)
 - "8 – 14 Hari (Follow Up)": ${agingFollowUpCount} PO | Sisa OS: ${agingFollowUpSisaPcs.toLocaleString('id-ID')} pcs (${(agingFollowUpSisaKg / 1000).toFixed(2)} Ton)
 - "> 14 Hari (Kritis / Telat)": ${agingCriticalCount} PO | Sisa OS: ${agingCriticalSisaPcs.toLocaleString('id-ID')} pcs (${(agingCriticalSisaKg / 1000).toFixed(2)} Ton)
 Top PO Paling Kritis (Umur Terpanjang):
 ${topCriticalText || '  (Tidak ada PO kritis)'}
 
-D. KELOMPOK ARTIKEL DENGAN OUTSTANDING TERTINGGI (TOP 5 SISA OS):
+E. KELOMPOK ARTIKEL DENGAN OUTSTANDING TERTINGGI (TOP 5 SISA OS):
 ${topOutstandingText || '  (Tidak ada)'}
 
-E. DISTRIBUSI KELOMPOK KODE ARTIKEL:
+F. DISTRIBUSI KELOMPOK KODE ARTIKEL:
 ${prefixBreakdownText || '  (Tidak ada)'}
 
-F. ANOMALI OVER STOCK & OVER KIRIMAN:
+G. ANOMALI OVER STOCK & OVER KIRIMAN:
 - Over Stock Gudang (> 0 pcs): ${confirmedOverStockItems.length} PO | Total: +${totalOverStockPcs.toLocaleString('id-ID')} pcs (${totalOverStockKg.toLocaleString('id-ID')} kg)
 ${overStockListText}
 - Over Kiriman Surat Jalan (> 0 pcs): ${confirmedOverKirimanItems.length} PO | Total: +${totalOverKirimanPcs.toLocaleString('id-ID')} pcs (${totalOverKirimanKg.toLocaleString('id-ID')} kg)
 ${overKirimanListText}
 
 === [TABEL LENGKAP ERP (100% BARIS UTUH - LEAN COMPACT SCHEMA)] ===
-Keterangan Kolom: # (Baris) | CO | Status | Artikel | Deskripsi | PO | Tgl | Qty_pcs | Kg | Stk_pcs | Stk_kg | Os_pcs | Os_kg | Krm_pcs | OvStk_pcs | OvStk_kg | OvKrm_pcs | Umur | Kat
+Keterangan Kolom: # (Baris) | CO | Status | Artikel | Deskripsi & Ukuran | PO | Tgl | Qty_pcs | Berat_kg | Stk_pcs | Stk_kg | Os_pcs | Os_kg | Krm_pcs | OvStk_pcs | OvStk_kg | OvKrm_pcs | Umur | Kat
 ${tableRowsText}
 `;
     }
 
     const systemInstruction = `Anda adalah "BlackEYE AI Assistant", asisten cerdas analisis data ERP logistik dan supply chain (dikembangkan oleh Kelvin).
 
-ARSITEKTUR DUAL-LAYER DATA (KECEPATAN MAKSIMAL & 100% AKURASI TANPA HALUSINASI):
-1. LAYER 1: "INDEX DATA INTERPRETER RESMI" (GROUND TRUTH MATEMATIS 100%):
-   - Gunakan data pada bagian Index untuk menjawab pertanyaan agregat, ringkasan, ranking Top 5, volume tonase, kesiapan gudang (Ready Stock), Aging PO, dan anomali.
-   - Angka-angka di Index sudah dihitung dengan presisi kalkulator sistem engine. DILARANG MENGHITUNG ULANG atau memodifikasi angka-angka agregat ini.
+PRINSIP UTAMA: KELENGKAPAN, KEAKURATAN TINGGI, DAN ANTI TERPOTONG (PRIORITASKAN KUALITAS & DETAIL DATA LENGKAP):
+Pengguna sangat mengutamakan kelengkapan dan kebenaran data di atas penghematan token. Dilarang keras memotong penyajian data, dilarang membuang kolom angka penting, dan dilarang menghentikan tabel di tengah jalan!
+
+ARSITEKTUR DUAL-LAYER DATA (GROUND TRUTH RESMI 100%):
+1. LAYER 1: "INDEX DATA INTERPRETER RESMI":
+   - Merupakan kebenaran mutlak (Ground Truth) hasil hitungan pasti sistem engine.
+   - Gunakan data pada Index untuk menjawab pertanyaan agregat, total stok fisik gudang, stok ready, aging PO, top artikel, dan anomali.
 2. LAYER 2: "TABEL LENGKAP ERP (100% BARIS UTUH)":
-   - Seluruh baris data PO diimpor secara utuh 100% (tidak ada satu baris pun yang dipotong).
-   - Gunakan tabel ini untuk pencarian spesifik (nomor PO, nomor CO, kode artikel, pengecekan detail item, perbandingan antar baris, atau pertanyaan multi-kondisi).
+   - Seluruh baris data PO diimpor secara utuh 100%. Gunakan untuk pencarian baris spesifik, nomor PO tertentu, nomor CO, atau perbandingan rinci.
 
-PEDOMAN GAYA KOMUNIKASI & JAWABAN (SANGAT PENTING):
-1. TO THE POINT & INTERAKTIF LUWES:
-   - Langsung jawab ke inti data atau pertanyaan pengguna secara tajam, berwawasan, dan jelas.
-   - JANGAN SELALU MEMPERKENALKAN DIRI: Dilarang keras membuka jawaban dengan "Halo! Saya BlackEYE AI Assistant, develop by Kelvin..." pada setiap percakapan.
-   - ATURAN PERKENALAN: Anda HANYA boleh menyapa atau memperkenalkan nama/pembuat ("Halo! Saya BlackEYE AI Assistant, dikembangkan oleh Kelvin") JIKA:
-     a) Pengguna memulai dengan sapaan murni (seperti: "Halo", "Hai", "Hi", "Selamat pagi/siang", "P"), ATAU
-     b) Pengguna secara spesifik menanyakan identitas (misal: "Siapa kamu?", "Siapa yang membuatmu?", "Kamu siapa?").
-     Selain dua kondisi di atas, LANGSUNG berikan jawaban data yang diminta tanpa kalimat basa-basi!
-   - Hindari kalimat pengantar klise seperti "Berdasarkan analisis terhadap data ERP...", "Tentu, saya akan membantu Anda...", dsb. Langsung sampaikan data, tabel, atau poin strategisnya.
+ATURAN KRUSIAL PENYAJIAN DATA (WAJIB DITAATI):
 
-2. ATURAN ANTI-HALUSINASI & KETELITIAN DATA 100%:
-   - DILARANG KERAS MENGARANG ATAU MENEBAK DATA: Setiap jawaban harus 100% berakar pada fakta angka di Index dan Tabel data di bawah.
-   - JANGAN MENGANGGAP SEMUA STOK SEBAGAI OVER STOCK!
-     * PERBEDAAN VITAL: "STOCK READY" vs "OVER STOCK GUDANG":
-       - "STOCK READY": Barang fisik yang ada di gudang (kolom Stk_pcs > 0) untuk memenuhi pesanan yang belum terkirim (kolom Os_pcs > 0).
-         Contoh kasus nyata: Artikel "ST-D009-00001-A" memiliki Stok 100 pcs dan Sisa OS 100 pcs. Ini adalah STOCK READY MURNI (barang pesanan yang siap dikirim), BUKAN OVER STOCK! Kolom OvStk_pcs nya adalah 0. Dilarang menyebut artikel ini sebagai over stock!
-       - "OVER STOCK GUDANG": HANYA berlaku untuk artikel/PO yang memiliki nilai kolom OvStk_pcs > 0 (stok fisik gudang yang melebihi kebutuhan PO Open). Selalu cek "DAFTAR ANOMALI OVER STOCK" di atas.
-       - "OVER KIRIMAN": HANYA berlaku jika kolom OvKrm_pcs > 0 (Surat Jalan melebihi kuota PO).
-   - JIKA DATA TIDAK DITEMUKAN ATAU ADA DUGAAN BUG / MISSING DATA:
-     * Jika pengguna mencari artikel, nomor PO, atau kriteria yang TIDAK DITEMUKAN di dalam data tabel ERP:
-       Jawab secara jujur dan lugas: "Data [nama artikel/PO/kriteria] tidak ditemukan dalam dokumen ERP saat ini."
-     * Jika ada dugaan perbedaan kalkulasi, data tidak sesuai, atau pengguna membutuhkan penambahan fitur:
-       Sarankan dengan sopan: "Jika Anda mendapati adanya kejanggalan kalkulasi data, dugaan bug, atau ingin mengajukan penambahan fitur, silakan infokan temuan ini kepada Developer (Kelvin) agar dapat dilakukan kalibrasi sistem."
+1. ATURAN PERHITUNGAN TOTAL STOK GUDANG (AGAR TIDAK SALAH HITUNG!):
+   - Jika pengguna menanyakan "Berapa total stok gudang?", "Total stok fisik", atau "Cara hitung stok":
+     * Jawab bahwa TOTAL SELURUH STOK FISIK GUDANG di file ERP adalah angka pada Bagian A Index: misal ${(dataContext?.summary?.totalStockKg ? dataContext.summary.totalStockKg / 1000 : 0).toFixed(2)} Ton (${dataContext?.summary?.totalStockPcs || 0} pcs).
+     * Terangkan rincian pembagiannya dengan transparan:
+       a) Stok pada PO status OPEN: berapa Ton / pcs.
+       b) Stok pada PO status CLOSED (sudah selesai/stok sisa): berapa Ton / pcs.
+       c) Alokasi Stok yang Siap Kirim (Ready Stock): berapa Ton / pcs.
+     * DILARANG KERAS mengklaim bahwa stok pada PO OPEN adalah total keseluruhan gudang! Selalu jelaskan pembagian antara PO OPEN dan PO CLOSED agar hasil perhitungan sesuai dengan hitungan manual pengguna dan kartu dashboard web.
 
-3. ATURAN UMUR PO (AGING PO) - BEBAS HALUSINASI:
-   - Kategori Umur PO telah dihitung secara resmi oleh sistem dan tercantum pada setiap baris data:
-     * "SAFE" = Umur <= 7 hari (< 7h Aman / Baru)
-     * "FOLLOW_UP" = Umur 8 sampai 14 hari (8–14h Follow Up)
-     * "CRITICAL" = Umur > 14 hari (> 14h Kritis / Telat)
-   - DILARANG KERAS menghitung sendiri selisih tanggal kalender atau membuat asumsi tanggal referensi sendiri.
-   - Jika pengguna meminta "Analisis Aging PO", "Daftar PO Kritis", "PO Aman", dsb:
-     Gunakan angka resmi dari "INDEX DATA INTERPRETER" dan filter baris berdasarkan kolom "Kat" (SAFE/FOLLOW_UP/CRITICAL) atau "Umur".
+2. ATURAN MENJAWAB "CEK ARTIKEL YANG MEMILIKI STOK READY GUDANG":
+   - Ketika pengguna meminta daftar Stok Ready gudang, WAJIB sajikan data yang LENGKAP dan DETAIL dalam tabel Markdown!
+   - DILARANG HANYA MENAMPILKAN NO & KODE ARTIKEL! Kolom operasional berikut WAJIB ADA:
+     | # | No PO | Kode Artikel | Deskripsi & Ukuran | QTY PO (pcs) | Stok Gudang (pcs) | Stok Gudang (kg) | Sisa OS (pcs) | Sisa OS (kg) | Status Kesiapan |
+   - Tuliskan angka pcs, kg, serta status (misal: "SIAP 100%" jika Stok >= Sisa OS, atau "PARSIAL" jika Stok < Sisa OS).
+   - Di akhir tabel, berikan kesimpulan ringkas total tonase Ready Stock yang siap dikirim.
 
-4. FORMAT PENYAJIAN DATA:
-   - Prioritaskan tabel Markdown yang rapi atau daftar poin tebal (bullet points).
-   - Selalu sertakan angka pasti lengkap dengan satuannya (misal: pcs, kg, ton, atau Rp).
-   - Pastikan informasi yang dibutuhkan pengguna tetap lengkap dan akurat (nomor PO, nomor CO, kode artikel, ukuran, status), jangan dipotong, tetapi hilangkan kalimat penjelasan yang tidak perlu.
+3. ATURAN MENJAWAB "DAFTAR UKURAN SEMUA ARTIKEL":
+   - Jika pengguna meminta "Daftar ukuran semua artikel" / "Ukuran artikel":
+     * Gunakan data dari Bagian C Index ("DAFTAR ARTIKEL UNIK & SPESIFIKASI UKURAN").
+     * Sajikan dalam tabel terstruktur rapi per **Artikel Unik**:
+       | No | Kode Artikel | Ukuran & Spesifikasi Deskripsi | Jumlah PO | Total Sisa OS (pcs) | Total Sisa OS (Ton) | Stok Gudang (pcs) |
+     * Ini menyajikan seluruh spesifikasi ukuran yang ada secara lengkap dan efisien tanpa menduplikasi artikel yang sama berulang kali.
+     * Jika pengguna meminta secara spesifik "rincian ukuran per nomor PO", sajikan tabel lengkap per PO hingga selesai tanpa terputus.
 
-5. ISTILAH LOGISTIK & STATUS ERP:
-   - Status CO:
-     * "OPEN": Pesanan aktif / pengiriman belum selesai seluruhnya.
-     * "CLOSED": Pesanan tuntas atau sudah ditutup.
-   - Sisa OS (Outstanding): Barang yang belum terkirim ke customer.
-   - Over Stock Gudang: Stok fisik di gudang melebihi sisa PO Open.
-   - Over SJ / Kiriman: Pengiriman Surat Jalan melebihi kuota PO awal.
+4. FORMAT PENYAJIAN TABEL MARKDOWN:
+   - Pastikan setiap tabel Markdown tertutup dengan rapi.
+   - Format angka ribuan dengan pemisah titik (misal: 1.500 pcs, 2.750 kg).
+   - Selalu sertakan satuan yang jelas (pcs, kg, Ton, atau Rp).
+
+5. GAYA KOMUNIKASI & IDENTITAS:
+   - Langsung ke inti data, profesional, ramah, dan solutif.
+   - HANYA menyapa/memperkenalkan nama "BlackEYE AI Assistant, develop by Kelvin" jika pengguna menyapa duluan ("Halo", "Hai") atau bertanya siapa pembuatnya. Untuk pertanyaan data, langsung sajikan data dan tabelnya.
+
+6. BAHASA RESPON UTAMA:
+   - Pengguna saat ini memilih antarmuka bahasa: "${targetLanguageName}".
+   - Jawab seluruh pertanyaan, analisis, dan tabel DALAM BAHASA "${targetLanguageName}".
 
 Berikut adalah informasi data saat ini:
 ===============================
@@ -566,37 +709,31 @@ ${datasetContextText}
       parts: [{ text: message }],
     });
 
-    // Multi-model auto fallback chain to seamlessly handle server spikes (503), quota limits (429), or deprecations
+    // Multi-model auto fallback chain:
+    // 1. gemini-3.6-flash (Prioritas Utama / Default)
+    // 2. gemini-3.5-flash (Fallback otomatis saat token habis / 429 / 503 tanpa pesan error)
+    // 3. gemini-3.8-flash (Fallback lanjutan dengan kapasitas penalaran tinggi)
+    // 4. gemini-3.5-flash-lite (Fallback hemat token)
+    // 5. gemini-flash-latest (Cadangan alias resmi Google)
+    // 6. gemini-3.1-flash-lite (Cadangan lite berikutnya)
+    // 7. gemini-3.7-flash (Cadangan penalaran tinggi)
     const baseCandidateModels = [
-      'gemini-3.5-flash-lite',
-      'gemini-3.1-flash-lite',
-      'gemini-flash-latest',
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
       'gemini-3.8-flash',
-      'gemini-3-flash-preview',
-      'gemma-4-26b-a4b-it',
+      'gemini-3.5-flash-lite',
+      'gemini-flash-latest',
+      'gemini-3.1-flash-lite',
       'gemini-3.7-flash',
-      'gemma-4-31b-it',
     ];
 
-    // Build optimized execution list
-    const activeCandidates: string[] = [];
-    const coolingCandidates: string[] = [];
+    // Build optimized execution list preserving strict priority:
+    // Active (healthy) models are tried first in order of priority.
+    // Models in cooldown are kept at the end in case all active models fail.
+    const activeCandidates = baseCandidateModels.filter((m) => !isModelInCooldown(m));
+    const coolingCandidates = baseCandidateModels.filter((m) => isModelInCooldown(m));
 
-    for (const m of baseCandidateModels) {
-      if (isModelInCooldown(m)) {
-        coolingCandidates.push(m);
-      } else {
-        activeCandidates.push(m);
-      }
-    }
-
-    if (lastSuccessfulModel && activeCandidates.includes(lastSuccessfulModel)) {
-      const idx = activeCandidates.indexOf(lastSuccessfulModel);
-      activeCandidates.splice(idx, 1);
-      activeCandidates.unshift(lastSuccessfulModel);
-    }
-
-    const candidateModels = [...activeCandidates, ...coolingCandidates];
+    const candidateModels = activeCandidates.length > 0 ? [...activeCandidates, ...coolingCandidates] : baseCandidateModels;
 
     // -------------------------------------------------------------
     // OPTION A: STREAMING SSE RESPONSE (Fastest TTFT ~200-400ms)
@@ -622,7 +759,7 @@ ${datasetContextText}
           const streamConfig: any = {
             systemInstruction,
             temperature: 0.2,
-            maxOutputTokens: 2500,
+            maxOutputTokens: 8192, // Maximum output tokens so large responses are never cut off
           };
           if (modelName.includes('gemini-3')) {
             streamConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
@@ -703,12 +840,12 @@ ${datasetContextText}
           config: {
             systemInstruction,
             temperature: 0.2,
-            maxOutputTokens: 2500,
+            maxOutputTokens: 8192,
           },
         });
 
         const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout (>16s) pada model ${modelName}`)), 16000)
+          setTimeout(() => reject(new Error(`Timeout (>30s) pada model ${modelName}`)), 30000)
         );
 
         const response = await Promise.race([generatePromise, timeoutPromise]);

@@ -12,6 +12,7 @@ import {
 import { ExcelExportScope, WhatsAppReportScope } from '../types';
 import { haptic } from '../utils/haptics';
 import confetti from 'canvas-confetti';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ActionToolbarProps {
   onDownloadExcel: (scope?: ExcelExportScope) => void;
@@ -58,6 +59,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   totalOverKirimanPOs = 0,
   totalOverProduksiPOs = 0,
 }) => {
+  const { t } = useLanguage();
   const effectiveOverStockPOs = totalOverStockGudangPOs || totalOverProduksiPOs;
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isCopyMenuOpen, setIsCopyMenuOpen] = useState(false);
@@ -152,7 +154,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               title="Download seluruh data ke Excel (15 Kolom)"
             >
               <Download className="w-4 h-4 shrink-0" />
-              <span>Unduh Excel</span>
+              <span>{t.exportExcelBtn}</span>
             </button>
 
             <div className="w-px self-stretch bg-white/25 my-1.5" />
@@ -331,7 +333,7 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           title="Buka generator template laporan WhatsApp lengkap"
         >
           <Share2 className="w-4 h-4 text-white shrink-0" />
-          <span className="truncate">Laporan WhatsApp</span>
+          <span className="truncate">{t.shareWhatsAppBtn}</span>
         </button>
 
         {/* Split Button Copy WA Text with Quick Scope Options (Frosted Pearl Liquid Glass) */}
@@ -361,12 +363,12 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
               {isCopied ? (
                 <>
                   <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                  <span className="text-emerald-700 font-bold">Tersalin!</span>
+                  <span className="text-emerald-700 font-bold">{t.copiedSuccess}</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-4 h-4 text-[#5C5C68] shrink-0" />
-                  <span>Salin WA</span>
+                  <span>{t.copyReportBtn}</span>
                 </>
               )}
             </button>
@@ -523,8 +525,8 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
           title="Upload file ERP lain"
         >
           <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">Ganti File</span>
-          <span className="sm:hidden">Reset</span>
+          <span className="hidden sm:inline">{t.resetBtn}</span>
+          <span className="sm:hidden">{t.resetBtn}</span>
         </button>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Cpu, Layers, GitFork, ArrowDown, Database, CheckCircle2 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ParserRulesModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface ParserRulesModalProps {
 }
 
 export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onClose }) => {
+  const { t } = useLanguage();
   if (!isOpen) return null;
 
   const handleClose = () => {
@@ -39,17 +41,18 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
             </div>
             <div>
               <h3 className="text-base sm:text-lg font-bold tracking-tight text-[#1E2024]">
-                ERP Parser Engine Architecture
+                {t.rulesModalTitle}
               </h3>
               <p className="text-xs text-[#5C6068]">
-                Parent-Child-SubChild Multi-Tier Extraction & FIFO Inventory Allocation
+                {t.rulesModalSubtitle}
               </p>
             </div>
           </div>
           <button
             onClick={handleClose}
             className="liquid-glass-clear p-1.5 rounded-full text-zinc-500 hover:text-zinc-900 cursor-pointer"
-            title="Close"
+            title={t.closeBtn}
+            aria-label={t.closeBtn}
           >
             <X className="w-4 h-4" />
           </button>

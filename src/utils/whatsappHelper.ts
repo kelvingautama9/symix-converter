@@ -136,13 +136,14 @@ export function extractCustomerBadge(
     if (clean) return clean;
   }
   if (records && records.length > 0) {
-    if (records[0]._sourceFileName) {
-      const base = records[0]._sourceFileName.split(/[/\\]/).pop() || records[0]._sourceFileName;
+    const firstAny = records[0] as any;
+    if (firstAny._sourceFileName) {
+      const base = String(firstAny._sourceFileName).split(/[/\\]/).pop() || String(firstAny._sourceFileName);
       const clean = base.replace(/\.[a-zA-Z0-9]+$/, '').trim();
       if (clean) return clean;
     }
-    if (records[0].Customer && records[0].Customer !== '-' && records[0].Customer.toUpperCase() !== 'UNKNOWN') {
-      return records[0].Customer.trim();
+    if (firstAny.Customer && firstAny.Customer !== '-' && String(firstAny.Customer).toUpperCase() !== 'UNKNOWN') {
+      return String(firstAny.Customer).trim();
     }
   }
   return '';
