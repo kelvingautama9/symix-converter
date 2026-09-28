@@ -43,6 +43,88 @@ export function isParentArticleItem(val: string | undefined | null): boolean {
 }
 
 /**
+ * Check if a row is a Sales representative header in SyMix multi-customer files
+ * e.g., Col A: "Sales : BE" | Col B: "RNHARD"
+ * e.g., Col A: "Sales : FE" | Col B: "RIX S"
+ */
+export function isSalesRow(r: any[]): boolean {
+  if (!r || r.length === 0) return false;
+  const valA = getStr(r, 0).trim();
+  if (isParentArticleItem(valA)) return false;
+
+  const fullRowStr = r
+    .map((c) => (c !== null && c !== undefined ? String(c).trim() : ''))
+    .filter((s) => s.length > 0)
+    .join(' ')
+    .toUpperCase();
+
+  return (
+    /^SALES(\s*PERSON|\s*MAN|\s*REP)?\s*:/i.test(valA) ||
+    /^SALES(\s*PERSON|\s*MAN|\s*REP)?\s*:/i.test(fullRowStr) ||
+    /\bSALES\s*:\s*[A-Z0-9]+/i.test(fullRowStr)
+  );
+}
+
+/**
+ * Check if a row is a Customer/Company name header row in SyMix multi-customer files
+ * e.g., Col A: "PT ADRIAN" | Col B: "PUTRA SEJAHTERA"
+ * e.g., Col A: "PT. BERLIA" | Col B: "N UTAMA KARTON BOKS"
+ */
+export function isCustomerCompanyRow(r: any[]): boolean {
+  if (!r || r.length === 0) return false;
+  const valA = getStr(r, 0).trim();
+  if (isParentArticleItem(valA)) return false;
+
+  const fullRowStr = r
+    .map((c) => (c !== null && c !== undefined ? String(c).trim() : ''))
+    .filter((s) => s.length > 0)
+    .join(' ')
+    .toUpperCase();
+
+  if (fullRowStr.includes('TOTAL') || fullRowStr.includes('P26')) return false;
+
+  // Check corporate prefixes in Col A or full row (PT, CV, UD, PD, KOPERASI, TOKO, etc.)
+  const hasCorporatePrefix =
+    /^(PT\.?|CV\.?|UD\.?|PD\.?|KOPERASI|TOKO|FA\.?)\b/i.test(valA) ||
+    /^(PT\.?|CV\.?|UD\.?|PD\.?|KOPERASI|TOKO|FA\.?)\b/i.test(fullRowStr);
+
+  // Real CO rows have numbers in transaction columns (cols 4+)
+  const hasTransactionNumbers = r.slice(4).some((cell) => isNumericCell(cell));
+
+  if (hasCorporatePrefix && !hasTransactionNumbers) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a row is a Grouping header in SyMix reports
+ * e.g., "UNGROUP", "GROUP", "GROUP : ...", "GROUP BY ..."
+ */
+export function isGroupHeaderRow(r: any[]): boolean {
+  if (!r || r.length === 0) return false;
+  const valA = getStr(r, 0).trim().toUpperCase();
+  if (isParentArticleItem(valA)) return false;
+
+  const fullRowStr = r
+    .map((c) => (c !== null && c !== undefined ? String(c).trim() : ''))
+    .filter((s) => s.length > 0)
+    .join(' ')
+    .toUpperCase();
+
+  return (
+    valA === 'UNGROUP' ||
+    valA.startsWith('UNGROUP') ||
+    valA === 'GROUP' ||
+    valA.startsWith('GROUP') ||
+    fullRowStr === 'UNGROUP' ||
+    fullRowStr.startsWith('UNGROUP') ||
+    /^GROUP(\s*BY|\s*:)?/i.test(fullRowStr)
+  );
+}
+
+/**
  * Check if a row is an ERP page header, SYMIX banner, or table separator/column header that should be skipped.
  */
 export function isIgnoredHeaderRow(r: any[]): boolean {
@@ -56,6 +138,11 @@ export function isIgnoredHeaderRow(r: any[]): boolean {
   // Never ignore parent item records (SH-, ST-, BX-, DC-)
   if (isParentArticleItem(valA)) {
     return false;
+  }
+
+  // Multi-customer SyMix header check: Sales, Customer company, and Grouping (UNGROUP) headers
+  if (isSalesRow(r) || isCustomerCompanyRow(r) || isGroupHeaderRow(r)) {
+    return true;
   }
 
   // Join all cells in row for holistic keyword search
@@ -208,6 +295,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
   let currentStockKg: number = 0;
   let parentCount: number = 0;
   let currentPO: ExtractedRecord | null = null;
+  let expectCustomerRow = false; // Pelacak pintar baris Nama Customer tepat setelah baris Sales
 
   for (let idx = 0; idx < rawRows.length; idx++) {
     const r = rawRows[idx] || [];
@@ -240,6 +328,79 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
       continue;
     }
 
+    // Lewati baris kosong tanpa menghapus status expectCustomerRow
+    const hasAnyContent = r.some((cell) => cell !== null && cell !== undefined && String(cell).trim() !== '');
+    if (!hasAnyContent) {
+      continue;
+    }
+
+    // DETEKSI CERDAS MULTI-CUSTOMER: BARIS UNGROUP / GROUPING BANNER
+    // Muncul sebelum baris Sales saat pergantian kelompok customer
+    if (isGroupHeaderRow(r)) {
+      if (currentPO) {
+        if (!currentPO._has_delivery) {
+          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
+          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
+          currentPO['Terkirim (PCS)'] = 0;
+          currentPO['Terkirim (KG)'] = 0;
+        } else {
+          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
+          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
+        }
+        rowsData.push(currentPO);
+        currentPO = null;
+      }
+      currentItemId = null;
+      currentItemDesc = '';
+      currentSubstance = '';
+      currentStockPcs = 0;
+      currentStockKg = 0;
+      continue;
+    }
+
+    // DETEKSI CERDAS MULTI-CUSTOMER: BARIS 1 (SALES REP / SALES NAME)
+    // Terjadi saat penarikan data ALL CUSTOMERS sekaligus
+    if (isSalesRow(r)) {
+      // 1. Tutup dan simpan PO yang masih terbuka dari customer sebelumnya
+      if (currentPO) {
+        if (!currentPO._has_delivery) {
+          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
+          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
+          currentPO['Terkirim (PCS)'] = 0;
+          currentPO['Terkirim (KG)'] = 0;
+        } else {
+          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
+          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
+        }
+        rowsData.push(currentPO);
+        currentPO = null;
+      }
+
+      // 2. Putus asosiasi artikel item sebelumnya agar tidak bocor ke customer baru
+      currentItemId = null;
+      currentItemDesc = '';
+      currentSubstance = '';
+      currentStockPcs = 0;
+      currentStockKg = 0;
+
+      // 3. Pasang flag bahwa baris berikutnya adalah baris Nama Customer
+      expectCustomerRow = true;
+      continue;
+    }
+
+    // DETEKSI CERDAS MULTI-CUSTOMER: BARIS 2 (NAMA CUSTOMER / PERUSAHAAN)
+    // Terdeteksi baik via urutan baris setelah Sales maupun deteksi entitas PT/CV/Perusahaan
+    if (expectCustomerRow || isCustomerCompanyRow(r)) {
+      expectCustomerRow = false;
+      // Pastikan context artikel tetap bersih
+      currentItemId = null;
+      currentItemDesc = '';
+      currentSubstance = '';
+      currentStockPcs = 0;
+      currentStockKg = 0;
+      continue;
+    }
+
     // TAHAP FILTER HEADER ERP / SYMIX / DASH / REPEATED COLUMN HEADERS
     // Langsung lewati tanpa mereset currentPO (agar pengiriman P26 yang terpotong header tetap masuk ke currentPO)
     if (isIgnoredHeaderRow(r)) {
@@ -253,6 +414,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
     // 1. TAHAP DETEKSI PARENT (BARIS ITEM CARTON/BOX: SH-, ST-, BX-, atau DC-)
     if (isParentArticleItem(valA)) {
+      expectCustomerRow = false;
       if (currentPO) {
         if (!currentPO._has_delivery) {
           currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
@@ -289,12 +451,19 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     // 2. TAHAP DETEKSI CHILD (BARIS PURCHASE ORDER)
     else if (
       currentItemId &&
+      !isSalesRow(r) &&
+      !isCustomerCompanyRow(r) &&
+      !isGroupHeaderRow(r) &&
+      !valA.toUpperCase().startsWith('SALES') &&
+      !valA.toUpperCase().startsWith('PT') &&
+      !valA.toUpperCase().startsWith('UNGROUP') &&
+      !valA.toUpperCase().startsWith('GROUP') &&
       (valB.includes('DAP') ||
         valB.includes('PO.') ||
         valB.includes('PO ') ||
         valB.includes('PO') ||
         valB.split(/\s+/).length > 1 ||
-        valA.length >= 4) &&
+        (/\d/.test(valA) && valA.length >= 4)) &&
       !valA.startsWith('I t e m') &&
       !valA.startsWith('---') &&
       !valA.startsWith('Item') &&
