@@ -4,7 +4,7 @@ export const translations: Record<SupportedLanguage, TranslationSchema> = {
   // 🇮🇩 INDONESIA (DEFAULT)
   id: {
     appTitle: 'BLACKEYE - SYMIX STOCK CONVERTER',
-    appSubtitle: 'Tools Rekapitulasi Stock & Sisa Order Status (OS) Customer',
+    appSubtitle: 'Tools Rekap Stock & Sisa OS Customer',
     browserBadge: 'BROWSER_V2.0',
     languageSelect: 'Pilih Bahasa',
 

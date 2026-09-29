@@ -415,14 +415,9 @@ export default function App() {
               />
             </div>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-                <h1 className="text-xs sm:text-sm md:text-base font-bold tracking-tight text-[#17191D] truncate">
-                  {t.appTitle}
-                </h1>
-                <span className="px-2 py-0.5 bg-amber-500/10 border border-amber-500/25 text-[#EA5413] text-[9px] sm:text-[10px] font-mono font-semibold rounded-full tracking-wider shrink-0">
-                  {t.browserBadge}
-                </span>
-              </div>
+              <h1 className="text-xs sm:text-sm md:text-base font-bold tracking-tight text-[#17191D] truncate">
+                {t.appTitle}
+              </h1>
               <p className="text-[10px] sm:text-[11px] text-[#5C6068] hidden sm:block truncate">
                 {t.appSubtitle}
               </p>

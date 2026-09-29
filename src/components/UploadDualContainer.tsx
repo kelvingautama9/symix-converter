@@ -168,15 +168,8 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
           {/* Subtle frosted glow accent */}
           <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-zinc-200/40 to-transparent rounded-bl-full pointer-events-none" />
 
-          {/* Top Tag & Header */}
+          {/* Header */}
           <div className="relative z-10">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="px-2.5 py-0.5 bg-zinc-200/60 text-zinc-700 text-[11px] font-medium rounded-full border border-white/60">
-                {t.singleConvertTitle}
-              </span>
-              <span className="text-[11px] font-mono text-zinc-400 font-medium">{t.singleConvertTag}</span>
-            </div>
-
             <div className="w-12 h-12 rounded-2xl glass-card flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-zinc-700 shadow-sm">
               <FileSpreadsheet className="w-6 h-6 text-zinc-700" />
             </div>
@@ -208,12 +201,6 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
             <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C6068]">
               <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80 font-medium">
                 .xlsx / .xls
-              </span>
-              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80">
-                {t.fileLimits}
-              </span>
-              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80">
-                {t.instantPreview}
               </span>
             </div>
           </div>
@@ -249,17 +236,8 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
           {/* Subtle warm orange glass ambient glow */}
           <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-[#FF7B35]/15 to-transparent rounded-bl-full pointer-events-none" />
 
-          {/* Top Tag & Header */}
+          {/* Header */}
           <div className="relative z-10">
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="px-2.5 py-0.5 bg-[#EA5413]/10 text-[#EA5413] text-[11px] font-semibold rounded-full border border-[#EA5413]/20">
-                {t.multiConvertTitle}
-              </span>
-              <span className="text-[11px] font-mono text-[#EA5413]/70 font-semibold">
-                {t.multiConvertTag}
-              </span>
-            </div>
-
             <div className="w-12 h-12 rounded-2xl glass-card flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-[#EA5413] shadow-sm">
               <Files className="w-6 h-6 text-[#EA5413]" />
             </div>
@@ -288,19 +266,20 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
               <span>{t.multiConvertBtn}</span>
             </button>
 
-            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C5C68]">
-              <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90 font-semibold text-[#19719C]">
-                {t.parallelProcessing}
-              </span>
-              <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90">
-                {t.downloadZipBtn}
-              </span>
-              <span className="bg-white/70 px-2 py-0.5 rounded-full border border-white/90">
-                {t.mergeMasterBtn}
+            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C6068]">
+              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80 font-medium">
+                .xlsx / .xls
               </span>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Subtle Hint / Catatan Kaki Ukuran File */}
+      <div className="mt-3.5 text-center">
+        <p className="text-[11px] font-mono text-zinc-400">
+          * {t.fileLimits} per file &bull; Format didukung: <span className="text-zinc-600 font-medium">.xlsx, .xls</span>
+        </p>
       </div>
     </div>
   );
