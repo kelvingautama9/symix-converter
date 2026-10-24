@@ -514,30 +514,20 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
       id="data-table-container"
       className={
         isFullscreen
-          ? "fixed inset-0 z-50 bg-[#F5F6F8]/95 backdrop-blur-2xl flex flex-col p-2.5 sm:p-4 overflow-hidden"
-          : "glass-panel rounded-3xl overflow-hidden relative z-10"
+          ? "fixed inset-0 z-50 bg-[#F8FAFC] flex flex-col p-3 sm:p-4 overflow-hidden"
+          : "glass-panel rounded-xl overflow-hidden relative z-10"
       }
     >
       {/* Fullscreen Dedicated Top Bar */}
       {isFullscreen && (
-        <div className="glass-panel-warm p-2.5 sm:p-3 rounded-2xl flex items-center justify-between gap-3 mb-2.5 shrink-0">
+        <div className="bg-white border border-slate-200 p-2.5 sm:p-3 rounded-xl flex items-center justify-between gap-3 mb-2.5 shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-xl glass-card text-emerald-600 flex items-center justify-center font-bold text-xs shrink-0 shadow-sm">
-              <TableIcon className="w-4 h-4" />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <h2 className="text-xs sm:text-sm font-bold tracking-tight text-[#1E2024] truncate">
-                  Tabel Master ERP PO — Layar Penuh
-                </h2>
-                <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-700 text-[10px] font-mono font-bold rounded-full">
-                  {filteredData.length} Baris PO
-                </span>
-              </div>
-              <p className="text-[11px] text-[#5C6068] truncate hidden sm:block">
-                Scroll leluasa vertikal & horizontal tanpa terhalang dashboard (Tekan ESC untuk keluar)
-              </p>
-            </div>
+            <h2 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+              {t.poRecapTableTitle}
+            </h2>
+            <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[11px] font-mono font-semibold rounded-md">
+              {filteredData.length} {t.rowsLabel}
+            </span>
           </div>
 
           <button
@@ -546,21 +536,21 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               haptic.medium();
               setIsFullscreen(false);
             }}
-            className="liquid-glass-primary inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs uppercase tracking-wider cursor-pointer shrink-0"
+            className="liquid-glass-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer shrink-0"
           >
             <Minimize2 className="w-3.5 h-3.5" />
-            <span>Keluar Layar Penuh</span>
+            <span>{t.exitBtn}</span>
           </button>
         </div>
       )}
 
       {/* Table Controls Header */}
-      <div className="p-3 sm:p-4 border-b border-zinc-200/60 bg-white/40 flex flex-col gap-2.5 sm:gap-3 shrink-0">
+      <div className="p-3 sm:p-3.5 border-b border-slate-200 bg-white flex flex-col gap-2.5 shrink-0">
         {/* Row 1: Search Bar (Left) & Table View Actions (Right) */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-4">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
           {/* Search Bar */}
-          <div className="relative flex-1 max-w-full sm:max-w-md lg:max-w-lg">
-            <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <div className="relative flex-1 max-w-full sm:max-w-md">
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               id="table-search-input"
@@ -570,7 +560,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 setCurrentPage(1);
               }}
               placeholder={t.searchPlaceholder}
-              className="w-full pl-9 pr-8 py-2 bg-white/80 border border-white/90 rounded-full text-xs font-mono text-[#1E2024] placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#FF7B35]/40 shadow-sm min-h-[38px] transition-all"
+              className="w-full pl-8 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#EA5413] min-h-[34px] transition-colors"
             />
             {searchTerm && (
               <button
@@ -579,8 +569,8 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                   setSearchTerm('');
                   setCurrentPage(1);
                 }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-600 rounded-full cursor-pointer"
-                title="Hapus pencarian"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
+                title={t.clearFilters}
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -588,44 +578,41 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
           </div>
 
           {/* Table Controls (Scroll Mode, Fullscreen, Manage Columns) */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap shrink-0">
+          <div className="flex items-center justify-between sm:justify-end gap-1.5 sm:gap-2 flex-wrap shrink-0">
             {/* Scroll Mode */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-[11px] font-semibold text-[#5C6068]">Scroll:</span>
-              <div className="glass-segmented inline-flex items-center">
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic.selection();
-                    setScrollMode('page');
-                  }}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                    scrollMode === 'page'
-                      ? 'glass-segmented-active text-emerald-700'
-                      : 'text-[#5C6068] hover:text-[#1E2024]'
-                  }`}
-                  title="Scroll mouse bebas menggerakkan seluruh halaman web tanpa tersangkut di dalam tabel"
-                >
-                  <Unlock className={`w-3 h-3 ${scrollMode === 'page' ? 'text-emerald-600' : 'text-zinc-400'}`} />
-                  <span>Bebas</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    haptic.selection();
-                    setScrollMode('box');
-                  }}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
-                    scrollMode === 'box'
-                      ? 'glass-segmented-active text-[#EA5413]'
-                      : 'text-[#5C6068] hover:text-[#1E2024]'
-                  }`}
-                  title="Batasi tabel dalam kotak scroll 70vh dengan scrollbar internal"
-                >
-                  <Lock className={`w-3 h-3 ${scrollMode === 'box' ? 'text-[#EA5413]' : 'text-zinc-400'}`} />
-                  <span>Kotak</span>
-                </button>
-              </div>
+            <div className="glass-segmented inline-flex items-center shrink-0">
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.selection();
+                  setScrollMode('page');
+                }}
+                className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                  scrollMode === 'page'
+                    ? 'glass-segmented-active text-slate-900'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title={t.scrollFree}
+              >
+                <Unlock className="w-3 h-3" />
+                <span>{t.scrollFree}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.selection();
+                  setScrollMode('box');
+                }}
+                className={`flex items-center gap-1 px-1.5 sm:px-2 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer ${
+                  scrollMode === 'box'
+                    ? 'glass-segmented-active text-slate-900'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title={t.scrollBox}
+              >
+                <Lock className="w-3 h-3" />
+                <span>{t.scrollBox}</span>
+              </button>
             </div>
 
             {/* Fullscreen Button */}
@@ -635,37 +622,33 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 haptic.medium();
                 setIsFullscreen(!isFullscreen);
               }}
-              className="liquid-glass-clear inline-flex items-center gap-1 px-2.5 sm:px-3 py-1 text-[11px] uppercase tracking-wider cursor-pointer shrink-0"
-              title={isFullscreen ? "Keluar layar penuh (ESC)" : "Buka tabel dalam mode layar penuh"}
+              className="liquid-glass-clear inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs cursor-pointer shrink-0"
+              title={isFullscreen ? t.exitBtn : t.fullscreenBtn}
             >
               {isFullscreen ? (
                 <>
-                  <Minimize2 className="w-3.5 h-3.5 text-[#EA5413]" />
-                  <span>Keluar</span>
+                  <Minimize2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>{t.exitBtn}</span>
                 </>
               ) : (
                 <>
-                  <Maximize2 className="w-3.5 h-3.5 text-[#EA5413]" />
-                  <span>Layar Penuh</span>
+                  <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>{t.fullscreenBtn}</span>
                 </>
               )}
             </button>
 
             {/* Custom Columns Button */}
             {hiddenColumnCount > 0 && (
-              <div className="inline-flex items-center gap-1.5 px-2 py-1 bg-amber-500/10 border border-amber-500/20 text-amber-800 text-[11px] font-medium rounded-full shrink-0">
-                <EyeOff className="w-3.5 h-3.5 text-amber-700 shrink-0" />
-                <span>{hiddenColumnCount} Hide</span>
-                <button
-                  type="button"
-                  onClick={showAllColumns}
-                  className="ml-0.5 px-1.5 py-0.2 bg-amber-700 hover:bg-amber-800 text-white text-[9px] font-bold rounded-full cursor-pointer flex items-center gap-0.5 transition-colors"
-                  title="Tampilkan semua row / kolom (Reset)"
-                >
-                  <RotateCcw className="w-2.5 h-2.5 text-white" />
-                  <span>Reset</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={showAllColumns}
+                className="inline-flex items-center gap-1 px-2 py-0.5 sm:py-1 bg-amber-50 border border-amber-200 text-amber-800 text-[11px] sm:text-xs font-medium rounded-lg cursor-pointer shrink-0"
+                title={t.resetBtnShort}
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>{t.resetBtnShort} ({hiddenColumnCount})</span>
+              </button>
             )}
 
             <button
@@ -675,223 +658,210 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 haptic.light();
                 setIsManageColumnsOpen(true);
               }}
-              className={`liquid-glass-clear inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 font-mono text-[11px] uppercase tracking-wider cursor-pointer shrink-0 ${
+              className={`liquid-glass-clear inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs cursor-pointer shrink-0 ${
                 hiddenColumnCount > 0 ? 'border-[#EA5413]/40 text-[#EA5413]' : ''
               }`}
-              title="Kustomisasi Row / Kolom"
+              title={t.columnsBtn}
             >
-              <SlidersHorizontal className="w-3.5 h-3.5 text-[#EA5413]" />
-              <span>Kustom Kolom{hiddenColumnCount > 0 ? ` (${hiddenColumnCount})` : ''}</span>
+              <SlidersHorizontal className="w-3.5 h-3.5 text-slate-600" />
+              <span>{t.columnsBtn}{hiddenColumnCount > 0 ? ` (${hiddenColumnCount})` : ''}</span>
             </button>
           </div>
         </div>
 
         {/* Row 2: Dedicated Filter Toolbar (Status CO, Status Kirim, Umur PO) */}
-        <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2.5 pt-2.5 border-t border-zinc-200/60 text-xs">
-          {/* Filter 1: Status CO */}
-          <div className="flex items-center gap-1.5 shrink-0 max-w-full overflow-x-auto no-scrollbar py-0.5">
-            <span className="text-[11px] font-semibold text-[#5C6068] mr-0.5 flex items-center gap-1 shrink-0">
-              <Layers className="w-3.5 h-3.5 text-[#EA5413]" />
-              <span>Status CO:</span>
-            </span>
-            <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
-              <button
-                type="button"
-                id="filter-co-all"
-                onClick={() => handleCoFilterChange('ALL')}
-                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  coFilter === 'ALL'
-                    ? 'glass-segmented-active text-[#EA5413]'
-                    : 'text-[#5C6068] hover:text-[#1E2024]'
-                }`}
-              >
-                Semua ({coCounts.all})
-              </button>
-              <button
-                type="button"
-                id="filter-co-open"
-                onClick={() => handleCoFilterChange('OPEN')}
-                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                  coFilter === 'OPEN'
-                    ? 'bg-emerald-500 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-emerald-700'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${coFilter === 'OPEN' ? 'bg-white' : 'bg-emerald-500'}`} />
-                <span>Open ({coCounts.open})</span>
-              </button>
-              <button
-                type="button"
-                id="filter-co-closed"
-                onClick={() => handleCoFilterChange('CLOSED')}
-                className={`px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                  coFilter === 'CLOSED'
-                    ? 'bg-zinc-700 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-zinc-800'
-                }`}
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${coFilter === 'CLOSED' ? 'bg-white' : 'bg-zinc-400'}`} />
-                <span>Closed ({coCounts.closed})</span>
-              </button>
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
+          {/* Scrollable Filter Pill Lane */}
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar py-0.5 flex-1 min-w-0">
+            {/* Filter 1: Status CO */}
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 shrink-0">CO:</span>
+              <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
+                <button
+                  type="button"
+                  id="filter-co-all"
+                  onClick={() => handleCoFilterChange('ALL')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    coFilter === 'ALL'
+                      ? 'glass-segmented-active text-slate-900'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {t.filterAll} ({coCounts.all})
+                </button>
+                <button
+                  type="button"
+                  id="filter-co-open"
+                  onClick={() => handleCoFilterChange('OPEN')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    coFilter === 'OPEN'
+                      ? 'bg-emerald-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-emerald-700'
+                  }`}
+                >
+                  {t.statusOpenShort} ({coCounts.open})
+                </button>
+                <button
+                  type="button"
+                  id="filter-co-closed"
+                  onClick={() => handleCoFilterChange('CLOSED')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    coFilter === 'CLOSED'
+                      ? 'bg-slate-700 text-white font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {t.statusClosedShort} ({coCounts.closed})
+                </button>
+              </div>
+            </div>
+
+            <div className="w-px h-3.5 bg-slate-200 shrink-0" />
+
+            {/* Filter 2: Status Kirim */}
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 shrink-0">
+                {t.filterStatusLabel}
+              </span>
+              <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('ALL')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'ALL'
+                      ? 'glass-segmented-active text-slate-900'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {t.filterAll} ({filterCounts.all})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('PARTIAL_DELIVERY')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'PARTIAL_DELIVERY'
+                      ? 'bg-[#EA5413] text-white font-semibold'
+                      : 'text-slate-600 hover:text-[#EA5413]'
+                  }`}
+                >
+                  {t.filterPartial} ({filterCounts.partial})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('FULL_PENDING')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'FULL_PENDING'
+                      ? 'bg-slate-700 text-white font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {t.filterPending} ({filterCounts.pending})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('STOCK_READY')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'STOCK_READY'
+                      ? 'bg-emerald-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-emerald-700'
+                  }`}
+                >
+                  {t.filterStockReady} ({filterCounts.stockReady})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('OVER_STOCK_GUDANG')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION'
+                      ? 'bg-indigo-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-indigo-700'
+                  }`}
+                >
+                  {t.filterOverStock} ({filterCounts.overStockGudang})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeliveryFilterChange('OVER_KIRIMAN')}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    filterStatus === 'OVER_KIRIMAN'
+                      ? 'bg-teal-700 text-white font-semibold'
+                      : 'text-slate-600 hover:text-teal-700'
+                  }`}
+                >
+                  {t.filterOverKirim} ({filterCounts.overKiriman})
+                </button>
+              </div>
+            </div>
+
+            <div className="w-px h-3.5 bg-slate-200 shrink-0" />
+
+            {/* Filter 3: Umur PO */}
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 shrink-0">
+                {t.filterAgingLabel}
+              </span>
+              <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('ALL');
+                  }}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    agingFilter === 'ALL'
+                      ? 'glass-segmented-active text-slate-900'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {t.filterAll} ({agingCounts.all})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('SAFE');
+                  }}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    agingFilter === 'SAFE'
+                      ? 'bg-emerald-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-emerald-700'
+                  }`}
+                >
+                  {t.agingSafeShort} ({agingCounts.safe})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('FOLLOW_UP');
+                  }}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    agingFilter === 'FOLLOW_UP'
+                      ? 'bg-amber-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-amber-700'
+                  }`}
+                >
+                  {t.agingFollowUpShort} ({agingCounts.followUp})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    haptic.selection();
+                    setAgingFilter('CRITICAL');
+                  }}
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
+                    agingFilter === 'CRITICAL'
+                      ? 'bg-rose-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-rose-700'
+                  }`}
+                >
+                  {t.agingCriticalShort} ({agingCounts.critical})
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="hidden 2xl:block w-px h-4 bg-zinc-300/60 shrink-0" />
-
-          {/* Filter 2: Status Kirim */}
-          <div className="flex items-center gap-1.5 shrink-0 max-w-full overflow-x-auto no-scrollbar py-0.5">
-            <span className="text-[11px] font-semibold text-[#5C6068] mr-0.5 shrink-0">
-              Status Kirim:
-            </span>
-            <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('ALL')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  filterStatus === 'ALL'
-                    ? 'glass-segmented-active text-[#1E2024]'
-                    : 'text-[#5C6068] hover:text-[#1E2024]'
-                }`}
-              >
-                Semua ({filterCounts.all})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('PARTIAL_DELIVERY')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  filterStatus === 'PARTIAL_DELIVERY'
-                    ? 'bg-[#EA5413] text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-[#EA5413]'
-                }`}
-              >
-                Partial ({filterCounts.partial})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('FULL_PENDING')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  filterStatus === 'FULL_PENDING'
-                    ? 'bg-zinc-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-zinc-800'
-                }`}
-              >
-                Pending ({filterCounts.pending})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('STOCK_READY')}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  filterStatus === 'STOCK_READY'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-emerald-700'
-                }`}
-              >
-                Stock Ready ({filterCounts.stockReady})
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('OVER_STOCK_GUDANG')}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION'
-                    ? 'bg-indigo-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-indigo-700'
-                }`}
-                title="Tampilkan PO dengan kelebihan fisik di gudang melebihi sisa PO Open (Siap ditawarkan sales)"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_STOCK_GUDANG' || filterStatus === 'OVER_PRODUCTION' ? 'bg-white' : 'bg-indigo-500'}`} />
-                <span>Over Stock Gudang ({filterCounts.overStockGudang})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => handleDeliveryFilterChange('OVER_KIRIMAN')}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  filterStatus === 'OVER_KIRIMAN'
-                    ? 'bg-teal-700 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-teal-700'
-                }`}
-                title="Tampilkan PO dengan total pengiriman (SJ) yang melebihi kuota PO awal"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${filterStatus === 'OVER_KIRIMAN' ? 'bg-white' : 'bg-teal-600'}`} />
-                <span>Over Kiriman ({filterCounts.overKiriman})</span>
-              </button>
-            </div>
-          </div>
-
-          <div className="hidden 2xl:block w-px h-4 bg-zinc-300/60 shrink-0" />
-
-          {/* Filter 3: Umur PO */}
-          <div className="flex items-center gap-1.5 shrink-0 max-w-full overflow-x-auto no-scrollbar py-0.5">
-            <span className="text-[11px] font-semibold text-[#5C6068] mr-0.5 shrink-0">
-              Umur PO:
-            </span>
-            <div className="glass-segmented inline-flex items-center shrink-0 flex-nowrap">
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  setAgingFilter('ALL');
-                }}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  agingFilter === 'ALL'
-                    ? 'glass-segmented-active text-[#1E2024]'
-                    : 'text-[#5C6068] hover:text-[#1E2024]'
-                }`}
-                title="Tampilkan semua umur PO"
-              >
-                Semua ({agingCounts.all})
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  setAgingFilter('SAFE');
-                }}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  agingFilter === 'SAFE'
-                    ? 'bg-emerald-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-emerald-700'
-                }`}
-                title="PO baru diinput kurang dari 7 hari (Aman / Baru)"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${agingFilter === 'SAFE' ? 'bg-white' : 'bg-emerald-500'}`} />
-                <span>&lt; 7h Aman ({agingCounts.safe})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  setAgingFilter('FOLLOW_UP');
-                }}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  agingFilter === 'FOLLOW_UP'
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-amber-700'
-                }`}
-                title="PO berjalan 8 hingga 14 hari (Perlu Follow UP)"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${agingFilter === 'FOLLOW_UP' ? 'bg-white' : 'bg-amber-500'}`} />
-                <span>8–14h Follow Up ({agingCounts.followUp})</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  haptic.selection();
-                  setAgingFilter('CRITICAL');
-                }}
-                className={`inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
-                  agingFilter === 'CRITICAL'
-                    ? 'bg-rose-600 text-white shadow-sm'
-                    : 'text-[#5C6068] hover:text-rose-700'
-                }`}
-                title="PO lebih dari 14 hari / 30 hari (Kritis / Telat)"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${agingFilter === 'CRITICAL' ? 'bg-white' : 'bg-rose-500'}`} />
-                <span>&gt; 14h Kritis ({agingCounts.critical})</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Reset Filters Button (Shows only if any filter or search is active) */}
+          {/* Reset Filters Button */}
           {(coFilter !== 'ALL' || filterStatus !== 'ALL' || agingFilter !== 'ALL' || searchTerm.trim() !== '') && (
             <button
               type="button"
@@ -903,39 +873,39 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 setSearchTerm('');
                 setCurrentPage(1);
               }}
-              className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-zinc-600 hover:text-zinc-900 bg-zinc-200/50 hover:bg-zinc-200/80 border border-zinc-300/40 rounded-full transition-all cursor-pointer shrink-0 ml-auto"
-              title="Reset semua filter ke default"
+              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] sm:text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer shrink-0"
+              title={t.clearFilters}
             >
-              <RotateCcw className="w-3 h-3 text-zinc-500" />
-              <span>Reset Filter</span>
+              <RotateCcw className="w-3 h-3" />
+              <span>{t.resetBtnShort}</span>
             </button>
           )}
         </div>
       </div>
 
-      {/* Table Scroll Area with Sticky Header (Only sticky in 'box' and 'isFullscreen' modes) */}
+      {/* Table Scroll Area with Sticky Header */}
       <div
         className={
           isFullscreen
-            ? "flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-white/30"
+            ? "flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-white"
             : scrollMode === 'page'
             ? "overflow-x-auto relative"
             : "overflow-x-auto overflow-y-auto max-h-[68vh] sm:max-h-[74vh] relative"
         }
       >
         <table id="erp-extracted-table" className="w-full text-left text-xs whitespace-nowrap border-collapse">
-          <thead className={`${isStickyHeader ? 'sticky top-0 z-20 shadow-sm' : 'relative z-10'} bg-[#1E2229]/95 backdrop-blur-md`}>
-            <tr className="bg-[#1E2229]/95 text-white text-[11px] font-mono font-semibold tracking-wider">
-              <th className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 pl-4 border-r border-white/10`}>#</th>
+          <thead className={`${isStickyHeader ? 'sticky top-0 z-20 shadow-xs' : 'relative z-10'} bg-[#18222C]`}>
+            <tr className="bg-[#18222C] text-white text-[11px] font-mono font-semibold tracking-wider">
+              <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 pl-4 border-r border-white/10`}>#</th>
 
               {visibleColumns.co && (
                 <th
                   onClick={() => handleSort('CO')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[160px]`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[140px]`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>1. CO (Customer Order)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thNoCO}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -943,11 +913,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.artikel && (
                 <th
                   onClick={() => handleSort('Artikel')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>2. Artikel</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thArtikel}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -955,11 +925,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.itemDescription && (
                 <th
                   onClick={() => handleSort('Item Description')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors min-w-[220px] border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 cursor-pointer hover:bg-black/30 transition-colors min-w-[200px] border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>3. Item Description</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thDeskripsi}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -967,12 +937,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.tanggalInput && (
                 <th
                   onClick={() => handleSort('Tanggal Input PO')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[155px]`}
-                  title="Klik untuk mengurutkan berdasarkan tanggal / umur PO secara kronologis"
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10 min-w-[135px]`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>4. Tanggal Input PO</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thTglPO}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -980,11 +949,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.noPo && (
                 <th
                   onClick={() => handleSort('No PO')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>5. No PO (Clean)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thNoPO}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -992,11 +961,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.substance && (
                 <th
                   onClick={() => handleSort('Substance')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span>6. Substance</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thSubstance}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1004,11 +973,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.qtyPo && (
                 <th
                   onClick={() => handleSort('QTY PO (pcs)')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>7. QTY PO (pcs)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thQtyPO}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1016,11 +985,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.beratPo && (
                 <th
                   onClick={() => handleSort('Berat PO (KG)')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>8. Berat PO (KG)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thBeratPO}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1028,11 +997,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.stockPcs && (
                 <th
                   onClick={() => handleSort('Stock (pcs)')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>9. Stock (pcs)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thStockPcs}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1040,11 +1009,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.stockKg && (
                 <th
                   onClick={() => handleSort('Stock (kg)')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>10. Stock (kg)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thStockKg}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1052,10 +1021,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.sisaOsPcs && (
                 <th
                   onClick={() => handleSort('Sisa OS (pcs)')}
-                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-[#EA5413]/90`}
+                  className={`${thStickyClass} py-2.5 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-[#EA5413]`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>11. Sisa OS (pcs)</span>
+                    <span>{t.thSisaOS}</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-white/80" />
                   </div>
                 </th>
@@ -1064,11 +1033,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.sisaOsKg && (
                 <th
                   onClick={() => handleSort('Sisa OS (kg)')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>12. Sisa OS (kg)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thSisaOSKg}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1076,10 +1045,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.terkirimPcs && (
                 <th
                   onClick={() => handleSort('Terkirim (PCS)')}
-                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-[#059669]/90`}
+                  className={`${thStickyClass} py-2.5 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-[#059669]`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>13. Terkirim (PCS)</span>
+                    <span>{t.thTerkirim}</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-white/80" />
                   </div>
                 </th>
@@ -1088,11 +1057,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.terkirimKg && (
                 <th
                   onClick={() => handleSort('Terkirim (KG)')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>14. Terkirim (KG)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thTerkirimKg}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1100,11 +1069,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.overStockGudangPcs && (
                 <th
                   onClick={() => handleSort('Over Stock Gudang (PCS)' as keyof ExtractedRecord)}
-                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-indigo-900/90 text-indigo-100`}
-                  title="Sisa stok fisik di gudang yang belum ada tuannya / melebihi PO Open (pcs)"
+                  className={`${thStickyClass} py-2.5 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-indigo-900 text-indigo-100`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>15. Over Stock Gudang (PCS)</span>
+                    <span>{t.thOverStock}</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-indigo-300" />
                   </div>
                 </th>
@@ -1113,12 +1081,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.overStockGudangKg && (
                 <th
                   onClick={() => handleSort('Over Stock Gudang (KG)' as keyof ExtractedRecord)}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
-                  title="Sisa tonase fisik di gudang melebihi PO Open (kg)"
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>16. Over Stock Gudang (KG)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thOverStockKg}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1126,11 +1093,10 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.overKirimanPcs && (
                 <th
                   onClick={() => handleSort('Over Kiriman (PCS)' as keyof ExtractedRecord)}
-                  className={`${thStickyClass} py-3 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-teal-900/90 text-teal-100`}
-                  title="Kuantitas pengiriman Surat Jalan (SJ) yang melebihi kuota PO awal (pcs)"
+                  className={`${thStickyClass} py-2.5 px-3 text-right cursor-pointer hover:opacity-90 transition-colors border-r border-white/10 bg-teal-900 text-teal-100`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>17. Over Kiriman (PCS)</span>
+                    <span>{t.thOverKirim}</span>
                     <ChevronsUpDown className="w-3.5 h-3.5 text-teal-300" />
                   </div>
                 </th>
@@ -1139,12 +1105,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.overKirimanKg && (
                 <th
                   onClick={() => handleSort('Over Kiriman (KG)' as keyof ExtractedRecord)}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
-                  title="Tonase pengiriman Surat Jalan (SJ) yang melebihi kuota PO awal (kg)"
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right cursor-pointer hover:bg-black/30 transition-colors border-r border-white/10`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>18. Over Kiriman (KG)</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thOverKirimKg}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
@@ -1152,20 +1117,20 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               {visibleColumns.harga && (
                 <th
                   onClick={() => handleSort('Harga')}
-                  className={`${thStickyClass} bg-[#1E2229]/95 py-3 px-3 pr-4 text-right cursor-pointer hover:bg-black/30 transition-colors`}
+                  className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 pr-4 text-right cursor-pointer hover:bg-black/30 transition-colors`}
                 >
                   <div className="flex items-center justify-end gap-1.5">
-                    <span>19. Harga</span>
-                    <ChevronsUpDown className="w-3.5 h-3.5 text-zinc-400" />
+                    <span>{t.thHarga}</span>
+                    <ChevronsUpDown className="w-3.5 h-3.5 text-slate-400" />
                   </div>
                 </th>
               )}
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-200/50 font-mono text-xs">
+          <tbody className="divide-y divide-slate-200 font-mono text-xs">
             {paginatedData.length === 0 ? (
               <tr>
-                <td colSpan={visibleColumnCount} className="py-12 text-center text-[#5C6068] font-sans font-medium">
+                <td colSpan={visibleColumnCount} className="py-12 text-center text-slate-500 font-sans font-medium">
                   {t.noMatchingRecords}
                 </td>
               </tr>
@@ -1184,30 +1149,28 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 return (
                   <tr
                     key={rowKey}
-                    className="hover:bg-[#FF7B35]/5 transition-colors group"
+                    className="hover:bg-slate-50 transition-colors group"
                   >
-                    <td className="py-2.5 px-3 pl-4 text-zinc-400 border-r border-zinc-200/40 font-mono font-medium">
+                    <td className="py-2 px-3 pl-4 text-slate-400 border-r border-slate-200/60 font-mono font-medium">
                       {originalIndex}
                     </td>
 
                     {visibleColumns.co && (
-                      <td className="py-2.5 px-3 font-semibold text-[#1E2024] border-r border-zinc-200/40">
+                      <td className="py-2 px-3 font-semibold text-slate-900 border-r border-slate-200/60">
                         <div className="flex items-center gap-1.5">
-                          <span className="px-2 py-0.5 bg-white/70 border border-zinc-200/70 text-[#1E2024] text-[11px] font-mono rounded-md shadow-xs">
-                            {row.CO || '-'}
-                          </span>
+                          <span>{row.CO || '-'}</span>
                           {isCOOpen && (
                             <span
-                              className="px-2 py-0.5 bg-emerald-500/10 border border-emerald-500/25 text-emerald-800 text-[10px] font-bold uppercase rounded-full"
-                              title="CO Status: OPEN (Masih Terbuka / Berjalan)"
+                              className="px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-semibold uppercase rounded"
+                              title="CO Status: OPEN"
                             >
                               OPEN
                             </span>
                           )}
                           {isCOClosed && (
                             <span
-                              className="px-2 py-0.5 bg-zinc-200/60 border border-zinc-300/60 text-zinc-600 text-[10px] font-semibold uppercase rounded-full"
-                              title="CO Status: CLOSED (Selesai / Ditutup)"
+                              className="px-1.5 py-0.5 bg-slate-100 text-slate-600 text-[10px] font-semibold uppercase rounded"
+                              title="CO Status: CLOSED"
                             >
                               CLOSED
                             </span>
@@ -1240,13 +1203,22 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                             {(() => {
                               const aging = calculatePoAging(row['Tanggal Input PO']);
                               if (aging.category === 'UNKNOWN') return null;
+                              const translatedWord =
+                                aging.category === 'SAFE'
+                                  ? t.agingSafeWord
+                                  : aging.category === 'FOLLOW_UP'
+                                  ? t.agingFollowUpWord
+                                  : t.agingCriticalWord;
                               return (
                                 <span
                                   className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium border font-mono whitespace-nowrap ${aging.badgeClass}`}
-                                  title={`Umur PO: ${aging.days} hari (${aging.label})`}
+                                  title={`${aging.days}${t.dayUnitShort} (${translatedWord})`}
                                 >
                                   <span className={`w-1.5 h-1.5 rounded-full ${aging.dotClass}`} />
-                                  <span>{aging.shortLabel}</span>
+                                  <span>
+                                    {aging.days}
+                                    {t.dayUnitShort} {translatedWord}
+                                  </span>
                                 </span>
                               );
                             })()}
@@ -1428,9 +1400,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
             </span>
           ) : (
             <span>
-              {t.showing} <span className="font-bold text-[#1E2024]">{filteredData.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}</span> -{' '}
-              <span className="font-bold text-[#1E2024]">{Math.min(currentPage * effectivePageSize, filteredData.length)}</span> {t.of}{' '}
-              <span className="font-bold text-[#1E2024]">{filteredData.length}</span> {t.unitPo}
+              {t.showing}{' '}
+              <span className="font-bold text-[#1E2024]">
+                {filteredData.length === 0 ? 0 : (currentPage - 1) * effectivePageSize + 1}
+              </span>{' '}
+              -{' '}
+              <span className="font-bold text-[#1E2024]">
+                {Math.min(currentPage * effectivePageSize, filteredData.length)}
+              </span>{' '}
+              {t.of} <span className="font-bold text-[#1E2024]">{filteredData.length}</span>{' '}
+              {t.unitPo}
             </span>
           )}
 
@@ -1442,28 +1421,30 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }}
             className="liquid-glass-clear inline-flex items-center gap-1 px-2.5 py-1 text-[11px] cursor-pointer ml-1 text-zinc-600 hover:text-zinc-900"
-            title="Kembali ke atas tabel"
+            title={t.toTopBtn}
           >
             <ArrowUp className="w-3 h-3 text-[#EA5413]" />
-            <span>Ke Atas</span>
+            <span>{t.toTopBtn}</span>
           </button>
         </div>
 
         <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2.5 sm:gap-3">
           <div className="flex items-center gap-1.5">
-            <span className="font-semibold uppercase text-[10px] text-[#5C6068]">Baris:</span>
+            <span className="font-semibold uppercase text-[10px] text-[#5C6068]">
+              {t.rowsLabel}:
+            </span>
             <select
               value={pageSize}
               onChange={(e) => handlePageSizeChange(Number(e.target.value))}
               className="bg-white/80 border border-white/90 text-[#1E2024] font-semibold px-2.5 py-1 text-xs rounded-full focus:outline-none cursor-pointer shadow-xs"
             >
-              <option value={0}>Semua (Unlimited)</option>
-              <option value={25}>25 Baris</option>
-              <option value={50}>50 Baris</option>
-              <option value={100}>100 Baris</option>
-              <option value={250}>250 Baris</option>
-              <option value={500}>500 Baris</option>
-              <option value={1000}>1000 Baris</option>
+              <option value={0}>{t.allUnlimited}</option>
+              <option value={25}>25 {t.rowsLabel}</option>
+              <option value={50}>50 {t.rowsLabel}</option>
+              <option value={100}>100 {t.rowsLabel}</option>
+              <option value={250}>250 {t.rowsLabel}</option>
+              <option value={500}>500 {t.rowsLabel}</option>
+              <option value={1000}>1000 {t.rowsLabel}</option>
             </select>
           </div>
 
@@ -1474,7 +1455,6 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 disabled={currentPage <= 1}
                 onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                 className="liquid-glass-clear p-1.5 rounded-full disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-zinc-600 hover:text-zinc-900"
-                aria-label="Halaman sebelumnya"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -1486,7 +1466,6 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 disabled={currentPage >= totalPages}
                 onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                 className="liquid-glass-clear p-1.5 rounded-full disabled:opacity-30 disabled:pointer-events-none transition-all cursor-pointer text-zinc-600 hover:text-zinc-900"
-                aria-label="Halaman berikutnya"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -1515,18 +1494,16 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 </div>
                 <div>
                   <h3 className="font-bold text-sm sm:text-base text-[#1E2024]">
-                    Kustomisasi Kolom Tabel
+                    {t.customColTitle}
                   </h3>
-                  <p className="text-[11px] text-[#5C6068]">
-                    Pilih kolom yang ingin ditampilkan di tabel. Data AI Chatbot tetap membaca utuh.
-                  </p>
+                  <p className="text-[11px] text-[#5C6068]">{t.customColSubtitle}</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsManageColumnsOpen(false)}
                 className="liquid-glass-clear p-1.5 rounded-full text-zinc-500 hover:text-zinc-900 cursor-pointer"
-                title="Tutup (ESC)"
+                title={t.closeBtn}
               >
                 <X className="w-4 h-4" />
               </button>
@@ -1537,35 +1514,35 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[11px] font-semibold text-[#5C6068] mr-1">
-                    Preset:
+                    {t.presetLabel}
                   </span>
                   <button
                     type="button"
                     onClick={() => applyPreset('all')}
                     className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
-                    Semua (15)
+                    {t.presetAll} ({ERP_COLUMNS.length})
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('essential')}
                     className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
-                    Esensial
+                    {t.presetEssential}
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('logistics')}
                     className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
-                    Logistik
+                    {t.presetLogistics}
                   </button>
                   <button
                     type="button"
                     onClick={() => applyPreset('financial')}
                     className="liquid-glass-clear px-2.5 py-1 text-[11px] cursor-pointer"
                   >
-                    Finansial
+                    {t.presetFinancial}
                   </button>
                   <button
                     type="button"
@@ -1573,12 +1550,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                     className="liquid-glass-emerald px-2.5 py-1 text-[11px] cursor-pointer flex items-center gap-1"
                   >
                     <RotateCcw className="w-3 h-3 text-white" />
-                    <span>Reset</span>
+                    <span>{t.resetBtnShort}</span>
                   </button>
                 </div>
 
                 <div className="text-[11px] font-mono font-semibold text-[#1E2024] bg-white/70 border border-white/90 px-2.5 py-0.5 rounded-full shadow-xs">
-                  {ERP_COLUMNS.length - hiddenColumnCount} / {ERP_COLUMNS.length} Tampil
+                  {ERP_COLUMNS.length - hiddenColumnCount} / {ERP_COLUMNS.length}{' '}
+                  {t.visibleCountLabel}
                 </div>
               </div>
 
@@ -1587,7 +1565,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                 <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Cari kolom (contoh: CO, Artikel, Item Description, Stok, Harga)..."
+                  placeholder={t.searchColPlaceholder}
                   value={columnSearch}
                   onChange={(e) => setColumnSearch(e.target.value)}
                   className="w-full pl-9 pr-8 py-2 text-xs bg-white/80 border border-white/90 rounded-full focus:outline-none focus:ring-2 focus:ring-[#FF7B35]/40 font-mono shadow-xs"
@@ -1608,7 +1586,7 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
             <div className="flex-1 overflow-y-auto divide-y divide-zinc-200/50 max-h-[50vh] p-2 bg-transparent">
               {filteredModalColumns.length === 0 ? (
                 <div className="py-8 text-center text-xs text-[#5C6068] font-mono">
-                  Tidak ada kolom yang cocok dengan kata kunci &quot;{columnSearch}&quot;
+                  {t.noColMatch} &quot;{columnSearch}&quot;
                 </div>
               ) : (
                 filteredModalColumns.map((col) => {
@@ -1628,7 +1606,11 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                         </span>
                         <div className="flex flex-col min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`font-mono font-bold text-xs ${isVisible ? 'text-[#1E2024]' : 'text-zinc-400 line-through'}`}>
+                            <span
+                              className={`font-mono font-bold text-xs ${
+                                isVisible ? 'text-[#1E2024]' : 'text-zinc-400 line-through'
+                              }`}
+                            >
                               {col.label}
                             </span>
                             <span className="px-2 py-0.2 bg-white/80 border border-zinc-200/80 text-[9px] font-mono font-medium text-zinc-600 rounded-full uppercase">
@@ -1657,12 +1639,12 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
                           {isVisible ? (
                             <>
                               <Check className="w-3.5 h-3.5 text-white" />
-                              <span>Tampil</span>
+                              <span>{t.visibleCountLabel}</span>
                             </>
                           ) : (
                             <>
                               <EyeOff className="w-3.5 h-3.5 text-amber-700" />
-                              <span>Hidden</span>
+                              <span>{t.hiddenLabel}</span>
                             </>
                           )}
                         </button>
@@ -1675,15 +1657,13 @@ export const DataTable: React.FC<DataTableProps> = ({ data }) => {
 
             {/* Modal Footer Note & Done Button */}
             <div className="p-3.5 sm:p-4 bg-white/40 border-t border-zinc-200/60 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-              <p className="text-[11px] text-[#5C6068]">
-                Menyembunyikan kolom tidak menghapus data. AI Chatbot tetap membaca 15 kolom secara utuh.
-              </p>
+              <p className="text-[11px] text-[#5C6068]">{t.customColFooterNote}</p>
               <button
                 type="button"
                 onClick={() => setIsManageColumnsOpen(false)}
                 className="liquid-glass-primary px-5 py-2 text-xs uppercase tracking-wider cursor-pointer text-center"
               >
-                Selesai
+                {t.doneBtn}
               </button>
             </div>
           </div>

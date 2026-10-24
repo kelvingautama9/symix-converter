@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 import confetti from 'canvas-confetti';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface DetailDeliveryViewProps {
   data: ExtractedRecord[];
@@ -78,6 +79,7 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
   onSelectSheet,
   onReset,
 }) => {
+  const { t } = useLanguage();
   const [searchTerm, setSearchTerm] = useState('');
   const [coFilter, setCoFilter] = useState<CoFilterStatus>('ALL');
   const [deliveryFilter, setDeliveryFilter] = useState<DeliveryFilterMode>('ALL');
@@ -467,147 +469,113 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
       : 0;
 
   return (
-    <div className="space-y-4 sm:space-y-5">
+    <div className="space-y-3 sm:space-y-4">
       {/* ================================================================= */}
       {/* 1. SUMMARY CARDS FOR DETAIL KIRIMAN (SURAT JALAN)                 */}
       {/* ================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-3.5">
-        {/* Card 1: Total Dokumen No. PO Unik vs Total Baris PO-Item */}
-        <div className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#5C6068]">
-              Total PO Unik &amp; Baris Item
-            </span>
-            <div className="w-7 h-7 rounded-xl bg-[#19719C]/10 text-[#19719C] flex items-center justify-center">
-              <Layers className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <div
-                className="text-xl sm:text-2xl font-extrabold font-mono text-[#1E2024]"
-                title="Jumlah Nomor Dokumen PO Unik (By No. PO Only)"
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+        {/* Card 1: Total PO & Item */}
+        <div className="glass-card rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+            {t.statTotalPoItem}
+          </span>
+          <div className="mt-1.5 sm:mt-2">
+            <div className="flex items-baseline gap-1 text-slate-900 flex-wrap">
+              <span
+                className="text-lg sm:text-xl lg:text-2xl font-bold font-mono tracking-tight leading-none"
+                title={t.statTotalPoItem}
               >
-                {safeSummary.totalUniquePONumbers.toLocaleString('id-ID')}{' '}
-                <span className="text-xs font-bold text-[#19719C]">PO Unik</span>
-              </div>
-              <span className="text-zinc-300 font-bold">/</span>
-              <div
-                className="text-sm sm:text-base font-extrabold font-mono text-[#5C6068]"
-                title="Jumlah Baris Order (PO × Artikel/Item)"
+                {safeSummary.totalUniquePONumbers.toLocaleString('id-ID')}
+              </span>
+              <span className="text-[11px] font-semibold font-mono text-[#19719C]">{t.unitPoShort}</span>
+              <span className="text-slate-300 mx-0.5 text-xs">/</span>
+              <span
+                className="text-xs sm:text-sm font-semibold font-mono text-slate-600 truncate"
+                title={t.unitItem}
               >
-                {safeSummary.totalPOs.toLocaleString('id-ID')}{' '}
-                <span className="text-[11px] font-semibold">Baris Item</span>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px] font-mono text-[#5C6068]">
-              <span>{safeSummary.totalUniqueItems} Artikel</span>
-              {safeSummary.totalMultiItemPONumbers > 0 && (
-                <>
-                  <span>•</span>
-                  <span
-                    className="text-[#EA5413] font-bold"
-                    title="Terdapat Nomor PO yang memesan lebih dari 1 Artikel berbeda"
-                  >
-                    {safeSummary.totalMultiItemPONumbers} PO Multi-Item
-                  </span>
-                </>
-              )}
-              <span>•</span>
-              <span className="text-emerald-700 font-semibold">{safeSummary.totalCOOpen} Open</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 2: Total Surat Jalan (SJ) */}
-        <div className="glass-panel-accent rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#19719C]">
-              Total Transaksi SJ
-            </span>
-            <div className="w-7 h-7 rounded-xl bg-[#19719C] text-white flex items-center justify-center shadow-2xs">
-              <Truck className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl sm:text-2xl font-extrabold font-mono text-[#19719C]">
-              {safeSummary.totalDeliveriesCount.toLocaleString('id-ID')}{' '}
-              <span className="text-xs font-semibold text-[#5C6068]">Surat Jalan</span>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[11px] font-mono text-[#5C6068]">
-              <span className="text-[#19719C] font-semibold">
-                {filterMetrics.multiSJ} PO Multi-SJ
+                {safeSummary.totalPOs.toLocaleString('id-ID')} {t.unitItem}
               </span>
-              <span>•</span>
-              <span className="text-amber-700 font-semibold">
-                {filterMetrics.fallbackNoSJ} Belum Kirim
+            </div>
+            <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+              <span className="truncate">
+                {safeSummary.totalUniqueItems} {t.unitArt}
+                {safeSummary.totalMultiItemPONumbers > 0
+                  ? ` · ${safeSummary.totalMultiItemPONumbers} ${t.unitMulti}`
+                  : ''}
+              </span>
+              <span className="text-emerald-700 font-semibold shrink-0">
+                {safeSummary.totalCOOpen} {t.statusOpenShort}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Card 3: Total QTY PO */}
-        <div className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#5C6068]">
-              Total QTY Order (PO)
-            </span>
-            <div className="w-7 h-7 rounded-xl bg-zinc-800/10 text-zinc-800 flex items-center justify-center">
-              <FileSpreadsheet className="w-3.5 h-3.5" />
+        {/* Card 2: Surat Jalan */}
+        <div className="glass-panel-accent rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-[#19719C] truncate">
+            {t.statSuratJalan}
+          </span>
+          <div className="mt-1.5 sm:mt-2">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold font-mono text-[#19719C] tracking-tight leading-none flex items-baseline gap-1">
+              <span>{safeSummary.totalDeliveriesCount.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-500">{t.unitSJ}</span>
             </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl sm:text-2xl font-extrabold font-mono text-[#1E2024]">
-              {safeSummary.totalQtyOrderPcs.toLocaleString('id-ID')}{' '}
-              <span className="text-xs font-semibold text-[#5C6068]">PCS</span>
-            </div>
-            <div className="text-[11px] font-mono text-[#5C6068] mt-1">
-              Berat Order: <strong>{safeSummary.totalBeratOrderKg.toLocaleString('id-ID')} KG</strong>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Total Realisasi Terkirim (Akumulasi SJ) */}
-        <div className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
-              Total Terkirim (SJ)
-            </span>
-            <div className="w-7 h-7 rounded-xl bg-emerald-500/15 text-emerald-700 flex items-center justify-center">
-              <PackageCheck className="w-3.5 h-3.5" />
-            </div>
-          </div>
-          <div className="mt-2">
-            <div className="text-xl sm:text-2xl font-extrabold font-mono text-emerald-700">
-              {safeSummary.totalTerkirimPcs.toLocaleString('id-ID')}{' '}
-              <span className="text-xs font-semibold text-emerald-800/70">PCS</span>
-            </div>
-            <div className="flex items-center justify-between text-[11px] font-mono text-[#5C6068] mt-1">
-              <span>{safeSummary.totalTerkirimKg.toLocaleString('id-ID')} KG</span>
-              <span className="px-1.5 py-0.2 bg-emerald-500/15 text-emerald-800 font-bold rounded-full">
-                {deliveryPercentage}% Terkirim
+            <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-sky-200/60 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-600">
+              <span className="truncate">{filterMetrics.multiSJ} {t.multiSjLabel}</span>
+              <span className="text-amber-700 font-semibold shrink-0">
+                {filterMetrics.fallbackNoSJ} {t.notYetSentShort}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Card 5: Total Sisa OS Keseluruhan */}
-        <div className="glass-card rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between border-amber-500/30 bg-gradient-to-br from-white/80 to-amber-50/40">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[#EA5413]">
-              Total Sisa OS Akhir
-            </span>
-            <div className="w-7 h-7 rounded-xl bg-[#EA5413]/15 text-[#EA5413] flex items-center justify-center">
-              <Clock className="w-3.5 h-3.5" />
+        {/* Card 3: Total Order */}
+        <div className="glass-card rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+            {t.statTotalOrder}
+          </span>
+          <div className="mt-1.5 sm:mt-2">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{safeSummary.totalQtyOrderPcs.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-500">{t.unitPcs}</span>
+            </div>
+            <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+              <span className="truncate">{safeSummary.totalBeratOrderKg.toLocaleString('id-ID')} {t.unitKg}</span>
+              <span className="text-slate-400 shrink-0">{t.poQuota}</span>
             </div>
           </div>
-          <div className="mt-2">
-            <div className="text-xl sm:text-2xl font-extrabold font-mono text-[#EA5413]">
-              {safeSummary.totalSisaOSPcs.toLocaleString('id-ID')}{' '}
-              <span className="text-xs font-semibold text-[#EA5413]/80">PCS</span>
+        </div>
+
+        {/* Card 4: Terkirim */}
+        <div className="glass-card rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+            {t.statTerkirim}
+          </span>
+          <div className="mt-1.5 sm:mt-2">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold font-mono text-emerald-700 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{safeSummary.totalTerkirimPcs.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-500">{t.unitPcs}</span>
             </div>
-            <div className="text-[11px] font-mono text-[#5C6068] mt-1">
-              Tonase OS: <strong>{safeSummary.totalSisaOSKg.toLocaleString('id-ID')} KG</strong>
+            <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+              <span className="truncate">{safeSummary.totalTerkirimKg.toLocaleString('id-ID')} {t.unitKg}</span>
+              <span className="text-emerald-700 font-semibold shrink-0">{deliveryPercentage}%</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Card 5: Sisa OS */}
+        <div className="glass-panel-warm rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[108px]">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-[#EA5413] truncate">
+            {t.statSisaOS}
+          </span>
+          <div className="mt-1.5 sm:mt-2">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold font-mono text-[#EA5413] tracking-tight leading-none flex items-baseline gap-1">
+              <span>{safeSummary.totalSisaOSPcs.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-[#EA5413]/75">{t.unitPcs}</span>
+            </div>
+            <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-orange-200/60 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-[#EA5413]">
+              <span className="font-medium truncate">{safeSummary.totalSisaOSKg.toLocaleString('id-ID')} {t.unitKg}</span>
+              <span className="font-semibold shrink-0">{100 - deliveryPercentage}% OS</span>
             </div>
           </div>
         </div>
@@ -617,31 +585,31 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
       {/* 2. ACTION TOOLBAR KHUSUS DETAIL KIRIMAN SJ                        */}
       {/* ================================================================= */}
       <div
-        className={`relative flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 p-3 sm:p-3.5 glass-panel rounded-3xl ${
+        className={`relative flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2 p-2.5 sm:p-3 glass-panel rounded-xl ${
           isExportMenuOpen || isCopyMenuOpen ? 'z-40' : 'z-20'
         }`}
       >
-        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
-          {/* Split Button Download Excel Detail SJ */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-1.5 sm:gap-2">
+          {/* Split Button Export Excel Detail SJ */}
           <div
-            className={`relative inline-flex flex-1 sm:flex-initial ${
+            className={`relative col-span-2 sm:col-span-1 inline-flex w-full sm:w-auto ${
               isExportMenuOpen ? 'z-50' : ''
             }`}
             ref={exportDropdownRef}
           >
-            <div className="inline-flex items-stretch rounded-full border border-white/45 bg-gradient-to-b from-[#1F83B4]/95 to-[#19719C] backdrop-blur-xl shadow-[0_6px_20px_-3px_rgba(25,113,156,0.32)] text-white overflow-hidden transition-all duration-200 hover:shadow-[0_8px_24px_-2px_rgba(25,113,156,0.42)] hover:-translate-y-0.5">
+            <div className="w-full inline-flex items-stretch rounded-lg bg-[#19719C] hover:bg-[#155E82] text-white overflow-hidden transition-colors">
               <button
                 type="button"
                 id="btn-download-detail-sj-excel"
                 onClick={() => triggerExport('ALL')}
-                className="px-4 sm:px-5 py-2.5 text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer hover:bg-white/15 transition-colors"
-                title="Download Excel Rekap Detail Kiriman per Surat Jalan (4 Sheet Standar Data Entry Profesional)"
+                className="flex-1 sm:flex-initial px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-semibold inline-flex items-center justify-center gap-1.5 cursor-pointer hover:bg-black/10 transition-colors"
+                title={t.exportExcelBtn}
               >
-                <Download className="w-4 h-4 shrink-0" />
-                <span>Download Excel Detail SJ</span>
+                <Download className="w-3.5 h-3.5 shrink-0" />
+                <span>{t.exportExcelBtn}</span>
               </button>
 
-              <div className="w-px self-stretch bg-white/25 my-1.5" />
+              <div className="w-px self-stretch bg-white/20 my-1.5" />
 
               <button
                 type="button"
@@ -650,8 +618,8 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                   haptic.selection();
                   setIsExportMenuOpen(!isExportMenuOpen);
                 }}
-                className="px-2.5 py-2.5 inline-flex items-center justify-center cursor-pointer hover:bg-white/15 transition-colors"
-                title="Pilih cakupan unduhan Excel Detail SJ"
+                className="px-2 py-1.5 sm:py-2 inline-flex items-center justify-center cursor-pointer hover:bg-black/10 transition-colors shrink-0"
+                title={t.exportScopeHeader}
               >
                 <ChevronDown
                   className={`w-3.5 h-3.5 transition-transform duration-200 ${
@@ -662,23 +630,20 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
             </div>
 
             {isExportMenuOpen && (
-              <div className="absolute left-0 top-full mt-2.5 w-84 max-w-[92vw] bg-white/95 backdrop-blur-2xl rounded-2xl z-50 p-2 font-sans animate-fade-in shadow-[0_20px_50px_-10px_rgba(0,0,19,0.16)] border border-white">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#5C5C68] font-mono border-b border-zinc-200/70">
-                  Unduh Excel Detail Kiriman SJ (4 Sheet Lengkap)
+              <div className="absolute left-0 top-full mt-1.5 w-80 max-w-[92vw] bg-white rounded-xl z-50 p-1.5 font-sans shadow-lg border border-slate-200">
+                <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 border-b border-slate-100">
+                  {t.exportExcelBtn}
                 </div>
 
                 <div className="py-1 space-y-0.5">
                   <button
                     type="button"
                     onClick={() => triggerExport('ALL')}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-[#000013] hover:bg-[#19719C]/10 hover:text-[#19719C] rounded-xl flex items-center justify-between transition-colors cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <Download className="w-3.5 h-3.5 text-[#19719C]" />
-                      <span>Semua PO & Detail SJ (Full + Fallback)</span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-zinc-200/70 text-[#000013] text-[10px] font-mono font-bold rounded-full">
-                      {filterMetrics.allPOs} PO
+                    <span>{t.scopeAllData}</span>
+                    <span className="text-[11px] font-mono font-semibold text-slate-500">
+                      {filterMetrics.allPOs}
                     </span>
                   </button>
 
@@ -686,14 +651,11 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     type="button"
                     onClick={() => triggerExport('OPEN_ONLY')}
                     disabled={filterMetrics.openPOs === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-500/10 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                      <span>Khusus CO Open (Detail SJ & OS)</span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-emerald-500/15 text-emerald-800 text-[10px] font-mono font-bold rounded-full">
-                      {filterMetrics.openPOs} PO
+                    <span>{t.scopeCoOpen}</span>
+                    <span className="text-[11px] font-mono font-semibold text-emerald-700">
+                      {filterMetrics.openPOs}
                     </span>
                   </button>
 
@@ -701,14 +663,11 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     type="button"
                     onClick={() => triggerExport('CLOSED_ONLY')}
                     disabled={filterMetrics.closedPOs === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-[#5C5C68] hover:bg-zinc-200/50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-zinc-400" />
-                      <span>Khusus CO Closed (Detail SJ)</span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-zinc-200/60 text-[#5C5C68] text-[10px] font-mono font-bold rounded-full">
-                      {filterMetrics.closedPOs} PO
+                    <span>{t.scopeCoClosed}</span>
+                    <span className="text-[11px] font-mono font-semibold text-slate-500">
+                      {filterMetrics.closedPOs}
                     </span>
                   </button>
 
@@ -716,14 +675,11 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     type="button"
                     onClick={() => triggerExport('WITH_DELIVERY_ONLY')}
                     disabled={filterMetrics.withSJ === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-[#19719C] hover:bg-[#19719C]/10 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <Truck className="w-3.5 h-3.5 text-[#19719C]" />
-                      <span>Khusus Sudah Ada Kiriman (SJ Aktif)</span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-[#19719C]/15 text-[#19719C] text-[10px] font-mono font-bold rounded-full">
-                      {filterMetrics.withSJ} PO
+                    <span>{t.filterHasSJ}</span>
+                    <span className="text-[11px] font-mono font-semibold text-[#19719C]">
+                      {filterMetrics.withSJ}
                     </span>
                   </button>
 
@@ -731,14 +687,11 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     type="button"
                     onClick={() => triggerExport('MULTI_DELIVERY_ONLY')}
                     disabled={filterMetrics.multiSJ === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-indigo-800 hover:bg-indigo-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-indigo-600" />
-                      <span>Khusus Multi-Kiriman (≥ 2 SJ per PO)</span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-indigo-100 text-indigo-800 text-[10px] font-mono font-bold rounded-full">
-                      {filterMetrics.multiSJ} PO
+                    <span>{t.filterMultiSJ}</span>
+                    <span className="text-[11px] font-mono font-semibold text-indigo-700">
+                      {filterMetrics.multiSJ}
                     </span>
                   </button>
 
@@ -746,14 +699,11 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     type="button"
                     onClick={() => triggerExport('NO_DELIVERY_FALLBACK')}
                     disabled={filterMetrics.fallbackNoSJ === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
-                      <span>Khusus Belum Kirim (Fallback OS)</span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-mono font-bold rounded-full">
-                      {filterMetrics.fallbackNoSJ} PO
+                    <span>{t.filterNoSJYet}</span>
+                    <span className="text-[11px] font-mono font-semibold text-amber-700">
+                      {filterMetrics.fallbackNoSJ}
                     </span>
                   </button>
 
@@ -761,14 +711,11 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     type="button"
                     onClick={() => triggerExport('HAS_SISA_OS')}
                     disabled={filterMetrics.hasSisaOS === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-[#EA5413] hover:bg-orange-50 rounded-xl flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between transition-colors disabled:opacity-40 cursor-pointer"
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-[#EA5413]" />
-                      <span>Khusus Masih Ada Sisa OS (&gt; 0 PCS)</span>
-                    </div>
-                    <span className="px-2 py-0.5 bg-orange-100 text-[#EA5413] text-[10px] font-mono font-bold rounded-full">
-                      {filterMetrics.hasSisaOS} PO
+                    <span>{t.filterHasOS}</span>
+                    <span className="text-[11px] font-mono font-semibold text-[#EA5413]">
+                      {filterMetrics.hasSisaOS}
                     </span>
                   </button>
                 </div>
@@ -780,47 +727,47 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
           <button
             type="button"
             onClick={() => triggerShareWA('ALL')}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider rounded-full border border-emerald-500/25 bg-emerald-500/10 hover:bg-emerald-500/18 text-emerald-800 backdrop-blur-xl shadow-2xs hover:-translate-y-0.5 transition-all cursor-pointer"
-            title="Kirim file Excel Detail Kiriman SJ (.xlsx) langsung via WhatsApp"
+            className="col-span-1 inline-flex items-center justify-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+            title={t.sendWaFileBtn}
           >
-            <Share2 className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-            <span>Kirim Excel Detail SJ ke WA</span>
+            <Share2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>{t.sendWaFileBtn}</span>
           </button>
 
           {/* Copy Detail SJ Text Summary for WhatsApp */}
           <div
-            className={`relative inline-flex flex-1 sm:flex-initial ${
+            className={`relative col-span-1 inline-flex w-full sm:w-auto ${
               isCopyMenuOpen ? 'z-50' : ''
             }`}
             ref={copyDropdownRef}
           >
             <div
-              className={`inline-flex items-stretch rounded-full border ${
+              className={`w-full inline-flex items-stretch rounded-lg border ${
                 isCopied
-                  ? 'border-emerald-500/35 bg-emerald-50/90 text-emerald-800'
-                  : 'border-white/90 bg-white/75 hover:bg-white/90 text-[#000013]'
-              } backdrop-blur-xl shadow-2xs overflow-hidden transition-all`}
+                  ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                  : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+              } overflow-hidden transition-colors`}
             >
               <button
                 type="button"
                 onClick={() => triggerCopyText('ALL')}
-                className="px-3.5 sm:px-4 py-2.5 text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-2 cursor-pointer hover:bg-black/[0.03]"
-                title="Salin ringkasan teks rincian Surat Jalan & Sisa OS untuk WhatsApp"
+                className="flex-1 sm:flex-initial px-2.5 sm:px-3 py-1.5 sm:py-2 text-[11px] sm:text-xs font-medium inline-flex items-center justify-center gap-1.5 cursor-pointer hover:bg-slate-100/60"
+                title={t.copyFormatHeader}
               >
                 {isCopied ? (
                   <>
-                    <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span className="text-emerald-700 font-bold">Tersalin!</span>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                    <span className="text-emerald-700 font-semibold">{t.copiedSuccess}</span>
                   </>
                 ) : (
                   <>
-                    <Copy className="w-4 h-4 text-[#5C5C68] shrink-0" />
-                    <span>Salin Teks Detail SJ</span>
+                    <Copy className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                    <span>{t.copyTextBtn}</span>
                   </>
                 )}
               </button>
 
-              <div className="w-px self-stretch bg-zinc-200/80 my-1.5" />
+              <div className="w-px self-stretch bg-slate-200 my-1.5" />
 
               <button
                 type="button"
@@ -828,7 +775,7 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                   haptic.selection();
                   setIsCopyMenuOpen(!isCopyMenuOpen);
                 }}
-                className="px-2.5 py-2.5 inline-flex items-center justify-center cursor-pointer text-[#5C5C68] hover:text-[#000013]"
+                className="px-2 py-1.5 sm:py-2 inline-flex items-center justify-center cursor-pointer text-slate-500 hover:text-slate-900 shrink-0"
               >
                 <ChevronDown
                   className={`w-3.5 h-3.5 transition-transform ${
@@ -839,52 +786,52 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
             </div>
 
             {isCopyMenuOpen && (
-              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-2.5 w-76 max-w-[90vw] bg-white/95 backdrop-blur-2xl rounded-2xl z-50 p-2 font-sans shadow-xl border border-white">
-                <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#5C5C68] font-mono border-b border-zinc-200/60">
-                  Pilih Cakupan Salin Teks WA (Detail SJ)
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-64 max-w-[90vw] bg-white rounded-xl z-50 p-1.5 font-sans shadow-lg border border-slate-200">
+                <div className="px-2.5 py-1.5 text-[11px] font-semibold text-slate-500 border-b border-slate-100">
+                  {t.copyFormatHeader}
                 </div>
                 <div className="py-1 space-y-0.5">
                   <button
                     type="button"
                     onClick={() => triggerCopyText('ALL')}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-[#000013] hover:bg-zinc-100 rounded-xl flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between cursor-pointer"
                   >
-                    <span>Semua PO & Rincian SJ</span>
-                    <span className="text-[10px] font-mono font-bold text-zinc-600">
-                      {filterMetrics.allPOs} PO
+                    <span>{t.scopeAllData}</span>
+                    <span className="text-[11px] font-mono font-semibold text-slate-500">
+                      {filterMetrics.allPOs}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => triggerCopyText('OPEN_ONLY')}
                     disabled={filterMetrics.openPOs === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-50 rounded-xl flex items-center justify-between disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between disabled:opacity-40 cursor-pointer"
                   >
-                    <span>Khusus CO Open</span>
-                    <span className="text-[10px] font-mono font-bold text-emerald-700">
-                      {filterMetrics.openPOs} PO
+                    <span>{t.scopeCoOpen}</span>
+                    <span className="text-[11px] font-mono font-semibold text-emerald-700">
+                      {filterMetrics.openPOs}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => triggerCopyText('WITH_DELIVERY_ONLY')}
                     disabled={filterMetrics.withSJ === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-[#19719C] hover:bg-sky-50 rounded-xl flex items-center justify-between disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between disabled:opacity-40 cursor-pointer"
                   >
-                    <span>Khusus Sudah Ada Kiriman SJ</span>
-                    <span className="text-[10px] font-mono font-bold text-[#19719C]">
-                      {filterMetrics.withSJ} PO
+                    <span>{t.filterHasSJ}</span>
+                    <span className="text-[11px] font-mono font-semibold text-[#19719C]">
+                      {filterMetrics.withSJ}
                     </span>
                   </button>
                   <button
                     type="button"
                     onClick={() => triggerCopyText('HAS_SISA_OS')}
                     disabled={filterMetrics.hasSisaOS === 0}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-[#EA5413] hover:bg-orange-50 rounded-xl flex items-center justify-between disabled:opacity-40 cursor-pointer"
+                    className="w-full text-left px-2.5 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-100 rounded-lg flex items-center justify-between disabled:opacity-40 cursor-pointer"
                   >
-                    <span>Khusus Masih Ada Sisa OS</span>
-                    <span className="text-[10px] font-mono font-bold text-[#EA5413]">
-                      {filterMetrics.hasSisaOS} PO
+                    <span>{t.filterHasOS}</span>
+                    <span className="text-[11px] font-mono font-semibold text-[#EA5413]">
+                      {filterMetrics.hasSisaOS}
                     </span>
                   </button>
                 </div>
@@ -893,18 +840,18 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
           </div>
         </div>
 
-        {/* Right: Sheet Selector & Reset */}
-        <div className="flex flex-wrap items-center gap-2">
-          {sheets && sheets.length > 1 && onSelectSheet && (
-            <div className="flex items-center gap-2 bg-white/75 backdrop-blur-xl border border-white/90 rounded-full px-3.5 py-1.5 text-xs font-mono shadow-2xs">
-              <span className="text-[#5C5C68] font-bold uppercase text-[10px]">Sheet:</span>
+        {/* Right: Sheet Selector */}
+        {sheets && sheets.length > 1 && onSelectSheet && (
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-mono">
+              <span className="text-slate-500 font-semibold text-[11px]">{t.sheetLabel}:</span>
               <select
                 value={activeSheet}
                 onChange={(e) => {
                   haptic.selection();
                   onSelectSheet(e.target.value);
                 }}
-                className="bg-transparent text-[#000013] font-semibold focus:outline-none cursor-pointer text-xs"
+                className="bg-transparent text-slate-900 font-semibold focus:outline-none cursor-pointer text-xs"
               >
                 {sheets.map((s) => (
                   <option key={s} value={s}>
@@ -913,20 +860,8 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                 ))}
               </select>
             </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => {
-              haptic.heavy();
-              onReset();
-            }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold uppercase tracking-wider rounded-full border border-white/80 bg-white/60 hover:bg-white/85 text-[#5C5C68] hover:text-[#000013] transition-all cursor-pointer"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span>Ganti File</span>
-          </button>
-        </div>
+          </div>
+        )}
       </div>
 
       {/* ================================================================= */}
@@ -936,31 +871,20 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
         id="detail-sj-table-container"
         className={
           isFullscreen
-            ? 'fixed inset-0 z-50 bg-[#F5F6F8]/98 backdrop-blur-2xl flex flex-col p-2.5 sm:p-4 overflow-hidden'
-            : 'glass-panel rounded-3xl overflow-hidden relative z-10'
+            ? 'fixed inset-0 z-50 bg-[#F8FAFC] flex flex-col p-3 sm:p-4 overflow-hidden'
+            : 'glass-panel rounded-xl overflow-hidden relative z-10'
         }
       >
         {/* Fullscreen Top Header */}
         {isFullscreen && (
-          <div className="glass-panel-accent p-2.5 sm:p-3 rounded-2xl flex items-center justify-between gap-3 mb-2.5 shrink-0">
+          <div className="bg-white border border-slate-200 p-2.5 sm:p-3 rounded-xl flex items-center justify-between gap-3 mb-2.5 shrink-0">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-[#19719C] text-white flex items-center justify-center font-bold text-xs shrink-0">
-                <Truck className="w-4 h-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-xs sm:text-sm font-bold tracking-tight text-[#1E2024] truncate">
-                    Mode Rekap Detail Kiriman (Per Surat Jalan / SJ) — Layar Penuh
-                  </h2>
-                  <span className="px-2 py-0.5 bg-[#19719C]/15 text-[#19719C] text-[10px] font-mono font-bold rounded-full">
-                    {filteredTotals.totalPOs} PO • {filteredTotals.totalActiveSJs} SJ
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#5C6068] truncate hidden sm:block">
-                  Rincian setiap pengiriman berdasarkan No. Surat Jalan, Tanggal Kirim, Qty Kirim,
-                  Fallback OS, dan Sisa OS Akhir (Tekan ESC untuk keluar)
-                </p>
-              </div>
+              <h2 className="text-xs sm:text-sm font-bold text-slate-900 truncate">
+                {t.modeDetailSJ}
+              </h2>
+              <span className="px-2 py-0.5 bg-slate-100 text-slate-700 text-[11px] font-mono font-semibold rounded-md">
+                {filteredTotals.totalPOs} {t.unitItem} · {filteredTotals.totalActiveSJs} {t.unitSJ}
+              </span>
             </div>
 
             <button
@@ -969,58 +893,58 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                 haptic.medium();
                 setIsFullscreen(false);
               }}
-              className="liquid-glass-primary inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs uppercase tracking-wider cursor-pointer shrink-0"
+              className="liquid-glass-primary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer shrink-0"
             >
               <Minimize2 className="w-3.5 h-3.5" />
-              <span>Keluar Layar Penuh</span>
+              <span>{t.exitBtn}</span>
             </button>
           </div>
         )}
 
         {/* Controls Header */}
-        <div className="p-3 sm:p-4 border-b border-zinc-200/60 bg-white/45 flex flex-col gap-3 shrink-0">
+        <div className="p-3 sm:p-3.5 border-b border-slate-200 bg-white flex flex-col gap-2.5 shrink-0">
           {/* Row 1: Search Bar & Layout View Switcher */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-2.5 sm:gap-4">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-full lg:max-w-lg">
-              <Search className="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Cari No. Surat Jalan (P26...), Tgl Kirim, Artikel, No. PO, atau CO..."
-                className="w-full pl-9 pr-8 py-2 bg-white/85 border border-white/95 rounded-full text-xs font-mono text-[#1E2024] placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#19719C]/40 shadow-2xs min-h-[38px]"
-              />
-              {searchTerm && (
-                <button
-                  type="button"
-                  onClick={() => setSearchTerm('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-zinc-400 hover:text-zinc-700 rounded-full cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
+          <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5">
+            {/* Left Zone: Search Input & Main View Selector (Tabel SJ / Per No PO / Grup PO / Matriks SJ) */}
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 flex-1 min-w-0">
+              {/* Search Input */}
+              <div className="relative w-full sm:w-64 md:w-72 xl:w-80 shrink-0">
+                <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder={t.searchPlaceholder}
+                  className="w-full pl-8 pr-8 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#19719C] min-h-[34px] transition-colors"
+                />
+                {searchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 text-slate-400 hover:text-slate-700 rounded cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
 
-            {/* Layout Mode & Table Controls */}
-            <div className="flex flex-wrap items-center justify-between lg:justify-end gap-2">
-              {/* View Format Selector */}
-              <div className="glass-segmented inline-flex flex-wrap items-center p-0.5">
+              {/* View Format Selector - Anchored stably on the left, zero position jumping */}
+              <div className="glass-segmented inline-flex items-center shrink-0 max-w-full overflow-x-auto no-scrollbar py-0.5">
                 <button
                   type="button"
                   onClick={() => {
                     haptic.selection();
                     setLayoutMode('DATA_ENTRY_TABLE');
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     layoutMode === 'DATA_ENTRY_TABLE'
-                      ? 'bg-[#19719C] text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                      ? 'bg-[#19719C] text-white font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="Tabel Standar Data Entry Profesional (Baris per Surat Jalan + Sub-Total Sisa OS per PO)"
+                  title={t.viewTableSJ}
                 >
-                  <TableIcon className="w-3 h-3" />
-                  <span>Tabel Data Entry ({filteredTotals.totalPOs} Item)</span>
+                  <TableIcon className="w-3.5 h-3.5" />
+                  <span>{t.viewTableSJ} ({filteredTotals.totalPOs})</span>
                 </button>
 
                 <button
@@ -1029,15 +953,15 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setLayoutMode('UNIQUE_PO_SUMMARY');
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     layoutMode === 'UNIQUE_PO_SUMMARY'
-                      ? 'bg-[#EA5413] text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                      ? 'bg-[#EA5413] text-white font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="Rekap Konsolidasi By Nomor PO Unik (Menggabungkan PO yang memiliki beberapa Artikel/Item ke dalam 1 Nomor PO)"
+                  title={t.viewPerNoPO}
                 >
-                  <Layers className="w-3 h-3" />
-                  <span>By No. PO Unik ({filteredTotals.uniquePONumbers} PO)</span>
+                  <Layers className="w-3.5 h-3.5" />
+                  <span>{t.viewPerNoPO} ({filteredTotals.uniquePONumbers})</span>
                 </button>
 
                 <button
@@ -1046,15 +970,15 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setLayoutMode('PO_GROUP_CARDS');
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     layoutMode === 'PO_GROUP_CARDS'
-                      ? 'bg-[#19719C] text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                      ? 'bg-[#19719C] text-white font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="Tampilan Grup per PO-Item & Rincian Tahapan Surat Jalan"
+                  title={t.viewGroupPO}
                 >
-                  <LayoutList className="w-3 h-3" />
-                  <span>Grup per PO</span>
+                  <LayoutList className="w-3.5 h-3.5" />
+                  <span>{t.viewGroupPO}</span>
                 </button>
 
                 <button
@@ -1063,18 +987,21 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setLayoutMode('HORIZONTAL_MATRIX');
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     layoutMode === 'HORIZONTAL_MATRIX'
-                      ? 'bg-[#19719C] text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-[#1E2024]'
+                      ? 'bg-[#19719C] text-white font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
-                  title="Tampilan Matriks Horizontal (1 Baris = 1 PO-Item, Kolom SJ #1, SJ #2, SJ #3...)"
+                  title={t.viewMatrixSJ}
                 >
-                  <Columns3 className="w-3 h-3" />
-                  <span>Matriks SJ 1..N</span>
+                  <Columns3 className="w-3.5 h-3.5" />
+                  <span>{t.viewMatrixSJ}</span>
                 </button>
               </div>
+            </div>
 
+            {/* Right Zone: Table Controls & Actions (Sub-total, Akurat SUM, Scroll Mode, Fullscreen) */}
+            <div className="flex flex-wrap items-center justify-start xl:justify-end gap-1.5 sm:gap-2 shrink-0">
               {/* Sub-Total Toggle when in DATA_ENTRY_TABLE */}
               {layoutMode === 'DATA_ENTRY_TABLE' && (
                 <button
@@ -1083,19 +1010,19 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setShowSubTotalPerPO(!showSubTotalPerPO);
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full border transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-lg border transition-colors cursor-pointer whitespace-nowrap ${
                     showSubTotalPerPO
-                      ? 'bg-emerald-500/12 border-emerald-500/35 text-emerald-800'
-                      : 'bg-white/60 border-zinc-300/70 text-[#5C6068]'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800 font-semibold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
-                  title="Tampilkan baris ringkasan Sub-Total & Sisa OS Akhir tepat di bawah kiriman terakhir setiap PO"
+                  title={t.subTotalToggle}
                 >
                   <CheckCircle2
-                    className={`w-3 h-3 ${
-                      showSubTotalPerPO ? 'text-emerald-600' : 'text-zinc-400'
+                    className={`w-3.5 h-3.5 ${
+                      showSubTotalPerPO ? 'text-emerald-600' : 'text-slate-400'
                     }`}
                   />
-                  <span>Sub-Total per PO</span>
+                  <span>{t.subTotalToggle}</span>
                 </button>
               )}
 
@@ -1107,14 +1034,14 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setRepeatPOTotalsOnEveryRow(!repeatPOTotalsOnEveryRow);
                   }}
-                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full border transition-all cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs font-medium rounded-lg border transition-colors cursor-pointer whitespace-nowrap ${
                     repeatPOTotalsOnEveryRow
-                      ? 'bg-[#19719C]/12 border-[#19719C]/35 text-[#19719C]'
-                      : 'bg-white/60 border-zinc-300/70 text-[#5C6068]'
+                      ? 'bg-sky-50 border-sky-300 text-[#19719C] font-semibold'
+                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                   }`}
-                  title="Jika aktif, QTY PO & Sisa OS Akhir diulang di setiap baris SJ. Jika nonaktif (Default Data Entry), QTY PO hanya di baris ke-1 PO & Sisa OS Akhir di baris SJ terakhir PO agar SUM kolom tidak ganda."
+                  title={repeatPOTotalsOnEveryRow ? t.flatFullToggle : t.accurateSumToggle}
                 >
-                  <span>{repeatPOTotalsOnEveryRow ? 'Mode: Flat Penuh' : 'Mode: Akurat SUM'}</span>
+                  <span>{repeatPOTotalsOnEveryRow ? t.flatFullToggle : t.accurateSumToggle}</span>
                 </button>
               )}
 
@@ -1126,14 +1053,14 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setScrollMode('page');
                   }}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2 py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer ${
                     scrollMode === 'page'
-                      ? 'glass-segmented-active text-emerald-700'
-                      : 'text-[#5C6068]'
+                      ? 'glass-segmented-active text-slate-900 font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <Unlock className="w-3 h-3" />
-                  <span>Bebas</span>
+                  <span>{t.scrollFree}</span>
                 </button>
                 <button
                   type="button"
@@ -1141,14 +1068,14 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setScrollMode('box');
                   }}
-                  className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`flex items-center gap-1 px-2 py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer ${
                     scrollMode === 'box'
-                      ? 'glass-segmented-active text-[#19719C]'
-                      : 'text-[#5C6068]'
+                      ? 'glass-segmented-active text-slate-900 font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
                   <Lock className="w-3 h-3" />
-                  <span>Kotak</span>
+                  <span>{t.scrollBox}</span>
                 </button>
               </div>
 
@@ -1159,17 +1086,17 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                   haptic.medium();
                   setIsFullscreen(!isFullscreen);
                 }}
-                className="liquid-glass-clear inline-flex items-center gap-1 px-2.5 py-1 text-[11px] uppercase tracking-wider cursor-pointer"
+                className="liquid-glass-clear inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 text-[11px] sm:text-xs cursor-pointer whitespace-nowrap"
               >
                 {isFullscreen ? (
                   <>
-                    <Minimize2 className="w-3.5 h-3.5 text-[#19719C]" />
-                    <span>Keluar</span>
+                    <Minimize2 className="w-3.5 h-3.5 text-slate-600" />
+                    <span>{t.exitBtn}</span>
                   </>
                 ) : (
                   <>
-                    <Maximize2 className="w-3.5 h-3.5 text-[#19719C]" />
-                    <span>Layar Penuh</span>
+                    <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
+                    <span>{t.fullscreenBtn}</span>
                   </>
                 )}
               </button>
@@ -1177,27 +1104,26 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
           </div>
 
           {/* Row 2: Filter Toolbar (Status CO & Filter Kiriman SJ) */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2.5 border-t border-zinc-200/60 text-xs">
+          <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-xs overflow-x-auto no-scrollbar py-0.5">
             {/* Status CO */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] font-semibold text-[#5C6068] flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5 text-[#19719C]" />
-                <span>Status CO:</span>
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+                CO:
               </span>
-              <div className="glass-segmented inline-flex items-center">
+              <div className="glass-segmented inline-flex items-center shrink-0">
                 <button
                   type="button"
                   onClick={() => {
                     haptic.selection();
                     setCoFilter('ALL');
                   }}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     coFilter === 'ALL'
-                      ? 'glass-segmented-active text-[#19719C]'
-                      : 'text-[#5C6068]'
+                      ? 'glass-segmented-active text-slate-900 font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Semua ({filterMetrics.allPOs})
+                  {t.filterAll} ({filterMetrics.allPOs})
                 </button>
                 <button
                   type="button"
@@ -1205,18 +1131,13 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setCoFilter('OPEN');
                   }}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     coFilter === 'OPEN'
-                      ? 'bg-emerald-500 text-white shadow-2xs'
-                      : 'text-[#5C6068]'
+                      ? 'bg-emerald-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-emerald-700'
                   }`}
                 >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      coFilter === 'OPEN' ? 'bg-white' : 'bg-emerald-500'
-                    }`}
-                  />
-                  <span>Open ({filterMetrics.openPOs})</span>
+                  {t.statusOpenShort} ({filterMetrics.openPOs})
                 </button>
                 <button
                   type="button"
@@ -1224,28 +1145,23 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setCoFilter('CLOSED');
                   }}
-                  className={`px-3 py-1 text-xs font-semibold rounded-full transition-all cursor-pointer flex items-center gap-1.5 ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     coFilter === 'CLOSED'
-                      ? 'bg-zinc-700 text-white shadow-2xs'
-                      : 'text-[#5C6068]'
+                      ? 'bg-slate-700 text-white font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      coFilter === 'CLOSED' ? 'bg-white' : 'bg-zinc-400'
-                    }`}
-                  />
-                  <span>Closed ({filterMetrics.closedPOs})</span>
+                  {t.statusClosedShort} ({filterMetrics.closedPOs})
                 </button>
               </div>
             </div>
 
-            <div className="hidden xl:block w-px h-4 bg-zinc-300/60" />
+            <div className="w-px h-3.5 bg-slate-200 shrink-0" />
 
             {/* Filter Rincian Kiriman SJ */}
-            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-              <span className="text-[11px] font-semibold text-[#5C6068] shrink-0">
-                Filter Kiriman SJ:
+            <div className="flex items-center gap-1 shrink-0">
+              <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 uppercase tracking-wider shrink-0">
+                {t.filterLabel}:
               </span>
               <div className="glass-segmented inline-flex items-center shrink-0">
                 <button
@@ -1254,13 +1170,13 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setDeliveryFilter('ALL');
                   }}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     deliveryFilter === 'ALL'
-                      ? 'glass-segmented-active text-[#1E2024]'
-                      : 'text-[#5C6068]'
+                      ? 'glass-segmented-active text-slate-900 font-semibold'
+                      : 'text-slate-600 hover:text-slate-900'
                   }`}
                 >
-                  Semua PO ({filterMetrics.scopedPOsCount})
+                  {t.filterAll} ({filterMetrics.scopedPOsCount})
                 </button>
 
                 <button
@@ -1269,13 +1185,13 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setDeliveryFilter('WITH_SJ');
                   }}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     deliveryFilter === 'WITH_SJ'
-                      ? 'bg-[#19719C] text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-[#19719C]'
+                      ? 'bg-[#19719C] text-white font-semibold'
+                      : 'text-slate-600 hover:text-[#19719C]'
                   }`}
                 >
-                  Sudah Ada SJ ({filterMetrics.withSJ})
+                  {t.filterHasSJ} ({filterMetrics.withSJ})
                 </button>
 
                 <button
@@ -1284,14 +1200,14 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setDeliveryFilter('MULTI_SJ');
                   }}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     deliveryFilter === 'MULTI_SJ'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-indigo-700'
+                      ? 'bg-indigo-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-indigo-700'
                   }`}
-                  title="PO yang dikirim bertahap dengan 2 atau lebih Surat Jalan"
+                  title={t.filterMultiSJ}
                 >
-                  Multi-Kiriman ≥2 SJ ({filterMetrics.multiSJ})
+                  {t.filterMultiSJ} ({filterMetrics.multiSJ})
                 </button>
 
                 <button
@@ -1300,14 +1216,14 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setDeliveryFilter('FALLBACK_NO_SJ');
                   }}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     deliveryFilter === 'FALLBACK_NO_SJ'
-                      ? 'bg-amber-600 text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-amber-700'
+                      ? 'bg-amber-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-amber-700'
                   }`}
-                  title="PO yang belum memiliki Surat Jalan (Belum Kirim)"
+                  title={t.filterNoSJYet}
                 >
-                  Belum Kirim ({filterMetrics.fallbackNoSJ})
+                  {t.filterNoSJYet} ({filterMetrics.fallbackNoSJ})
                 </button>
 
                 {filterMetrics.multiItemPOLines > 0 && (
@@ -1317,14 +1233,14 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                       haptic.selection();
                       setDeliveryFilter('MULTI_ITEM_PO');
                     }}
-                    className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                    className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                       deliveryFilter === 'MULTI_ITEM_PO'
-                        ? 'bg-purple-700 text-white shadow-2xs'
-                        : 'text-[#5C6068] hover:text-purple-700'
+                        ? 'bg-purple-700 text-white font-semibold'
+                        : 'text-slate-600 hover:text-purple-700'
                     }`}
-                    title="Nomor PO yang digunakan untuk memesan lebih dari 1 Artikel/Item berbeda"
+                    title={t.filterMultiItem}
                   >
-                    PO Multi-Item ({filterMetrics.multiItemUniquePOsCount} PO / {filterMetrics.multiItemPOLines} Item)
+                    {t.filterMultiItem} ({filterMetrics.multiItemUniquePOsCount} {t.unitPoShort})
                   </button>
                 )}
 
@@ -1334,13 +1250,13 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setDeliveryFilter('HAS_SISA_OS');
                   }}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     deliveryFilter === 'HAS_SISA_OS'
-                      ? 'bg-[#EA5413] text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-[#EA5413]'
+                      ? 'bg-[#EA5413] text-white font-semibold'
+                      : 'text-slate-600 hover:text-[#EA5413]'
                   }`}
                 >
-                  Masih Ada Sisa OS ({filterMetrics.hasSisaOS})
+                  {t.filterHasOS} ({filterMetrics.hasSisaOS})
                 </button>
 
                 <button
@@ -1349,13 +1265,13 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                     haptic.selection();
                     setDeliveryFilter('LUNAS_OS');
                   }}
-                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-full transition-all cursor-pointer whitespace-nowrap ${
+                  className={`px-2 sm:px-2.5 py-0.5 sm:py-1 text-[11px] sm:text-xs font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                     deliveryFilter === 'LUNAS_OS'
-                      ? 'bg-emerald-600 text-white shadow-2xs'
-                      : 'text-[#5C6068] hover:text-emerald-700'
+                      ? 'bg-emerald-600 text-white font-semibold'
+                      : 'text-slate-600 hover:text-emerald-700'
                   }`}
                 >
-                  Sisa OS Lunas / 0 ({filterMetrics.lunasOS})
+                  {t.filterLunas} ({filterMetrics.lunasOS})
                 </button>
               </div>
             </div>
@@ -1369,10 +1285,10 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                   setDeliveryFilter('ALL');
                   setSearchTerm('');
                 }}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 bg-zinc-200/60 hover:bg-zinc-200 rounded-full cursor-pointer ml-auto"
+                className="inline-flex items-center gap-1 px-2 py-1 text-[11px] sm:text-xs font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-md cursor-pointer shrink-0 ml-auto whitespace-nowrap"
               >
                 <RotateCcw className="w-3 h-3" />
-                <span>Reset Filter</span>
+                <span>{t.resetBtnShort}</span>
               </button>
             )}
           </div>
@@ -1385,7 +1301,7 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
           <div
             className={
               isFullscreen
-                ? 'flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-white/40'
+                ? 'flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-white'
                 : scrollMode === 'page'
                 ? 'overflow-x-auto relative'
                 : 'overflow-x-auto overflow-y-auto max-h-[72vh] relative'
@@ -1401,110 +1317,131 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                 } bg-[#18222C] text-white text-[11px] font-mono font-semibold tracking-wider`}
               >
                 <tr>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 border-r border-white/10`}>
-                    PO #
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10`}>
+                    #
                   </th>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 border-r border-white/10`}>
-                    1. CO (Status)
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10`}>
+                    {t.thNoCO}
                   </th>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 border-r border-white/10`}>
-                    2. Artikel
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10`}>
+                    {t.thArtikel}
                   </th>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 border-r border-white/10`}>
-                    3. Item Description
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10`}>
+                    {t.thDeskripsi}
                   </th>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 border-r border-white/10`}>
-                    4. Tgl Input PO
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10`}>
+                    {t.thTglPO}
                   </th>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 border-r border-white/10`}>
-                    5. No PO (Clean)
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10`}>
+                    {t.thNoPO}
                   </th>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 border-r border-white/10`}>
-                    6. Substance
-                  </th>
-                  <th
-                    className={`${thStickyClass} bg-[#18222C] py-3 px-3 text-right border-r border-white/10`}
-                  >
-                    7. QTY PO (pcs)
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10`}>
+                    {t.thSubstance}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#18222C] py-3 px-3 text-right border-r border-white/10`}
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right border-r border-white/10`}
                   >
-                    8. Berat PO (KG)
+                    {t.thQtyPO}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#134E6F] py-3 px-3 border-r border-white/15 text-sky-100`}
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right border-r border-white/10`}
                   >
-                    9. Tahap Kiriman
+                    {t.thBeratPO}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#134E6F] py-3 px-3 border-r border-white/15 text-sky-100`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 border-r border-white/15 text-sky-100`}
                   >
-                    10. No. Surat Jalan (SJ)
+                    {t.thStage}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#134E6F] py-3 px-3 border-r border-white/15 text-sky-100`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 border-r border-white/15 text-sky-100`}
                   >
-                    11. Tanggal Kirim (SJ)
+                    {t.thNoSJ}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#134E6F] py-3 px-3 text-right border-r border-white/15 text-emerald-200`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 border-r border-white/15 text-sky-100`}
                   >
-                    12. QTY Kirim SJ (pcs)
+                    {t.thTglSJ}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#134E6F] py-3 px-3 text-right border-r border-white/15 text-emerald-200`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 text-center border-r border-white/15 text-sky-100`}
+                    title={t.thLeadTime}
                   >
-                    13. Berat Kirim SJ (KG)
+                    {t.thLeadTime}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#134E6F] py-3 px-3 text-right border-r border-white/15 text-amber-200`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 text-right border-r border-white/15 text-emerald-200`}
                   >
-                    14. Sisa OS Berjalan (pcs)
+                    {t.thQtySJ}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#134E6F] py-3 px-3 text-right border-r border-white/15 text-amber-200`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 text-right border-r border-white/15 text-emerald-200`}
                   >
-                    15. Sisa OS Berjalan (KG)
+                    {t.thBeratSJ}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#18222C] py-3 px-3 text-right border-r border-white/10 text-emerald-300`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 text-right border-r border-white/15 text-amber-200`}
                   >
-                    16. Total Terkirim PO (pcs)
+                    {t.thOsRunning}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#18222C] py-3 px-3 text-right border-r border-white/10 text-amber-300`}
+                    className={`${thStickyClass} bg-[#134E6F] py-2.5 px-3 text-right border-r border-white/15 text-amber-200`}
                   >
-                    17. Sisa OS Akhir PO (pcs)
+                    {t.thOsRunningKg}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#18222C] py-3 px-3 text-right border-r border-white/10 text-amber-300`}
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right border-r border-white/10 text-emerald-300`}
                   >
-                    18. Sisa OS Akhir PO (KG)
+                    {t.thTotalSent}
                   </th>
                   <th
-                    className={`${thStickyClass} bg-[#18222C] py-3 px-3 text-right border-r border-white/10`}
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right border-r border-white/10 text-amber-300`}
                   >
-                    19. Stock Gudang (pcs)
+                    {t.thSisaOS}
                   </th>
-                  <th className={`${thStickyClass} bg-[#18222C] py-3 px-3 text-right`}>
-                    20. Harga
+                  <th
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right border-r border-white/10 text-amber-300`}
+                  >
+                    {t.thSisaOSKg}
+                  </th>
+                  <th
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right border-r border-white/10 text-sky-200`}
+                    title={t.thSentPct}
+                  >
+                    {t.thSentPct}
+                  </th>
+                  <th
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10 text-sky-200`}
+                  >
+                    {t.thDeliveryStatus}
+                  </th>
+                  <th
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 border-r border-white/10 text-slate-300`}
+                  >
+                    {t.thAging}
+                  </th>
+                  <th
+                    className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right border-r border-white/10`}
+                  >
+                    {t.thStock}
+                  </th>
+                  <th className={`${thStickyClass} bg-[#18222C] py-2.5 px-3 text-right`}>
+                    {t.thHarga}
                   </th>
                 </tr>
               </thead>
 
-              <tbody className="divide-y divide-zinc-200/70 font-mono text-xs">
+              <tbody className="divide-y divide-slate-200 font-mono text-xs">
                 {flattenedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={21} className="py-12 text-center text-zinc-500 font-sans">
-                      <div className="flex flex-col items-center justify-center gap-2">
-                        <AlertCircle className="w-6 h-6 text-zinc-400" />
-                        <p className="font-semibold text-sm text-zinc-700">
-                          Tidak ada data kiriman / PO yang sesuai dengan filter saat ini.
+                    <td colSpan={25} className="py-12 text-center text-slate-500 font-sans">
+                      <div className="flex flex-col items-center justify-center gap-1.5">
+                        <AlertCircle className="w-5 h-5 text-slate-400" />
+                        <p className="font-semibold text-sm text-slate-700">
+                          {t.noMatchingRecords}
                         </p>
-                        <p className="text-xs text-zinc-500">
-                          Klik tombol &ldquo;Reset Filter&rdquo; untuk menampilkan kembali seluruh
-                          data.
+                        <p className="text-xs text-slate-500">
+                          {t.clickResetHint}
                         </p>
                       </div>
                     </td>
@@ -1519,187 +1456,250 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                         <tr
                           className={`transition-colors ${
                             row.isFallbackNoDelivery
-                              ? 'bg-amber-50/40 hover:bg-amber-50/80'
+                              ? 'bg-amber-50/30 hover:bg-amber-50/60'
                               : row.isFirstRowOfPO
-                              ? 'bg-white/85 hover:bg-sky-50/50 border-t-2 border-t-zinc-300/80'
-                              : 'bg-white/60 hover:bg-sky-50/40'
+                              ? 'bg-white hover:bg-slate-50 border-t border-t-slate-300'
+                              : 'bg-slate-50/40 hover:bg-slate-50'
                           }`}
                         >
                           {/* PO Index */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 font-bold text-zinc-500">
-                            {row.isFirstRowOfPO ? `#${row.poIndex}` : ''}
+                          <td className="py-2 px-3 border-r border-slate-200/70 font-semibold text-slate-400">
+                            {row.isFirstRowOfPO ? row.poIndex : ''}
                           </td>
 
                           {/* 1. CO */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60">
+                          <td className="py-2 px-3 border-r border-slate-200/70">
                             {showTopPOFields ? (
                               <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-[#1E2024]">{row.CO}</span>
+                                <span className="font-semibold text-slate-900">{row.CO}</span>
                                 <span
-                                  className={`px-1.5 py-0.2 text-[9px] font-bold rounded-full ${
+                                  className={`px-1.5 py-0.5 text-[10px] font-semibold rounded ${
                                     row.coStatus === 'OPEN'
-                                      ? 'bg-emerald-500/15 text-emerald-800 border border-emerald-500/30'
-                                      : 'bg-zinc-200 text-zinc-700'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                      : 'bg-slate-100 text-slate-600'
                                   }`}
                                 >
                                   {row.coStatus}
                                 </span>
                               </div>
                             ) : (
-                              <span className="text-zinc-400 text-[11px]">{row.CO}</span>
+                              <span className="text-slate-400 text-[11px]">{row.CO}</span>
                             )}
                           </td>
 
                           {/* 2. Artikel */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 font-bold text-[#19719C]">
+                          <td className="py-2 px-3 border-r border-slate-200/70 font-semibold text-[#19719C]">
                             {showTopPOFields ? (
                               row.Artikel
                             ) : (
-                              <span className="text-zinc-400 font-normal">{row.Artikel}</span>
+                              <span className="text-slate-400 font-normal">{row.Artikel}</span>
                             )}
                           </td>
 
                           {/* 3. Item Description */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 font-sans text-[#1E2024]">
+                          <td className="py-2 px-3 border-r border-slate-200/70 font-sans text-slate-800">
                             {showTopPOFields ? (
                               row['Item Description']
                             ) : (
-                              <span className="text-zinc-400">{row['Item Description']}</span>
+                              <span className="text-slate-400">{row['Item Description']}</span>
                             )}
                           </td>
 
                           {/* 4. Tanggal Input PO */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 text-zinc-700">
+                          <td className="py-2 px-3 border-r border-slate-200/70 text-slate-600">
                             {showTopPOFields ? (
                               row['Tanggal Input PO']
                             ) : (
-                              <span className="text-zinc-400">{row['Tanggal Input PO']}</span>
+                              <span className="text-slate-400">{row['Tanggal Input PO']}</span>
                             )}
                           </td>
 
                           {/* 5. No PO */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 font-bold text-[#1E2024]">
+                          <td className="py-2 px-3 border-r border-slate-200/70 font-semibold text-slate-900">
                             {showTopPOFields ? (
                               <div className="flex items-center gap-1.5">
                                 <span>{row['No PO']}</span>
                                 {(poLineCountMap.get(String(row['No PO'] || '').trim()) || 0) >
                                   1 && (
                                   <span
-                                    className="px-1.5 py-0.2 rounded bg-purple-100 text-purple-800 border border-purple-300/60 text-[9px] font-bold"
-                                    title={`Nomor PO ${row['No PO']} ini memiliki ${poLineCountMap.get(String(row['No PO'] || '').trim())} Artikel/Item berbeda di dalam file`}
+                                    className="px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-semibold"
+                                    title={`Nomor PO ${row['No PO']} memiliki ${poLineCountMap.get(String(row['No PO'] || '').trim())} Artikel`}
                                   >
                                     {poLineCountMap.get(String(row['No PO'] || '').trim())} Item
                                   </span>
                                 )}
                               </div>
                             ) : (
-                              <span className="text-zinc-400 font-normal">{row['No PO']}</span>
+                              <span className="text-slate-400 font-normal">{row['No PO']}</span>
                             )}
                           </td>
 
                           {/* 6. Substance */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 text-zinc-600">
+                          <td className="py-2 px-3 border-r border-slate-200/70 text-slate-600">
                             {showTopPOFields ? row.Substance : ''}
                           </td>
 
                           {/* 7. QTY PO (pcs) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-bold text-[#1E2024]">
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 font-bold text-slate-900">
                             {showTopPOFields
-                              ? row['QTY PO (pcs)'].toLocaleString('id-ID')
+                              ? (Number(row['QTY PO (pcs)']) || 0).toLocaleString('id-ID')
                               : ''}
                           </td>
 
                           {/* 8. Berat PO (KG) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 text-zinc-600">
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 text-slate-600">
                             {showTopPOFields
-                              ? row['Berat PO (KG)'].toLocaleString('id-ID')
+                              ? (Number(row['Berat PO (KG)']) || 0).toLocaleString('id-ID')
                               : ''}
                           </td>
 
                           {/* 9. Urutan / Tahap Kiriman */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 bg-sky-50/40">
+                          <td className="py-2 px-3 border-r border-slate-200/70 bg-sky-50/30">
                             {row.isFallbackNoDelivery ? (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-800 border border-amber-500/30">
-                                Belum Kirim
+                              <span className="text-amber-700 font-semibold text-[11px]">
+                                {t.notSentYetBadge}
                               </span>
                             ) : (
-                              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#19719C]/12 text-[#19719C] border border-[#19719C]/25">
+                              <span className="text-[#19719C] font-semibold text-[11px]">
                                 {row.labelKiriman}
                               </span>
                             )}
                           </td>
 
                           {/* 10. No Surat Jalan (SJ) */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 bg-sky-50/40 font-extrabold text-[#1E2024]">
+                          <td className="py-2 px-3 border-r border-slate-200/70 bg-sky-50/30 font-bold text-slate-900">
                             {row.isFallbackNoDelivery ? (
-                              <span className="text-zinc-400">-</span>
+                              <span className="text-slate-400">-</span>
                             ) : (
                               <span className="text-[#19719C]">{row['No Surat Jalan (SJ)']}</span>
                             )}
                           </td>
 
                           {/* 11. Tanggal Kirim (SJ) */}
-                          <td className="py-2.5 px-3 border-r border-zinc-200/60 bg-sky-50/40 text-zinc-800 font-semibold">
+                          <td className="py-2 px-3 border-r border-slate-200/70 bg-sky-50/30 text-slate-700">
                             {row['Tanggal Kirim (SJ)']}
                           </td>
 
+                          {/* 11B. Lead Time SJ (Hari) */}
+                          <td className="py-2 px-3 text-center border-r border-slate-200/70 bg-sky-50/30 text-slate-600 text-[11px]">
+                            {row['Lead Time SJ (Hari)'] !== null
+                              ? `${row['Lead Time SJ (Hari)']}h`
+                              : '-'}
+                          </td>
+
                           {/* 12. QTY Kirim SJ (pcs) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 bg-emerald-50/35 font-extrabold text-emerald-700">
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 bg-emerald-50/25 font-bold text-emerald-700">
                             {row.isFallbackNoDelivery
                               ? '0'
-                              : row['QTY Kirim SJ (pcs)'].toLocaleString('id-ID')}
+                              : (Number(row['QTY Kirim SJ (pcs)']) || 0).toLocaleString('id-ID')}
                           </td>
 
                           {/* 13. Berat Kirim SJ (KG) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 bg-emerald-50/35 text-emerald-800">
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 bg-emerald-50/25 text-emerald-800">
                             {row.isFallbackNoDelivery
                               ? '0'
-                              : row['Berat Kirim SJ (KG)'].toLocaleString('id-ID')}
+                              : (Number(row['Berat Kirim SJ (KG)']) || 0).toLocaleString('id-ID')}
                           </td>
 
                           {/* 14. Sisa OS Berjalan (pcs) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 bg-amber-50/35 font-bold text-amber-900">
-                            {row['Sisa OS Berjalan (pcs)'].toLocaleString('id-ID')}
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 bg-amber-50/25 font-bold text-amber-900">
+                            {(Number(row['Sisa OS Berjalan (pcs)']) || 0).toLocaleString('id-ID')}
                           </td>
 
                           {/* 15. Sisa OS Berjalan (KG) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 bg-amber-50/35 text-amber-800">
-                            {row['Sisa OS Berjalan (KG)'].toLocaleString('id-ID')}
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 bg-amber-50/25 text-amber-800">
+                            {(Number(row['Sisa OS Berjalan (KG)']) || 0).toLocaleString('id-ID')}
                           </td>
 
                           {/* 16. Total Terkirim PO (pcs) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-bold text-emerald-800">
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 font-bold text-emerald-800">
                             {showBottomPOFields
-                              ? row['Total Terkirim PO (pcs)'].toLocaleString('id-ID')
+                              ? (Number(row['Total Terkirim PO (pcs)']) || 0).toLocaleString('id-ID')
                               : ''}
                           </td>
 
                           {/* 17. Sisa OS Akhir PO (pcs) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-extrabold text-[#EA5413]">
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 font-bold text-[#EA5413]">
                             {showBottomPOFields
-                              ? row['Sisa OS Akhir PO (pcs)'].toLocaleString('id-ID')
+                              ? (Number(row['Sisa OS Akhir PO (pcs)']) || 0).toLocaleString('id-ID')
                               : ''}
                           </td>
 
                           {/* 18. Sisa OS Akhir PO (KG) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-semibold text-[#EA5413]/90">
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 font-semibold text-[#EA5413]/90">
                             {showBottomPOFields
-                              ? row['Sisa OS Akhir PO (KG)'].toLocaleString('id-ID')
+                              ? (Number(row['Sisa OS Akhir PO (KG)']) || 0).toLocaleString('id-ID')
                               : ''}
                           </td>
 
-                          {/* 19. Stock Gudang (pcs) */}
-                          <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-bold text-zinc-700">
+                          {/* 18B. % Pemenuhan PO */}
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 font-semibold text-[#19719C]">
                             {showBottomPOFields
-                              ? row['Stock (pcs)'].toLocaleString('id-ID')
+                              ? `${((Number(row['% Pemenuhan PO']) || 0) * 100).toFixed(1)}%`
+                              : ''}
+                          </td>
+
+                          {/* 18C. Status Pengiriman */}
+                          <td className="py-2 px-3 border-r border-slate-200/70 text-[10px]">
+                            {showBottomPOFields ? (
+                              <span
+                                className={`inline-flex items-center px-1.5 py-0.5 rounded font-semibold ${
+                                  row['Status Pengiriman'] === 'COMPLETED / LUNAS'
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                    : row['Status Pengiriman'] === 'PARTIAL / CICIL'
+                                    ? 'bg-sky-50 text-[#19719C] border border-sky-200'
+                                    : row['Status Pengiriman'] === 'OVER DELIVERY'
+                                    ? 'bg-purple-50 text-purple-700 border border-purple-200'
+                                    : 'bg-amber-50 text-amber-800 border border-amber-200'
+                                }`}
+                              >
+                                {row['Status Pengiriman']}
+                              </span>
+                            ) : (
+                              ''
+                            )}
+                          </td>
+
+                          {/* 18D. Umur PO / Aging */}
+                          <td className="py-2 px-3 border-r border-slate-200/70 text-[10px] text-slate-600">
+                            {showBottomPOFields ? (
+                              <div className="flex items-center gap-1">
+                                {row['Umur PO / Aging (Hari)'] !== null && (
+                                  <span className="font-semibold text-slate-800">
+                                    {row['Umur PO / Aging (Hari)']}h
+                                  </span>
+                                )}
+                                <span
+                                  className={
+                                    row['Kategori Aging OS'].includes('KRITIS')
+                                      ? 'text-rose-700 font-semibold'
+                                      : row['Kategori Aging OS'].includes('FOLLOW UP')
+                                      ? 'text-amber-700 font-semibold'
+                                      : row['Kategori Aging OS'].includes('LUNAS')
+                                      ? 'text-emerald-700'
+                                      : 'text-slate-500'
+                                  }
+                                >
+                                  ({row['Kategori Aging OS']})
+                                </span>
+                              </div>
+                            ) : (
+                              ''
+                            )}
+                          </td>
+
+                          {/* 19. Stock Gudang (pcs) */}
+                          <td className="py-2 px-3 text-right border-r border-slate-200/70 font-semibold text-slate-700">
+                            {showBottomPOFields
+                              ? (Number(row['Stock (pcs)']) || 0).toLocaleString('id-ID')
                               : ''}
                           </td>
 
                           {/* 20. Harga */}
-                          <td className="py-2.5 px-3 text-right text-zinc-600">
+                          <td className="py-2 px-3 text-right text-slate-600">
                             {showTopPOFields
-                              ? row.Harga > 0
-                                ? row.Harga.toLocaleString('id-ID')
+                              ? Number(row.Harga) > 0
+                                ? Number(row.Harga).toLocaleString('id-ID')
                                 : '-'
                               : ''}
                           </td>
@@ -1707,60 +1707,73 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
 
                         {/* Optional Inline Sub-Total & Sisa OS Akhir Row after each PO */}
                         {showSubTotalPerPO && row.isLastRowOfPO && (
-                          <tr className="bg-[#EEF4F8] border-b-2 border-b-[#19719C]/25 text-[11px] font-mono">
-                            <td colSpan={7} className="py-2 px-3 font-bold text-[#19719C]">
+                          <tr className="bg-slate-100/90 border-b border-b-slate-300 text-[11px] font-mono">
+                            <td colSpan={7} className="py-1.5 px-3 font-semibold text-slate-700">
                               <div className="flex items-center gap-2">
-                                <span>↳ SUB-TOTAL & SISA OS PO:</span>
-                                <span className="px-2 py-0.2 bg-white rounded-md border border-[#19719C]/25 text-[#1E2024]">
-                                  {row['No PO']}
-                                </span>
-                                <span className="text-zinc-600">({row.Artikel})</span>
-                                <span className="text-zinc-500">•</span>
-                                <span>
+                                <span>{t.subTotalPoLabel} {row['No PO']}</span>
+                                <span className="text-slate-500">({row.Artikel})</span>
+                                <span className="text-slate-400">·</span>
+                                <span className="text-[#19719C]">
                                   {row.isFallbackNoDelivery
-                                    ? 'Belum Kirim'
-                                    : `Total ${row.frekuensiKirim}x Kiriman SJ`}
+                                    ? t.notSentYetBadge
+                                    : `${row.frekuensiKirim}x ${t.unitSJ}`}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-2 px-3 text-right font-extrabold text-[#1E2024] border-r border-zinc-300/60">
-                              {row['QTY PO (pcs)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right font-bold text-slate-900 border-r border-slate-300/60">
+                              {(Number(row['QTY PO (pcs)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-semibold text-zinc-700 border-r border-zinc-300/60">
-                              {row['Berat PO (KG)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right text-slate-600 border-r border-slate-300/60">
+                              {(Number(row['Berat PO (KG)']) || 0).toLocaleString('id-ID')}
                             </td>
                             <td
                               colSpan={3}
-                              className="py-2 px-3 text-right font-bold text-emerald-800 border-r border-zinc-300/60"
+                              className="py-1.5 px-3 text-right font-semibold text-emerald-800 border-r border-slate-300/60"
                             >
-                              Total Kirim ({row.frekuensiKirim} SJ):
+                              {t.totalSentLabel} ({row.frekuensiKirim} {t.unitSJ}):
                             </td>
-                            <td className="py-2 px-3 text-right font-extrabold text-emerald-700 bg-emerald-500/10 border-r border-zinc-300/60">
-                              {row['Total Terkirim PO (pcs)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-center text-slate-600 border-r border-slate-300/60">
+                              {row['Rata-rata Lead Time PO (Hari)'] !== null
+                                ? `${row['Rata-rata Lead Time PO (Hari)']}h`
+                                : '-'}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold text-emerald-800 bg-emerald-500/10 border-r border-zinc-300/60">
-                              {row['Total Terkirim PO (KG)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right font-bold text-emerald-700 border-r border-slate-300/60">
+                              {(Number(row['Total Terkirim PO (pcs)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-extrabold text-[#EA5413] bg-orange-500/10 border-r border-zinc-300/60">
-                              Sisa: {row['Sisa OS Akhir PO (pcs)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right text-emerald-800 border-r border-slate-300/60">
+                              {(Number(row['Total Terkirim PO (KG)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold text-[#EA5413] bg-orange-500/10 border-r border-zinc-300/60">
-                              {row['Sisa OS Akhir PO (KG)'].toLocaleString('id-ID')} KG
+                            <td className="py-1.5 px-3 text-right font-bold text-[#EA5413] border-r border-slate-300/60">
+                              {(Number(row['Sisa OS Akhir PO (pcs)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-extrabold text-emerald-800 border-r border-zinc-300/60">
-                              {row['Total Terkirim PO (pcs)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right text-[#EA5413] border-r border-slate-300/60">
+                              {(Number(row['Sisa OS Akhir PO (KG)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-extrabold text-[#EA5413] bg-orange-500/15 border-r border-zinc-300/60">
-                              {row['Sisa OS Akhir PO (pcs)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right font-bold text-emerald-800 border-r border-slate-300/60">
+                              {(Number(row['Total Terkirim PO (pcs)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold text-[#EA5413] bg-orange-500/15 border-r border-zinc-300/60">
-                              {row['Sisa OS Akhir PO (KG)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right font-bold text-[#EA5413] border-r border-slate-300/60">
+                              {(Number(row['Sisa OS Akhir PO (pcs)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold text-zinc-800 border-r border-zinc-300/60">
-                              {row['Stock (pcs)'].toLocaleString('id-ID')}
+                            <td className="py-1.5 px-3 text-right text-[#EA5413] border-r border-slate-300/60">
+                              {(Number(row['Sisa OS Akhir PO (KG)']) || 0).toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right text-zinc-600">
-                              {row.Harga > 0 ? row.Harga.toLocaleString('id-ID') : '-'}
+                            <td className="py-1.5 px-3 text-right font-bold text-[#19719C] border-r border-slate-300/60">
+                              {`${((Number(row['% Pemenuhan PO']) || 0) * 100).toFixed(1)}%`}
+                            </td>
+                            <td className="py-1.5 px-3 text-[10px] font-semibold text-slate-700 border-r border-slate-300/60">
+                              {row['Status Pengiriman']}
+                            </td>
+                            <td className="py-1.5 px-3 text-[10px] text-slate-600 border-r border-slate-300/60">
+                              {row['Umur PO / Aging (Hari)'] !== null
+                                ? `${row['Umur PO / Aging (Hari)']}h (${row['Kategori Aging OS']})`
+                                : row['Kategori Aging OS']}
+                            </td>
+                            <td className="py-1.5 px-3 text-right font-semibold text-slate-800 border-r border-slate-300/60">
+                              {(Number(row['Stock (pcs)']) || 0).toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-1.5 px-3 text-right text-slate-600">
+                              {Number(row.Harga) > 0 ? Number(row.Harga).toLocaleString('id-ID') : '-'}
                             </td>
                           </tr>
                         )}
@@ -1774,42 +1787,49 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
               {flattenedRows.length > 0 && (
                 <tfoot className="bg-[#18222C] text-white font-mono text-xs font-bold">
                   <tr>
-                    <td colSpan={7} className="py-3.5 px-4 border-r border-white/15">
-                      TOTAL REKAPITULASI KESELURUHAN ({filteredTotals.uniquePONumbers} NO. PO UNIK /{' '}
-                      {filteredTotals.totalPOs} BARIS ITEM • {filteredTotals.totalActiveSJs} SURAT
-                      JALAN)
+                    <td colSpan={7} className="py-3 px-3 border-r border-white/15">
+                      TOTAL ({filteredTotals.uniquePONumbers} {t.unitPoShort} · {filteredTotals.totalPOs} {t.unitItem} ·{' '}
+                      {filteredTotals.totalActiveSJs} {t.unitSJ})
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-white">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-white">
                       {filteredTotals.totalOrderPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-zinc-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-slate-300">
                       {filteredTotals.totalOrderKg.toLocaleString('id-ID')}
                     </td>
-                    <td colSpan={3} className="py-3.5 px-3 text-right border-r border-white/15 text-sky-200">
-                      Akumulasi Kirim SJ:
+                    <td colSpan={4} className="py-3 px-3 text-right border-r border-white/15 text-sky-200">
+                      {t.totalSentLabel}:
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-emerald-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-emerald-300">
                       {filteredTotals.totalTerkirimPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-emerald-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-emerald-300">
                       {filteredTotals.totalTerkirimKg.toLocaleString('id-ID')}
                     </td>
-                    <td colSpan={2} className="py-3.5 px-3 text-right border-r border-white/15 text-amber-200">
-                      Total Akhir:
+                    <td colSpan={2} className="py-3 px-3 text-right border-r border-white/15 text-amber-200">
+                      {t.finalTotalLabel}:
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-emerald-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-emerald-300">
                       {filteredTotals.totalTerkirimPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-amber-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-amber-300">
                       {filteredTotals.totalSisaOSPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-amber-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-amber-300">
                       {filteredTotals.totalSisaOSKg.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-sky-200">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-sky-200">
+                      {filteredTotals.totalOrderPcs > 0
+                        ? `${((filteredTotals.totalTerkirimPcs / filteredTotals.totalOrderPcs) * 100).toFixed(1)}%`
+                        : '0%'}
+                    </td>
+                    <td colSpan={2} className="py-3 px-3 border-r border-white/15 text-slate-300 text-[11px]">
+                      {filteredTotals.totalSisaOSPcs <= 0 ? 'COMPLETED / LUNAS' : 'PARTIAL / CICIL'}
+                    </td>
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-sky-200">
                       {filteredTotals.totalStockPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right">-</td>
+                    <td className="py-3 px-3 text-right">-</td>
                   </tr>
                 </tfoot>
               )}
@@ -1824,154 +1844,141 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
           <div
             className={
               isFullscreen
-                ? 'flex-1 min-h-0 overflow-auto bg-white/40'
+                ? 'flex-1 min-h-0 overflow-auto bg-white'
                 : scrollMode === 'page'
                 ? 'overflow-x-auto'
                 : 'overflow-x-auto max-h-[72vh] overflow-y-auto'
             }
           >
-            <div className="px-4 py-2.5 bg-indigo-50/90 border-b border-indigo-200/80 flex flex-wrap items-center justify-between gap-2 text-xs">
-              <div className="flex items-center gap-2 text-indigo-950 font-medium">
-                <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-mono font-bold text-[11px]">
-                  DEDUPLIKASI BY NO. PO
-                </span>
-                <span>
-                  Menampilkan <strong>{consolidatedUniquePOs.length} Nomor PO Unik</strong> (digabungkan dari{' '}
-                  <strong>{filteredTotals.totalPOs} Baris PO-Item</strong>). Jika 1 Nomor PO memiliki beberapa Artikel, angkanya diakumulasikan dalam 1 baris PO.
-                </span>
-              </div>
-              <span className="text-[11px] font-mono text-indigo-700 font-semibold">
-                Tersedia juga di Sheet 2 Excel (&quot;Rekap per No PO Unik&quot;)
+            <div className="px-3.5 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-slate-700 font-medium">
+                {t.consolidatedBannerText1} <strong>{consolidatedUniquePOs.length} {t.thNoPO}</strong> {t.consolidatedBannerText2}{' '}
+                <strong>{filteredTotals.totalPOs} {t.unitItem}</strong>.
+              </span>
+              <span className="text-[11px] font-mono text-slate-500">
+                {t.availableInSheet2}
               </span>
             </div>
 
             <table className="w-full text-left border-collapse">
               <thead className="sticky top-0 z-20 shadow-xs">
-                <tr className="bg-[#18222C] text-white text-[11px] font-mono uppercase tracking-wider">
-                  <th className="py-3 px-3 text-center border-r border-white/10 w-12">No. Unik</th>
-                  <th className="py-3 px-3 border-r border-white/10 min-w-[165px]">No. PO (Unik)</th>
-                  <th className="py-3 px-2.5 text-center border-r border-white/10 min-w-[95px]">Jml Item</th>
-                  <th className="py-3 px-3 border-r border-white/10 min-w-[240px]">Daftar Artikel dalam PO</th>
-                  <th className="py-3 px-3 border-r border-white/10 min-w-[150px]">Daftar No. CO</th>
-                  <th className="py-3 px-3 text-right border-r border-white/10 min-w-[110px]">Total QTY PO (pcs)</th>
-                  <th className="py-3 px-3 text-right border-r border-white/10 min-w-[95px]">Berat PO (KG)</th>
-                  <th className="py-3 px-2.5 text-center border-r border-white/10 min-w-[85px]">Frek. SJ</th>
-                  <th className="py-3 px-3 text-right border-r border-white/10 bg-[#0D4A3E] min-w-[115px]">Total Terkirim (pcs)</th>
-                  <th className="py-3 px-3 text-right border-r border-white/10 bg-[#8F340B] min-w-[115px]">Total Sisa OS (pcs)</th>
-                  <th className="py-3 px-3 text-right border-r border-white/10 bg-[#8F340B] min-w-[100px]">Sisa OS (KG)</th>
-                  <th className="py-3 px-3 min-w-[260px]">Rincian Surat Jalan (SJ)</th>
+                <tr className="bg-[#18222C] text-white text-[11px] font-mono tracking-wider">
+                  <th className="py-2.5 px-3 text-center border-r border-white/10 w-12">#</th>
+                  <th className="py-2.5 px-3 border-r border-white/10 min-w-[160px]">{t.thNoPO}</th>
+                  <th className="py-2.5 px-2.5 text-center border-r border-white/10 min-w-[85px]">{t.unitItem}</th>
+                  <th className="py-2.5 px-3 border-r border-white/10 min-w-[230px]">{t.thArtikel}</th>
+                  <th className="py-2.5 px-3 border-r border-white/10 min-w-[140px]">{t.thNoCO}</th>
+                  <th className="py-2.5 px-3 text-right border-r border-white/10 min-w-[105px]">{t.thQtyPO}</th>
+                  <th className="py-2.5 px-3 text-right border-r border-white/10 min-w-[95px]">{t.thBeratPO}</th>
+                  <th className="py-2.5 px-2.5 text-center border-r border-white/10 min-w-[80px]">{t.unitSJ}</th>
+                  <th className="py-2.5 px-3 text-right border-r border-white/10 bg-[#0D4A3E] min-w-[110px]">{t.statTerkirim}</th>
+                  <th className="py-2.5 px-3 text-right border-r border-white/10 bg-[#8F340B] min-w-[110px]">{t.thSisaOS}</th>
+                  <th className="py-2.5 px-3 text-right border-r border-white/10 bg-[#8F340B] min-w-[95px]">{t.thSisaOSKg}</th>
+                  <th className="py-2.5 px-3 min-w-[240px]">{t.thSjDetails}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200/70 text-xs font-mono">
+              <tbody className="divide-y divide-slate-200 text-xs font-mono">
                 {consolidatedUniquePOs.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="py-12 text-center text-zinc-500 font-sans">
-                      Tidak ada data Nomor PO yang sesuai dengan filter pencarian.
+                    <td colSpan={12} className="py-12 text-center text-slate-500 font-sans">
+                      {t.noMatchingRecords}
                     </td>
                   </tr>
                 ) : (
                   consolidatedUniquePOs.map((upo, idx) => {
-                    const isMulti = upo.items.length > 1;
+                    const itemCount = upo.items?.length || 1;
+                    const isMulti = itemCount > 1;
                     return (
                       <tr
                         key={`${upo.noPO}_${idx}`}
                         className={`${
                           isMulti
-                            ? 'bg-indigo-50/45 hover:bg-indigo-100/50'
-                            : idx % 2 === 0
-                            ? 'bg-white/90 hover:bg-sky-50/50'
-                            : 'bg-[#F6F9FC]/90 hover:bg-sky-50/50'
+                            ? 'bg-indigo-50/30 hover:bg-indigo-50/60'
+                            : 'bg-white hover:bg-slate-50'
                         } transition-colors`}
                       >
-                        <td className="py-2.5 px-3 text-center font-bold text-[#19719C] border-r border-zinc-200/60">
-                          #{idx + 1}
+                        <td className="py-2 px-3 text-center font-semibold text-slate-400 border-r border-slate-200/70">
+                          {idx + 1}
                         </td>
-                        <td className="py-2.5 px-3 font-bold text-[#1E2024] border-r border-zinc-200/60">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span>{upo.noPO}</span>
-                            {isMulti && (
-                              <span className="px-1.5 py-0.5 rounded bg-indigo-500/15 text-indigo-700 border border-indigo-500/30 text-[9px] font-bold">
-                                MULTI-ITEM
-                              </span>
-                            )}
-                          </div>
+                        <td className="py-2 px-3 font-semibold text-slate-900 border-r border-slate-200/70">
+                          {upo.noPO}
                         </td>
-                        <td className="py-2.5 px-2.5 text-center border-r border-zinc-200/60">
+                        <td className="py-2 px-2.5 text-center border-r border-slate-200/70">
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                               isMulti
-                                ? 'bg-indigo-600 text-white'
-                                : 'bg-zinc-200/75 text-zinc-700'
+                                ? 'bg-indigo-100 text-indigo-800'
+                                : 'bg-slate-100 text-slate-600'
                             }`}
                           >
-                            {upo.items.length} Item
+                            {itemCount} Item
                           </span>
                         </td>
-                        <td className="py-2.5 px-3 border-r border-zinc-200/60 font-sans text-[11px] text-[#1E2024]">
+                        <td className="py-2 px-3 border-r border-slate-200/70 font-sans text-[11px] text-slate-900">
                           <div className="flex flex-col gap-1">
-                            {upo.items.map((it, iIdx) => (
+                            {(upo.items || []).map((it, iIdx) => (
                               <div
                                 key={iIdx}
-                                className="flex items-center justify-between gap-2 bg-white/80 px-2 py-0.5 rounded border border-zinc-200/70"
+                                className="flex items-center justify-between gap-2 bg-slate-50 px-2 py-0.5 rounded border border-slate-200/70"
                               >
                                 <span className="font-mono font-semibold text-[#19719C] truncate">
                                   {it.Artikel}
                                 </span>
-                                <span className="font-mono text-[10px] text-zinc-600 shrink-0">
-                                  PO: {it['QTY Order (pcs)'].toLocaleString('id-ID')} • OS:{' '}
+                                <span className="font-mono text-[10px] text-slate-600 shrink-0">
+                                  PO: {(Number(it['QTY PO (pcs)']) || 0).toLocaleString('id-ID')} · OS:{' '}
                                   <strong className="text-[#EA5413]">
-                                    {it['Sisa OS (pcs)'].toLocaleString('id-ID')}
+                                    {(Number(it['Sisa OS (pcs)']) || 0).toLocaleString('id-ID')}
                                   </strong>
                                 </span>
                               </div>
                             ))}
                           </div>
                         </td>
-                        <td className="py-2.5 px-3 border-r border-zinc-200/60 text-zinc-700 text-[11px]">
-                          {upo.coList.join(', ') || '-'}
+                        <td className="py-2 px-3 border-r border-slate-200/70 text-slate-700 text-[11px]">
+                          {(upo.coList || []).join(', ') || '-'}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-bold text-[#1E2024] border-r border-zinc-200/60">
-                          {upo.totalQtyPoPcs.toLocaleString('id-ID')}
+                        <td className="py-2 px-3 text-right font-bold text-slate-900 border-r border-slate-200/70">
+                          {(Number(upo.totalQtyPoPcs) || 0).toLocaleString('id-ID')}
                         </td>
-                        <td className="py-2.5 px-3 text-right text-zinc-600 border-r border-zinc-200/60">
-                          {Math.round(upo.totalBeratPoKg * 100) / 100}
+                        <td className="py-2 px-3 text-right text-slate-600 border-r border-slate-200/70">
+                          {(Math.round((Number(upo.totalBeratPoKg) || 0) * 100) / 100).toLocaleString('id-ID')}
                         </td>
-                        <td className="py-2.5 px-2.5 text-center border-r border-zinc-200/60">
-                          {upo.totalSJCount > 0 ? (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-800 border border-emerald-500/30 text-[10px] font-bold">
-                              {upo.totalSJCount}x SJ
+                        <td className="py-2 px-2.5 text-center border-r border-slate-200/70">
+                          {(upo.totalSJCount || 0) > 0 ? (
+                            <span className="text-emerald-700 font-semibold text-[11px]">
+                              {upo.totalSJCount}x {t.unitSJ}
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-800 border border-amber-500/30 text-[10px] font-bold">
-                              Belum Kirim
+                            <span className="text-amber-700 font-semibold text-[11px]">
+                              {t.notSentYetBadge}
                             </span>
                           )}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-extrabold text-emerald-700 bg-emerald-500/[0.05] border-r border-zinc-200/60">
-                          {upo.totalTerkirimPcs > 0
-                            ? upo.totalTerkirimPcs.toLocaleString('id-ID')
+                        <td className="py-2 px-3 text-right font-bold text-emerald-700 bg-emerald-50/20 border-r border-slate-200/70">
+                          {(Number(upo.totalTerkirimPcs) || 0) > 0
+                            ? (Number(upo.totalTerkirimPcs) || 0).toLocaleString('id-ID')
                             : '-'}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-extrabold text-[#EA5413] bg-orange-500/[0.06] border-r border-zinc-200/60">
-                          {upo.totalSisaOSPcs.toLocaleString('id-ID')}
+                        <td className="py-2 px-3 text-right font-bold text-[#EA5413] bg-orange-50/20 border-r border-slate-200/70">
+                          {(Number(upo.totalSisaOSPcs) || 0).toLocaleString('id-ID')}
                         </td>
-                        <td className="py-2.5 px-3 text-right font-semibold text-[#EA5413]/90 border-r border-zinc-200/60">
-                          {(Math.round(upo.totalSisaOSKg * 100) / 100).toLocaleString('id-ID')}
+                        <td className="py-2 px-3 text-right font-semibold text-[#EA5413]/90 border-r border-slate-200/70">
+                          {(Math.round((Number(upo.totalSisaOSKg) || 0) * 100) / 100).toLocaleString('id-ID')}
                         </td>
-                        <td className="py-2.5 px-3 text-[11px] text-zinc-700">
-                          {upo.sjSummaries.length > 0 ? (
+                        <td className="py-2 px-3 text-[11px] text-slate-700">
+                          {(upo.sjSummaries || []).length > 0 ? (
                             <div className="flex flex-wrap gap-1">
                               {upo.sjSummaries.map((sj, sIdx) => (
                                 <span
                                   key={sIdx}
-                                  className="px-1.5 py-0.5 bg-zinc-100 rounded border border-zinc-300/70 text-[10px] font-mono"
+                                  className="px-1.5 py-0.5 bg-slate-100 rounded border border-slate-200 text-[10px] font-mono"
                                 >
-                                  {sj.noSJ}
+                                  {sj.noSJ} ({sj.tanggalKirim}: {(Number(sj.qtyPcs) || 0).toLocaleString('id-ID')})
                                 </span>
                               ))}
                             </div>
                           ) : (
-                            <span className="text-amber-700 font-semibold">Belum Kirim</span>
+                            <span className="text-amber-700 font-semibold">{t.notSentYetBadge}</span>
                           )}
                         </td>
                       </tr>
@@ -1982,30 +1989,29 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
               {consolidatedUniquePOs.length > 0 && (
                 <tfoot className="bg-[#18222C] text-white font-mono text-xs font-bold">
                   <tr>
-                    <td colSpan={5} className="py-3.5 px-4 border-r border-white/15">
-                      TOTAL REKAP BY NO. PO UNIK ({consolidatedUniquePOs.length} NO. PO UNIK DARI{' '}
-                      {filteredTotals.totalPOs} BARIS ITEM)
+                    <td colSpan={5} className="py-3 px-3 border-r border-white/15">
+                      TOTAL ({consolidatedUniquePOs.length} {t.unitPoShort} · {filteredTotals.totalPOs} {t.unitItem})
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15">
+                    <td className="py-3 px-3 text-right border-r border-white/15">
                       {filteredTotals.totalOrderPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-zinc-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-slate-300">
                       {filteredTotals.totalOrderKg.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-2.5 text-center border-r border-white/15 text-sky-200">
-                      {filteredTotals.totalActiveSJs} SJ
+                    <td className="py-3 px-2.5 text-center border-r border-white/15 text-sky-200">
+                      {filteredTotals.totalActiveSJs} {t.unitSJ}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-emerald-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-emerald-300">
                       {filteredTotals.totalTerkirimPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-amber-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-amber-300">
                       {filteredTotals.totalSisaOSPcs.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-right border-r border-white/15 text-amber-300">
+                    <td className="py-3 px-3 text-right border-r border-white/15 text-amber-300">
                       {filteredTotals.totalSisaOSKg.toLocaleString('id-ID')}
                     </td>
-                    <td className="py-3.5 px-3 text-left text-sky-200 text-[11px]">
-                      {consolidatedUniquePOs.filter((u) => u.items.length > 1).length} No. PO memiliki &gt;1 Artikel
+                    <td className="py-3 px-3 text-left text-sky-200 text-[11px]">
+                      {consolidatedUniquePOs.filter((u) => (u.items?.length || 0) > 1).length} {t.filterMultiItem} {t.unitPoShort}
                     </td>
                   </tr>
                 </tfoot>
@@ -2021,15 +2027,15 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
           <div
             className={
               isFullscreen
-                ? 'flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3.5 bg-white/30'
+                ? 'flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 bg-white'
                 : scrollMode === 'page'
-                ? 'p-3 sm:p-4 space-y-3.5'
-                : 'p-3 sm:p-4 space-y-3.5 max-h-[72vh] overflow-y-auto'
+                ? 'p-3 sm:p-4 space-y-3'
+                : 'p-3 sm:p-4 space-y-3 max-h-[72vh] overflow-y-auto'
             }
           >
             {filteredPOs.length === 0 ? (
-              <div className="py-12 text-center text-zinc-500">
-                Tidak ada data PO yang sesuai dengan filter saat ini.
+              <div className="py-12 text-center text-slate-500">
+                {t.noMatchingRecords}
               </div>
             ) : (
               filteredPOs.map((po, idx) => {
@@ -2046,160 +2052,204 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                 return (
                   <div
                     key={po.id || idx}
-                    className="bg-white/85 border border-zinc-200/90 rounded-2xl overflow-hidden shadow-2xs"
+                    className="bg-white border border-slate-200/90 rounded-xl overflow-hidden shadow-xs hover:border-slate-300 transition-colors"
                   >
-                    {/* Card Header: PO Identity & Overall Formula */}
-                    <div className="p-3.5 sm:p-4 bg-gradient-to-r from-[#F4F7FA] to-white border-b border-zinc-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    {/* Card Header: Distinct Executive Group Identity & Summary Capsule */}
+                    <div className="p-2.5 sm:p-3 bg-[#18222C] text-white border-b border-slate-700/60 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
                       <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="px-2 py-0.5 bg-[#18222C] text-white font-mono text-[11px] font-bold rounded-md">
-                            PO #{idx + 1}
+                        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                          <span className="px-1.5 py-0.5 bg-[#19719C] text-white font-mono text-[10px] sm:text-[11px] font-bold rounded">
+                            #{idx + 1}
                           </span>
-                          <span className="font-mono font-extrabold text-sm text-[#19719C]">
+                          <span className="font-mono font-bold text-xs sm:text-sm text-sky-200 tracking-tight">
                             {po.Artikel}
                           </span>
-                          <span className="text-xs font-semibold text-[#1E2024]">
-                            — {po['Item Description']}
+                          <span className="text-[11px] sm:text-xs text-slate-200 font-medium">
+                            {po['Item Description']}
                           </span>
-                          <span className="px-2 py-0.5 bg-zinc-200/70 text-zinc-700 font-mono text-[10px] font-bold rounded-full">
-                            {po.Substance}
-                          </span>
+                          {po.Substance && (
+                            <span className="px-1.5 py-0.5 bg-white/10 text-slate-300 font-mono text-[10px] font-medium rounded border border-white/10">
+                              {po.Substance}
+                            </span>
+                          )}
                         </div>
 
-                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-mono text-[#5C6068]">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] font-mono text-slate-400">
                           <span>
-                            No. PO: <strong className="text-[#1E2024]">{po['No PO']}</strong>
+                            {t.unitPoShort}: <strong className="text-white font-bold">{po['No PO']}</strong>
                           </span>
                           <span>
-                            CO: <strong className="text-[#1E2024]">{po.CO}</strong> ({po.coStatus})
+                            CO: <strong className="text-slate-200">{po.CO}</strong>{' '}
+                            <span
+                              className={
+                                po.coStatus === 'OPEN'
+                                  ? 'text-emerald-400 font-semibold'
+                                  : 'text-slate-400'
+                              }
+                            >
+                              ({po.coStatus})
+                            </span>
                           </span>
                           <span>
-                            Tgl Input PO: <strong>{po['Tanggal Input PO']}</strong>
+                            {t.thTglPO}: <strong className="text-slate-300 font-normal">{po['Tanggal Input PO']}</strong>
                           </span>
-                          <span>
-                            Frekuensi Kirim:{' '}
-                            <strong className="text-[#19719C]">
-                              {realSJs.length > 0 ? `${realSJs.length} Kali Kirim (SJ)` : 'Belum Kirim (0 SJ)'}
-                            </strong>
-                          </span>
+                          {realSJs.length > 0 ? (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-sans">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block"></span>
+                              {realSJs.length}x {t.unitSJ}
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 font-sans">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block"></span>
+                              {t.notSentYetBadge}
+                            </span>
+                          )}
                         </div>
                       </div>
 
-                      {/* Formula Pill: QTY PO - Total Kiriman = Sisa OS Akhir */}
-                      <div className="flex flex-wrap items-center gap-2 bg-white px-3.5 py-2 rounded-xl border border-zinc-200/80 font-mono text-xs shrink-0">
+                      {/* Summary Capsule: QTY PO - Total Kirim = Sisa OS */}
+                      <div className="flex flex-wrap items-center gap-2 bg-slate-800/80 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-lg border border-slate-700/70 font-mono text-xs shrink-0">
                         <div>
-                          <span className="text-[10px] text-zinc-500 block">QTY PO</span>
-                          <strong className="text-[#1E2024]">
-                            {qtyPoPcs.toLocaleString('id-ID')} pcs
+                          <span className="text-[9px] uppercase tracking-wider text-slate-400 block font-sans">
+                            {t.thQtyPO}
+                          </span>
+                          <strong className="text-white font-bold">
+                            {qtyPoPcs.toLocaleString('id-ID')}
                           </strong>
                         </div>
-                        <span className="text-zinc-400 font-bold">−</span>
+                        <span className="text-slate-500 font-light">−</span>
                         <div>
-                          <span className="text-[10px] text-emerald-700 block">
-                            Total Kirim ({realSJs.length} SJ)
+                          <span className="text-[9px] uppercase tracking-wider text-emerald-400/80 block font-sans">
+                            {t.statTerkirim} ({realSJs.length} {t.unitSJ})
                           </span>
-                          <strong className="text-emerald-700">
-                            {terkirimPcs.toLocaleString('id-ID')} pcs
+                          <strong className="text-emerald-300 font-bold">
+                            {terkirimPcs.toLocaleString('id-ID')}
                           </strong>
                         </div>
-                        <span className="text-zinc-400 font-bold">=</span>
-                        <div className="px-2.5 py-0.5 rounded-lg bg-orange-500/10 border border-orange-500/25">
-                          <span className="text-[10px] text-[#EA5413] block font-bold">
-                            Sisa OS Akhir
-                          </span>
-                          <strong className="text-[#EA5413] text-sm">
-                            {sisaPcs.toLocaleString('id-ID')} pcs ({sisaKg.toLocaleString('id-ID')}{' '}
-                            kg)
-                          </strong>
-                        </div>
+                        <span className="text-slate-500 font-light">=</span>
+                        {sisaPcs === 0 ? (
+                          <div className="px-2 py-0.5 rounded bg-emerald-950/60 border border-emerald-700/50">
+                            <span className="text-[9px] uppercase tracking-wider text-emerald-400 block font-semibold font-sans">
+                              {t.lunasOsBadge}
+                            </span>
+                            <strong className="text-emerald-300 font-bold">0 {t.unitPcs}</strong>
+                          </div>
+                        ) : (
+                          <div className="px-2 py-0.5 rounded bg-orange-950/60 border border-orange-700/50">
+                            <span className="text-[9px] uppercase tracking-wider text-orange-400 block font-semibold font-sans">
+                              {t.thSisaOS}
+                            </span>
+                            <strong className="text-orange-300 font-bold">
+                              {sisaPcs.toLocaleString('id-ID')} {t.unitPcs}
+                            </strong>
+                            <span className="text-[10px] text-orange-200/80 ml-1 font-normal">
+                              ({sisaKg.toLocaleString('id-ID')} {t.unitKg})
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Card Body: Detailed SJ Table */}
-                    <div className="overflow-x-auto">
+                    {/* Card Body: Softened, Low-Contrast SJ Table */}
+                    <div className="overflow-x-auto bg-slate-50/20">
                       <table className="w-full text-left text-xs font-mono border-collapse">
-                        <thead className="bg-zinc-100/90 text-zinc-600 text-[11px] border-b border-zinc-200/80">
+                        <thead className="bg-slate-100/70 text-slate-500 text-[10px] uppercase font-semibold tracking-wider border-b border-slate-200/60">
                           <tr>
-                            <th className="py-2 px-3">Tahap Kiriman</th>
-                            <th className="py-2 px-3">No. Surat Jalan (SJ)</th>
-                            <th className="py-2 px-3">Tanggal Kirim (SJ)</th>
-                            <th className="py-2 px-3 text-right">QTY Kirim (pcs)</th>
-                            <th className="py-2 px-3 text-right">Berat Kirim (KG)</th>
-                            <th className="py-2 px-3 text-right">Akumulasi Terkirim (pcs)</th>
-                            <th className="py-2 px-3 text-right">Sisa OS Berjalan (pcs)</th>
-                            <th className="py-2 px-3 text-right">Sisa OS Berjalan (KG)</th>
+                            <th className="py-2 px-3">{t.thStage}</th>
+                            <th className="py-2 px-3">{t.thNoSJ}</th>
+                            <th className="py-2 px-3">{t.thTglSJ}</th>
+                            <th className="py-2 px-3 text-right">{t.thQtySJ} ({t.unitPcs})</th>
+                            <th className="py-2 px-3 text-right">{t.thBeratSJ} ({t.unitKg})</th>
+                            <th className="py-2 px-3 text-right">{t.thAccumulatedPcs}</th>
+                            <th className="py-2 px-3 text-right">{t.thSisaOS} ({t.unitPcs})</th>
+                            <th className="py-2 px-3 text-right">{t.thSisaOSKg}</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-zinc-200/60">
+                        <tbody className="divide-y divide-slate-100">
                           {realSJs.length === 0 ? (
-                            <tr className="bg-amber-50/40">
-                              <td className="py-2.5 px-3">
-                                <span className="px-2 py-0.5 bg-amber-500/15 text-amber-800 rounded-full text-[10px] font-bold">
-                                  Belum Kirim
+                            <tr className="bg-amber-50/20 hover:bg-amber-50/40 text-xs">
+                              <td className="py-2 px-3">
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-100/60 text-amber-800 border border-amber-200/50">
+                                  {t.notSentYetBadge}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-3 text-zinc-400">-</td>
-                              <td className="py-2.5 px-3 text-zinc-400">-</td>
-                              <td className="py-2.5 px-3 text-right text-zinc-500">0</td>
-                              <td className="py-2.5 px-3 text-right text-zinc-500">0</td>
-                              <td className="py-2.5 px-3 text-right text-zinc-500">0</td>
-                              <td className="py-2.5 px-3 text-right font-extrabold text-[#EA5413]">
+                              <td className="py-2 px-3 text-slate-400">-</td>
+                              <td className="py-2 px-3 text-slate-400">-</td>
+                              <td className="py-2 px-3 text-right text-slate-400 font-mono">0</td>
+                              <td className="py-2 px-3 text-right text-slate-400 font-mono">0</td>
+                              <td className="py-2 px-3 text-right text-slate-400 font-mono">0</td>
+                              <td className="py-2 px-3 text-right font-semibold text-slate-800 text-[11px]">
                                 {sisaPcs.toLocaleString('id-ID')}
                               </td>
-                              <td className="py-2.5 px-3 text-right font-semibold text-[#EA5413]">
+                              <td className="py-2 px-3 text-right text-slate-500 text-[11px]">
                                 {sisaKg.toLocaleString('id-ID')}
                               </td>
                             </tr>
                           ) : (
                             realSJs.map((sj, sjIdx) => (
-                              <tr key={`${po.id}_sj_${sjIdx}`} className="hover:bg-sky-50/40">
-                                <td className="py-2.5 px-3 font-semibold text-[#19719C]">
-                                  Kiriman Ke-{sjIdx + 1} (dari {realSJs.length})
+                              <tr key={`${po.id}_sj_${sjIdx}`} className="hover:bg-slate-50/60 transition-colors text-xs">
+                                <td className="py-2 px-3">
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-sky-50 text-[#19719C] border border-sky-100">
+                                    {t.unitSJ} #{sjIdx + 1}
+                                  </span>
                                 </td>
-                                <td className="py-2.5 px-3 font-extrabold text-[#1E2024]">
+                                <td className="py-2 px-3 font-semibold text-slate-800 text-[11px]">
                                   {sj.noSJ}
                                 </td>
-                                <td className="py-2.5 px-3 text-zinc-700">{sj.tanggalKirim}</td>
-                                <td className="py-2.5 px-3 text-right font-extrabold text-emerald-700">
-                                  {sj.qtyKirimPcs.toLocaleString('id-ID')}
+                                <td className="py-2 px-3 text-slate-500 text-[11px]">{sj.tanggalKirim}</td>
+                                <td className="py-2 px-3 text-right font-semibold text-emerald-700/90 text-[11px]">
+                                  {(Number(sj.qtyKirimPcs) || 0).toLocaleString('id-ID')}
                                 </td>
-                                <td className="py-2.5 px-3 text-right text-emerald-800">
-                                  {sj.beratKirimKg.toLocaleString('id-ID')}
+                                <td className="py-2 px-3 text-right text-slate-600 text-[11px]">
+                                  {(Number(sj.beratKirimKg) || 0).toLocaleString('id-ID')}
                                 </td>
-                                <td className="py-2.5 px-3 text-right font-semibold text-zinc-700">
-                                  {sj.akumulasiKirimPcs.toLocaleString('id-ID')}
+                                <td className="py-2 px-3 text-right text-slate-500 text-[11px]">
+                                  {(Number(sj.akumulasiKirimPcs) || 0).toLocaleString('id-ID')}
                                 </td>
-                                <td className="py-2.5 px-3 text-right font-bold text-amber-900">
-                                  {sj.sisaOsBerjalanPcs.toLocaleString('id-ID')}
+                                <td
+                                  className={`py-2 px-3 text-right font-semibold text-[11px] ${
+                                    Number(sj.sisaOsBerjalanPcs) > 0
+                                      ? 'text-amber-800'
+                                      : 'text-emerald-700'
+                                  }`}
+                                >
+                                  {(Number(sj.sisaOsBerjalanPcs) || 0).toLocaleString('id-ID')}
                                 </td>
-                                <td className="py-2.5 px-3 text-right text-amber-800">
-                                  {sj.sisaOsBerjalanKg.toLocaleString('id-ID')}
+                                <td className="py-2 px-3 text-right text-slate-500 text-[11px]">
+                                  {(Number(sj.sisaOsBerjalanKg) || 0).toLocaleString('id-ID')}
                                 </td>
                               </tr>
                             ))
                           )}
                         </tbody>
-                        <tfoot className="bg-zinc-100/95 border-t border-zinc-300/80 font-bold text-xs">
+                        <tfoot className="bg-slate-100/50 border-t border-slate-200/60 text-xs text-slate-600">
                           <tr>
-                            <td colSpan={3} className="py-2 px-3 text-[#1E2024]">
-                              REKAP AKHIR PO {po['No PO']} (QTY PO:{' '}
-                              {qtyPoPcs.toLocaleString('id-ID')} PCS /{' '}
-                              {beratPoKg.toLocaleString('id-ID')} KG)
+                            <td colSpan={3} className="py-2 px-3 font-medium text-slate-700">
+                              TOTAL {t.unitPoShort} {po['No PO']} ({qtyPoPcs.toLocaleString('id-ID')} {t.unitPcs} /{' '}
+                              {beratPoKg.toLocaleString('id-ID')} {t.unitKg})
                             </td>
-                            <td className="py-2 px-3 text-right text-emerald-700">
-                              {terkirimPcs.toLocaleString('id-ID')} PCS
+                            <td className="py-2 px-3 text-right font-bold text-emerald-800">
+                              {terkirimPcs.toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right text-emerald-800">
-                              {terkirimKg.toLocaleString('id-ID')} KG
+                            <td className="py-2 px-3 text-right text-slate-600 font-medium">
+                              {terkirimKg.toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right text-zinc-600">
-                              Sisa OS Keseluruhan:
+                            <td className="py-2 px-3 text-right text-slate-400 text-[10px] uppercase font-semibold">
+                              {t.thSisaOS}:
                             </td>
-                            <td className="py-2 px-3 text-right font-extrabold text-[#EA5413]">
-                              {sisaPcs.toLocaleString('id-ID')} PCS
+                            <td
+                              className={`py-2 px-3 text-right font-bold ${
+                                sisaPcs > 0 ? 'text-[#EA5413]' : 'text-emerald-700'
+                              }`}
+                            >
+                              {sisaPcs.toLocaleString('id-ID')}
                             </td>
-                            <td className="py-2 px-3 text-right font-bold text-[#EA5413]">
-                              {sisaKg.toLocaleString('id-ID')} KG
+                            <td
+                              className={`py-2 px-3 text-right font-semibold ${
+                                sisaPcs > 0 ? 'text-[#EA5413]/90' : 'text-emerald-700'
+                              }`}
+                            >
+                              {sisaKg.toLocaleString('id-ID')}
                             </td>
                           </tr>
                         </tfoot>
@@ -2219,7 +2269,7 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
           <div
             className={
               isFullscreen
-                ? 'flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-white/40'
+                ? 'flex-1 min-h-0 overflow-x-auto overflow-y-auto relative bg-white'
                 : scrollMode === 'page'
                 ? 'overflow-x-auto relative'
                 : 'overflow-x-auto overflow-y-auto max-h-[72vh] relative'
@@ -2232,99 +2282,99 @@ export const DetailDeliveryView: React.FC<DetailDeliveryViewProps> = ({
                 } bg-[#18222C] text-white text-[11px] font-semibold`}
               >
                 <tr>
-                  <th className="py-3 px-3 border-r border-white/10">#</th>
-                  <th className="py-3 px-3 border-r border-white/10">CO</th>
-                  <th className="py-3 px-3 border-r border-white/10">Artikel</th>
-                  <th className="py-3 px-3 border-r border-white/10">Item Description</th>
-                  <th className="py-3 px-3 border-r border-white/10">Tgl Input PO</th>
-                  <th className="py-3 px-3 border-r border-white/10">No PO</th>
-                  <th className="py-3 px-3 text-right border-r border-white/10">QTY PO (pcs)</th>
-                  <th className="py-3 px-3 text-center border-r border-white/10">Frekuensi SJ</th>
+                  <th className="py-2.5 px-3 border-r border-white/10">#</th>
+                  <th className="py-2.5 px-3 border-r border-white/10">{t.thNoCO}</th>
+                  <th className="py-2.5 px-3 border-r border-white/10">{t.thArtikel}</th>
+                  <th className="py-2.5 px-3 border-r border-white/10">{t.thDeskripsi}</th>
+                  <th className="py-2.5 px-3 border-r border-white/10">{t.thTglPO}</th>
+                  <th className="py-2.5 px-3 border-r border-white/10">{t.thNoPO}</th>
+                  <th className="py-2.5 px-3 text-right border-r border-white/10">{t.thQtyPO}</th>
+                  <th className="py-2.5 px-3 text-center border-r border-white/10">{t.unitSJ}</th>
                   {Array.from({ length: maxHorizontalSJ }).map((_, idx) => (
                     <React.Fragment key={`h_head_${idx}`}>
-                      <th className="py-3 px-3 bg-[#134E6F] border-r border-white/15 text-sky-100">
-                        SJ #{idx + 1} (No SJ)
+                      <th className="py-2.5 px-3 bg-[#134E6F] border-r border-white/15 text-sky-100">
+                        {t.unitSJ} #{idx + 1}
                       </th>
-                      <th className="py-3 px-3 bg-[#134E6F] border-r border-white/15 text-sky-100">
-                        SJ #{idx + 1} (Tgl)
+                      <th className="py-2.5 px-3 bg-[#134E6F] border-r border-white/15 text-sky-100">
+                        {t.thTglSJ} #{idx + 1}
                       </th>
-                      <th className="py-3 px-3 bg-[#134E6F] text-right border-r border-white/25 text-emerald-200">
-                        SJ #{idx + 1} (Qty)
+                      <th className="py-2.5 px-3 bg-[#134E6F] text-right border-r border-white/25 text-emerald-200">
+                        Qty #{idx + 1}
                       </th>
                     </React.Fragment>
                   ))}
-                  <th className="py-3 px-3 text-right border-r border-white/10 text-emerald-300">
-                    Total Terkirim (pcs)
+                  <th className="py-2.5 px-3 text-right border-r border-white/10 text-emerald-300">
+                    {t.thTotalSent}
                   </th>
-                  <th className="py-3 px-3 text-right border-r border-white/10 text-amber-300">
-                    Sisa OS Akhir (pcs)
+                  <th className="py-2.5 px-3 text-right border-r border-white/10 text-amber-300">
+                    {t.thSisaOS}
                   </th>
-                  <th className="py-3 px-3 text-right">Sisa OS Akhir (KG)</th>
+                  <th className="py-2.5 px-3 text-right">{t.thSisaOSKg}</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-zinc-200/70">
+              <tbody className="divide-y divide-slate-200">
                 {filteredPOs.map((po, idx) => {
                   const realSJs = (po.deliveries || []).filter(
                     (d) => !d.isFallbackNoDelivery && d.noSJ !== '-'
                   );
                   return (
-                    <tr key={po.id || idx} className="bg-white/80 hover:bg-sky-50/50">
-                      <td className="py-2.5 px-3 border-r border-zinc-200/60 text-zinc-500">
+                    <tr key={po.id || idx} className="bg-white hover:bg-slate-50">
+                      <td className="py-2 px-3 border-r border-slate-200/70 text-slate-400">
                         {idx + 1}
                       </td>
-                      <td className="py-2.5 px-3 border-r border-zinc-200/60 font-bold">
+                      <td className="py-2 px-3 border-r border-slate-200/70 font-semibold text-slate-900">
                         {po.CO}
                       </td>
-                      <td className="py-2.5 px-3 border-r border-zinc-200/60 font-bold text-[#19719C]">
+                      <td className="py-2 px-3 border-r border-slate-200/70 font-semibold text-[#19719C]">
                         {po.Artikel}
                       </td>
-                      <td className="py-2.5 px-3 border-r border-zinc-200/60 font-sans">
+                      <td className="py-2 px-3 border-r border-slate-200/70 font-sans text-slate-800">
                         {po['Item Description']}
                       </td>
-                      <td className="py-2.5 px-3 border-r border-zinc-200/60">
+                      <td className="py-2 px-3 border-r border-slate-200/70 text-slate-600">
                         {po['Tanggal Input PO']}
                       </td>
-                      <td className="py-2.5 px-3 border-r border-zinc-200/60 font-bold">
+                      <td className="py-2 px-3 border-r border-slate-200/70 font-semibold text-slate-900">
                         {po['No PO']}
                       </td>
-                      <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-bold">
-                        {(po['QTY PO (pcs)'] || 0).toLocaleString('id-ID')}
+                      <td className="py-2 px-3 text-right border-r border-slate-200/70 font-bold text-slate-900">
+                        {(Number(po['QTY PO (pcs)']) || 0).toLocaleString('id-ID')}
                       </td>
-                      <td className="py-2.5 px-3 text-center border-r border-zinc-200/60">
+                      <td className="py-2 px-3 text-center border-r border-slate-200/70">
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`text-[11px] font-semibold ${
                             realSJs.length === 0
-                              ? 'bg-amber-500/15 text-amber-800'
-                              : 'bg-[#19719C]/15 text-[#19719C]'
+                              ? 'text-amber-700'
+                              : 'text-[#19719C]'
                           }`}
                         >
-                          {realSJs.length}x SJ
+                          {realSJs.length}x
                         </span>
                       </td>
                       {Array.from({ length: maxHorizontalSJ }).map((_, sIdx) => {
                         const sj = realSJs[sIdx];
                         return (
                           <React.Fragment key={`h_cell_${po.id}_${sIdx}`}>
-                            <td className="py-2.5 px-3 border-r border-zinc-200/60 bg-sky-50/30 font-bold text-[#19719C]">
+                            <td className="py-2 px-3 border-r border-slate-200/70 bg-sky-50/25 font-semibold text-[#19719C]">
                               {sj ? sj.noSJ : '-'}
                             </td>
-                            <td className="py-2.5 px-3 border-r border-zinc-200/60 bg-sky-50/30 text-zinc-600">
+                            <td className="py-2 px-3 border-r border-slate-200/70 bg-sky-50/25 text-slate-600">
                               {sj ? sj.tanggalKirim : '-'}
                             </td>
-                            <td className="py-2.5 px-3 text-right border-r border-zinc-300/80 bg-emerald-50/30 font-bold text-emerald-700">
-                              {sj ? sj.qtyKirimPcs.toLocaleString('id-ID') : '0'}
+                            <td className="py-2 px-3 text-right border-r border-slate-300/70 bg-emerald-50/25 font-bold text-emerald-700">
+                              {sj ? (Number(sj.qtyKirimPcs) || 0).toLocaleString('id-ID') : '0'}
                             </td>
                           </React.Fragment>
                         );
                       })}
-                      <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-bold text-emerald-700">
-                        {(po['Terkirim (PCS)'] || 0).toLocaleString('id-ID')}
+                      <td className="py-2 px-3 text-right border-r border-slate-200/70 font-bold text-emerald-700">
+                        {(Number(po['Terkirim (PCS)']) || 0).toLocaleString('id-ID')}
                       </td>
-                      <td className="py-2.5 px-3 text-right border-r border-zinc-200/60 font-extrabold text-[#EA5413]">
-                        {(po['Sisa OS (pcs)'] || 0).toLocaleString('id-ID')}
+                      <td className="py-2 px-3 text-right border-r border-slate-200/70 font-bold text-[#EA5413]">
+                        {(Number(po['Sisa OS (pcs)']) || 0).toLocaleString('id-ID')}
                       </td>
-                      <td className="py-2.5 px-3 text-right font-semibold text-[#EA5413]">
-                        {(po['Sisa OS (kg)'] || 0).toLocaleString('id-ID')}
+                      <td className="py-2 px-3 text-right font-semibold text-[#EA5413]">
+                        {(Number(po['Sisa OS (kg)']) || 0).toLocaleString('id-ID')}
                       </td>
                     </tr>
                   );

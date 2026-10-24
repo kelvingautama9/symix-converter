@@ -1,6 +1,5 @@
 import React from 'react';
 import { ParseSummary } from '../types';
-import { Package, ShoppingBag, Warehouse, TrendingUp, CheckCircle, Clock } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 
 interface StatsOverviewProps {
@@ -40,253 +39,204 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
 
   const overStockPcs = summary.totalOverStockGudangPcs || summary.totalOverProduksiPcs || 0;
   let overStockKg = summary.totalOverStockGudangKg || summary.totalOverProduksiKg || 0;
-  if (overStockKg === 0 && overStockPcs > 0 && summary.totalQtyOrderPcs > 0 && summary.totalBeratOrderKg > 0) {
-    overStockKg = Math.round((overStockPcs / summary.totalQtyOrderPcs) * summary.totalBeratOrderKg);
+  if (
+    overStockKg === 0 &&
+    overStockPcs > 0 &&
+    summary.totalQtyOrderPcs > 0 &&
+    summary.totalBeratOrderKg > 0
+  ) {
+    overStockKg = Math.round(
+      (overStockPcs / summary.totalQtyOrderPcs) * summary.totalBeratOrderKg
+    );
   }
 
   const overKirimanPcs = summary.totalOverKirimanPcs || 0;
-  let overKirimanKg = summary.totalOverKirimanKg || 0;
-  if (overKirimanKg === 0 && overKirimanPcs > 0 && summary.totalQtyOrderPcs > 0 && summary.totalBeratOrderKg > 0) {
-    overKirimanKg = Math.round((overKirimanPcs / summary.totalQtyOrderPcs) * summary.totalBeratOrderKg);
-  }
 
   return (
     <div
       id="stats-overview-grid"
-      className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3.5"
+      className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2 sm:gap-3"
     >
-      {/* 1. Total PO (Menampilkan 2 Kondisi: No. PO Unik & Baris PO-Item) */}
+      {/* 1. Total PO & Item */}
       <div
         id="stat-card-total-pos"
-        className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
+        className="glass-panel rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[112px]"
       >
-        <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">
-            Total PO & Baris Item
-          </span>
-          <div className="w-7 h-7 rounded-lg bg-zinc-100/90 border border-zinc-200/50 flex items-center justify-center text-zinc-600 shrink-0">
-            <ShoppingBag className="w-3.5 h-3.5" />
-          </div>
+        <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+          {t.statTotalPoItem}
         </div>
-        <div>
-          <div className="flex items-baseline gap-1.5 flex-wrap">
+        <div className="mt-1.5 sm:mt-2">
+          <div className="flex items-baseline gap-1 text-slate-900 flex-wrap">
             <span
-              className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none"
-              title="Jumlah Nomor Dokumen PO Unik (Deduplikasi No. PO)"
+              className="text-lg sm:text-xl xl:text-2xl font-bold font-mono tracking-tight leading-none"
+              title={t.statTotalPoItem}
             >
               {(summary.totalUniquePONumbers || summary.totalPOs).toLocaleString('id-ID')}
             </span>
-            <span className="text-[11px] font-bold font-mono text-[#19719C]">PO Unik</span>
-            <span className="text-xs font-mono text-zinc-400">/</span>
+            <span className="text-[11px] font-semibold font-mono text-[#19719C]">
+              {t.unitPoShort}
+            </span>
+            <span className="text-slate-300 mx-0.5 text-xs">/</span>
             <span
-              className="text-sm font-extrabold font-mono text-zinc-700"
-              title="Total Baris PO berdasarkan Item/Artikel"
+              className="text-xs sm:text-sm font-semibold font-mono text-slate-600 truncate"
+              title={t.unitItem}
             >
-              {summary.totalPOs.toLocaleString('id-ID')} Item
+              {summary.totalPOs.toLocaleString('id-ID')} {t.unitItem}
             </span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
-            <div className="text-[10px] font-mono text-[#5C6068] truncate">
-              {summary.totalUniqueItems || summary.totalPOs} Artikel •{' '}
-              {summary.totalMultiItemPONumbers || 0} PO Multi-Item
-            </div>
-            <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar">
-              <span
-                className="px-2 py-0.5 bg-emerald-500/10 text-emerald-700 border border-emerald-500/25 rounded-full font-semibold font-mono text-[10px] whitespace-nowrap"
-                title="Total CO Open"
-              >
-                {summary.totalCOOpen || 0} Open
-              </span>
-              <span
-                className="px-2 py-0.5 bg-zinc-200/60 text-zinc-600 border border-zinc-300/40 rounded-full font-semibold font-mono text-[10px] whitespace-nowrap"
-                title="Total CO Closed"
-              >
-                {summary.totalCOClosed || 0} Closed
-              </span>
-            </div>
+          <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+            <span className="truncate">
+              {summary.totalUniqueItems || summary.totalPOs} {t.unitArt}
+              {(summary.totalMultiItemPONumbers || 0) > 0
+                ? ` · ${summary.totalMultiItemPONumbers} ${t.unitMulti}`
+                : ''}
+            </span>
+            <span className="text-emerald-700 font-semibold shrink-0">
+              {summary.totalCOOpen || 0} {t.statusOpenShort}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 2. Total Order Qty */}
+      {/* 2. Total Order */}
       <div
         id="stat-card-order-qty"
-        className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
+        className="glass-panel rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[112px]"
       >
-        <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">Total Order</span>
-          <div className="w-7 h-7 rounded-lg bg-zinc-100/90 border border-zinc-200/50 flex items-center justify-center text-zinc-600 shrink-0">
-            <Package className="w-3.5 h-3.5" />
-          </div>
+        <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+          {t.statTotalOrder}
         </div>
-        <div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none flex items-baseline gap-1">
+        <div className="mt-1.5 sm:mt-2">
+          <div className="text-lg sm:text-xl xl:text-2xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
             <span>{summary.totalQtyOrderPcs.toLocaleString('id-ID')}</span>
-            <span className="text-xs font-normal text-[#5C6068]">{t.unitPcs}</span>
+            <span className="text-[10px] sm:text-xs font-normal text-slate-500">{t.unitPcs}</span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
-            <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.totalBeratOrderKg.toLocaleString('id-ID')} kg
-            </div>
-            <div className="flex items-center">
-              <span className="px-2 py-0.5 bg-zinc-100/80 text-zinc-600 border border-zinc-200/60 rounded-full font-medium font-mono text-[10px] whitespace-nowrap">
-                Akumulasi PO
-              </span>
-            </div>
+          <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+            <span className="truncate">
+              {summary.totalBeratOrderKg.toLocaleString('id-ID')} {t.unitKg}
+            </span>
+            <span className="text-slate-400 shrink-0">{t.poQuota}</span>
           </div>
         </div>
       </div>
 
-      {/* 3. Sisa OS (pcs) - Warm Frosted Highlight Glass */}
+      {/* 3. Sisa OS */}
       <div
         id="stat-card-sisa-os"
-        className="glass-panel-warm rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/95 shadow-2xs"
+        className="glass-panel-warm rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[112px]"
       >
-        <div className="flex items-center justify-between text-[#EA5413] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider truncate">{t.sisaOSCard}</span>
-          <div className="w-7 h-7 rounded-lg bg-[#EA5413]/10 border border-[#EA5413]/20 flex items-center justify-center text-[#EA5413] shrink-0">
-            <Clock className="w-3.5 h-3.5" />
-          </div>
+        <div className="text-[10px] sm:text-[11px] font-semibold text-[#EA5413] truncate">
+          {t.statSisaOS}
         </div>
-        <div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-[#EA5413] tracking-tight leading-none flex items-baseline gap-1">
+        <div className="mt-1.5 sm:mt-2">
+          <div className="text-lg sm:text-xl xl:text-2xl font-bold font-mono text-[#EA5413] tracking-tight leading-none flex items-baseline gap-1">
             <span>{summary.totalSisaOSPcs.toLocaleString('id-ID')}</span>
-            <span className="text-xs font-normal text-[#EA5413]/70">{t.unitPcs}</span>
+            <span className="text-[10px] sm:text-xs font-normal text-[#EA5413]/75">
+              {t.unitPcs}
+            </span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-[#EA5413]/15 flex flex-col gap-1">
-            <div className="text-[11px] font-mono text-[#EA5413]/90 font-medium truncate">
-              {summary.totalSisaOSKg.toLocaleString('id-ID')} kg
-            </div>
-            <div className="flex items-center">
-              <span className="px-2 py-0.5 bg-amber-500/15 text-[#EA5413] border border-amber-500/25 rounded-full font-bold font-mono text-[10px] whitespace-nowrap">
-                {100 - fulfillmentPct}% {t.outstandingRate}
-              </span>
-            </div>
+          <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-orange-200/60 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-[#EA5413]">
+            <span className="font-medium truncate">
+              {summary.totalSisaOSKg.toLocaleString('id-ID')} {t.unitKg}
+            </span>
+            <span className="font-semibold shrink-0">
+              {100 - fulfillmentPct}% {t.unitOS}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* 4. Total Stock */}
+      {/* 4. Stok Gudang */}
       <div
         id="stat-card-stock"
-        className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
+        className="glass-panel rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[112px]"
       >
-        <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.stockGudangCard}</span>
-          <div className="w-7 h-7 rounded-lg bg-indigo-50 border border-indigo-200/50 flex items-center justify-center text-indigo-600 shrink-0">
-            <Warehouse className="w-3.5 h-3.5" />
-          </div>
+        <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+          {t.statStokGudang}
         </div>
-        <div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none flex items-baseline gap-1">
+        <div className="mt-1.5 sm:mt-2">
+          <div className="text-lg sm:text-xl xl:text-2xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
             <span>{summary.totalStockPcs.toLocaleString('id-ID')}</span>
-            <span className="text-xs font-normal text-[#5C6068]">{t.unitPcs}</span>
+            <span className="text-[10px] sm:text-xs font-normal text-slate-500">{t.unitPcs}</span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
-            <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.totalStockKg.toLocaleString('id-ID')} kg
-            </div>
-            <div className="flex items-center">
-              {overStockPcs > 0 ? (
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-indigo-500/10 text-indigo-700 border border-indigo-500/25 rounded-full text-[10px] font-bold font-mono whitespace-nowrap truncate max-w-full"
-                  title={`Over Stock: ${overStockPcs.toLocaleString('id-ID')} pcs (${overStockKg.toLocaleString('id-ID')} kg).`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-500 shrink-0" />
-                  <span className="truncate">+{overStockPcs.toLocaleString('id-ID')} pcs Over</span>
-                </span>
-              ) : (
-                <span className="px-2 py-0.5 bg-zinc-100/80 text-zinc-500 border border-zinc-200/60 rounded-full font-medium font-mono text-[10px] whitespace-nowrap">
-                  Alokasi Standar
-                </span>
-              )}
-            </div>
+          <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+            <span className="truncate">
+              {summary.totalStockKg.toLocaleString('id-ID')} {t.unitKg}
+            </span>
+            {overStockPcs > 0 ? (
+              <span
+                className="text-indigo-700 font-semibold truncate shrink-0"
+                title={`${t.overStockCard}: ${overStockPcs.toLocaleString('id-ID')} ${t.unitPcs} (${overStockKg.toLocaleString('id-ID')} ${t.unitKg})`}
+              >
+                +{overStockPcs.toLocaleString('id-ID')} {t.overShort}
+              </span>
+            ) : (
+              <span className="text-slate-400 shrink-0">{t.readyToShipShort}</span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 5. Progress Pengiriman */}
+      {/* 5. Terkirim */}
       <div
         id="stat-card-delivery-progress"
-        className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
+        className="glass-panel rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[112px]"
       >
-        <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.terkirimCard}</span>
-          <div className="w-7 h-7 rounded-lg bg-emerald-50 border border-emerald-200/50 flex items-center justify-center text-emerald-600 shrink-0">
-            <CheckCircle className="w-3.5 h-3.5" />
-          </div>
+        <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+          {t.statTerkirim}
         </div>
-        <div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none flex items-baseline gap-1">
+        <div className="mt-1.5 sm:mt-2">
+          <div className="text-lg sm:text-xl xl:text-2xl font-bold font-mono text-emerald-700 tracking-tight leading-none flex items-baseline gap-1">
             <span>
               {(
                 summary.totalTerkirimPcs ??
                 summary.totalQtyOrderPcs - summary.totalSisaOSPcs
               ).toLocaleString('id-ID')}
             </span>
-            <span className="text-xs font-normal text-[#5C6068]">{t.unitPcs}</span>
+            <span className="text-[10px] sm:text-xs font-normal text-slate-500">{t.unitPcs}</span>
           </div>
-          <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
-            <div className="text-[11px] font-mono text-[#5C6068] truncate">
+          <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+            <span className="truncate">
               {(
                 summary.totalTerkirimKg ??
                 summary.totalBeratOrderKg - summary.totalSisaOSKg
               ).toLocaleString('id-ID')}{' '}
-              kg ({fulfillmentPct}%)
-            </div>
-            <div className="flex items-center">
-              {overKirimanPcs > 0 ? (
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-teal-500/15 text-teal-800 border border-teal-500/30 rounded-full text-[10px] font-bold font-mono whitespace-nowrap truncate max-w-full"
-                  title={`Over Kiriman: ${overKirimanPcs.toLocaleString('id-ID')} pcs (${overKirimanKg.toLocaleString('id-ID')} kg).`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-teal-600 shrink-0" />
-                  <span className="truncate">+{overKirimanPcs.toLocaleString('id-ID')} pcs Over</span>
-                </span>
-              ) : (
-                <div className="w-full bg-zinc-200/70 rounded-full h-1.5 overflow-hidden my-0.5">
-                  <div
-                    className="bg-emerald-500 h-full rounded-full transition-all duration-500 shadow-2xs"
-                    style={{ width: `${Math.min(100, Math.max(0, fulfillmentPct))}%` }}
-                  />
-                </div>
-              )}
-            </div>
+              {t.unitKg}
+            </span>
+            {overKirimanPcs > 0 ? (
+              <span className="text-teal-700 font-semibold shrink-0">
+                +{overKirimanPcs.toLocaleString('id-ID')}
+              </span>
+            ) : (
+              <span className="text-emerald-700 font-semibold shrink-0">{fulfillmentPct}%</span>
+            )}
           </div>
         </div>
       </div>
 
-      {/* 6. Estimasi Valuasi OS */}
+      {/* 6. Valuasi OS */}
       <div
         id="stat-card-valuation"
-        className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
+        className="glass-panel rounded-xl p-2.5 sm:p-3.5 flex flex-col justify-between min-h-[96px] sm:min-h-[112px]"
       >
-        <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.valuasiOSCard}</span>
-          <div className="w-7 h-7 rounded-lg bg-zinc-100/90 border border-zinc-200/50 flex items-center justify-center text-zinc-600 shrink-0">
-            <TrendingUp className="w-3.5 h-3.5" />
-          </div>
+        <div className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate">
+          {t.statValuasiOS}
         </div>
-        <div>
+        <div className="mt-1.5 sm:mt-2">
           <div
-            className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none truncate"
+            className="text-lg sm:text-xl xl:text-2xl font-bold font-mono text-slate-900 tracking-tight leading-none truncate"
             title={`Rp ${summary.totalValue.toLocaleString('id-ID')}`}
           >
             {formatIndonesianCurrency(summary.totalValue)}
           </div>
-          <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
-            <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.itemsWithDelivery} items
-            </div>
-            <div className="flex items-center">
-              <span className="px-2 py-0.5 bg-zinc-100/80 text-zinc-600 border border-zinc-200/60 rounded-full font-medium font-mono text-[10px] whitespace-nowrap">
-                Estimasi
-              </span>
-            </div>
+          <div className="mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-slate-100 flex items-center justify-between gap-1 text-[10px] sm:text-[11px] font-mono text-slate-500">
+            <span className="truncate">
+              {summary.itemsWithDelivery} {t.activeItemsCount}
+            </span>
+            <span className="text-slate-400 shrink-0">{t.estimatedLabel}</span>
           </div>
         </div>
       </div>
     </div>
   );
 };
-

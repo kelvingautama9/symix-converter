@@ -16,11 +16,17 @@ export const SUPPORTED_LANGUAGES: LanguageOption[] = [
 ];
 
 export interface TranslationSchema {
-  // Header
+  // Header & Footer
   appTitle: string;
   appSubtitle: string;
+  appSubtitleShort: string;
   browserBadge: string;
   languageSelect: string;
+  modeRekapPO: string;
+  modeDetailSJ: string;
+  guideBtn: string;
+  footerSubtitle: string;
+  developedBy: string;
 
   // Dual Upload Container
   singleConvertTitle: string;
@@ -46,16 +52,28 @@ export interface TranslationSchema {
   errorReadingSheet: string;
   errorZipDownload: string;
   errorMasterExcel: string;
+  activeFileToast: string;
+  sheetChangedToast: string;
 
   // File Switcher Bar
+  fileLabel: string;
   activeDocument: string;
   allFilesConverted: string;
   downloadZipBtn: string;
   mergeMasterBtn: string;
+  zipAllBtn: string;
+  mergeMasterShortBtn: string;
+  addFileBtn: string;
+  changeFileBtn: string;
   removeFile: string;
 
   // Action Toolbar
   exportExcelBtn: string;
+  exportScopeHeader: string;
+  sendWaFileBtn: string;
+  waReportBtn: string;
+  copyTextBtn: string;
+  copyFormatHeader: string;
   shareWhatsAppBtn: string;
   copyReportBtn: string;
   resetBtn: string;
@@ -76,19 +94,50 @@ export interface TranslationSchema {
   overKirimanScope: string;
   criticalAgingScope: string;
   copiedSuccess: string;
+  scopeAllData: string;
+  scopeCoOpen: string;
+  scopeCoClosed: string;
+  scopeStockReady: string;
+  scopeOverStock: string;
+  scopeOverDelivery: string;
+  scopeSisaOsOpen: string;
+  scopeAllCo: string;
+  sheetLabel: string;
 
-  // Stats Overview
+  // Stats Overview & Cards
   totalPoCard: string;
+  statTotalPoItem: string;
+  statTotalOrder: string;
+  statSuratJalan: string;
   sisaOSCard: string;
+  statSisaOS: string;
   stockGudangCard: string;
+  statStokGudang: string;
   terkirimCard: string;
+  statTerkirim: string;
   overStockCard: string;
   overKirimanCard: string;
   valuasiOSCard: string;
+  statValuasiOS: string;
   unitPo: string;
+  unitPoShort: string;
+  unitItem: string;
+  unitArt: string;
+  unitMulti: string;
+  unitSJ: string;
   unitPcs: string;
   unitKg: string;
   unitTon: string;
+  unitOS: string;
+  statusOpenShort: string;
+  statusClosedShort: string;
+  poQuota: string;
+  overShort: string;
+  readyToShipShort: string;
+  activeItemsCount: string;
+  estimatedLabel: string;
+  multiSjLabel: string;
+  notYetSentShort: string;
   statusSafe: string;
   statusFollowUp: string;
   statusCritical: string;
@@ -96,12 +145,44 @@ export interface TranslationSchema {
   readyPartial: string;
   readyNone: string;
 
-  // Data Table
+  // Delivery Ratio Bar (Rasio Tonase)
+  tonnageRatioLabel: string;
+  deliveryChartTitle: string;
+  fulfillmentRate: string;
+  outstandingRate: string;
+
+  // Data Table Controls & Filters
+  poRecapTableTitle: string;
+  detailSjTableTitle: string;
   searchPlaceholder: string;
+  searchDetailSjPlaceholder: string;
+  scrollFree: string;
+  scrollBox: string;
+  fullscreenBtn: string;
+  exitBtn: string;
+  columnsBtn: string;
+  resetBtnShort: string;
   filterByStatus: string;
   filterByAging: string;
   filterByPrefix: string;
   clearFilters: string;
+  filterAll: string;
+  filterStatusLabel: string;
+  filterPartial: string;
+  filterPending: string;
+  filterStockReady: string;
+  filterOverStock: string;
+  filterOverKirim: string;
+  filterAgingLabel: string;
+  agingSafeShort: string;
+  agingFollowUpShort: string;
+  agingCriticalShort: string;
+  dayUnitShort: string;
+  agingSafeWord: string;
+  agingFollowUpWord: string;
+  agingCriticalWord: string;
+
+  // Data Table Headers
   colNo: string;
   colCO: string;
   colStatus: string;
@@ -119,17 +200,89 @@ export interface TranslationSchema {
   colOverStockPcs: string;
   colOverKirimanPcs: string;
   colAging: string;
+  thNoCO: string;
+  thArtikel: string;
+  thDeskripsi: string;
+  thTglPO: string;
+  thNoPO: string;
+  thSubstance: string;
+  thQtyPO: string;
+  thBeratPO: string;
+  thStockPcs: string;
+  thStockKg: string;
+  thSisaOS: string;
+  thSisaOSKg: string;
+  thTerkirim: string;
+  thTerkirimKg: string;
+  thOverStock: string;
+  thOverStockKg: string;
+  thOverKirim: string;
+  thOverKirimKg: string;
+  thHarga: string;
+
+  // Pagination & Column Modal
   rowsPerPage: string;
+  rowsLabel: string;
+  allUnlimited: string;
+  toTopBtn: string;
   showing: string;
   to: string;
   of: string;
   entries: string;
   noMatchingRecords: string;
+  customColTitle: string;
+  customColSubtitle: string;
+  presetLabel: string;
+  presetAll: string;
+  presetEssential: string;
+  presetLogistics: string;
+  presetFinancial: string;
+  visibleCountLabel: string;
+  hiddenLabel: string;
+  searchColPlaceholder: string;
+  noColMatch: string;
+  customColFooterNote: string;
+  doneBtn: string;
 
-  // Delivery Pie Chart
-  deliveryChartTitle: string;
-  fulfillmentRate: string;
-  outstandingRate: string;
+  // Detail SJ Specific
+  viewTableSJ: string;
+  viewPerNoPO: string;
+  viewGroupPO: string;
+  viewMatrixSJ: string;
+  subTotalToggle: string;
+  flatFullToggle: string;
+  accurateSumToggle: string;
+  filterLabel: string;
+  filterHasSJ: string;
+  filterMultiSJ: string;
+  filterNoSJYet: string;
+  filterMultiItem: string;
+  filterHasOS: string;
+  filterLunas: string;
+  thStage: string;
+  thNoSJ: string;
+  thTglSJ: string;
+  thLeadTime: string;
+  thQtySJ: string;
+  thBeratSJ: string;
+  thOsRunning: string;
+  thOsRunningKg: string;
+  thTotalSent: string;
+  thSentPct: string;
+  thDeliveryStatus: string;
+  thAging: string;
+  thStock: string;
+  thSjDetails: string;
+  thAccumulatedPcs: string;
+  notSentYetBadge: string;
+  lunasOsBadge: string;
+  totalSentLabel: string;
+  finalTotalLabel: string;
+  subTotalPoLabel: string;
+  consolidatedBannerText1: string;
+  consolidatedBannerText2: string;
+  availableInSheet2: string;
+  clickResetHint: string;
 
   // WhatsApp Modal
   waModalTitle: string;
@@ -145,6 +298,14 @@ export interface TranslationSchema {
   waScopeOverStock: string;
   waSendButton: string;
   waCancelButton: string;
+  waOnlyXlsxBadge: string;
+  waCleanSendTitle: string;
+  waCleanSendDesc: string;
+  waSelectedOption: string;
+  waDownloadXlsxBtn: string;
+  waSendXlsxBtn: string;
+  waSendTextBtn: string;
+  waSharingMsg: string;
 
   // Parser Rules Modal
   rulesModalTitle: string;

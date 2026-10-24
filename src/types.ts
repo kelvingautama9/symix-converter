@@ -50,6 +50,12 @@ export interface ExtractedRecord {
   _parentStockKg?: number;
 }
 
+export type DeliveryStatusTag =
+  | 'OVER DELIVERY'
+  | 'COMPLETED / LUNAS'
+  | 'PARTIAL / CICIL'
+  | 'UNTOUCHED / BELUM KIRIM';
+
 export interface FlattenedDeliveryRow {
   id: string;
   poRecordId: string;
@@ -68,6 +74,8 @@ export interface FlattenedDeliveryRow {
   labelKiriman: string; // e.g. "Kiriman Ke-1 (dari 3)" or "Belum Kirim"
   'No Surat Jalan (SJ)': string;
   'Tanggal Kirim (SJ)': string;
+  'Lead Time SJ (Hari)': number | null;
+  'Rata-rata Lead Time PO (Hari)': number | null;
   'QTY Kirim SJ (pcs)': number;
   'Berat Kirim SJ (KG)': number;
   'Akumulasi Terkirim (pcs)': number;
@@ -78,6 +86,10 @@ export interface FlattenedDeliveryRow {
   'Total Terkirim PO (KG)': number;
   'Sisa OS Akhir PO (pcs)': number;
   'Sisa OS Akhir PO (KG)': number;
+  '% Pemenuhan PO': number; // decimal ratio e.g. 0.85 for 85.0%
+  'Status Pengiriman': DeliveryStatusTag;
+  'Umur PO / Aging (Hari)': number | null;
+  'Kategori Aging OS': string;
   'Stock (pcs)': number;
   'Stock (kg)': number;
   'Over Stock Gudang (PCS)': number;

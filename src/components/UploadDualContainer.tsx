@@ -137,7 +137,7 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
       )}
 
       {/* Dual Upload Containers Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5 items-stretch">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
         {/* Container 1: Single Convert */}
         <div
           onDragEnter={(e) => {
@@ -159,31 +159,23 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
               singleInputRef.current?.click();
             }
           }}
-          className={`relative group cursor-pointer transition-all duration-200 glass-panel rounded-3xl p-6 sm:p-7 flex flex-col justify-between ${
+          className={`cursor-pointer transition-colors bg-white border rounded-xl p-6 flex flex-col justify-between ${
             isDragSingle
-              ? 'ring-2 ring-[#FF7B35]/40 bg-white/90 scale-[0.995]'
-              : 'hover:bg-white/85 hover:shadow-[0_12px_36px_-8px_rgba(0,0,0,0.06)]'
+              ? 'border-slate-900 bg-slate-50'
+              : 'border-slate-200 hover:border-slate-300'
           }`}
         >
-          {/* Subtle frosted glow accent */}
-          <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-zinc-200/40 to-transparent rounded-bl-full pointer-events-none" />
-
-          {/* Header */}
-          <div className="relative z-10">
-            <div className="w-12 h-12 rounded-2xl glass-card flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-zinc-700 shadow-sm">
-              <FileSpreadsheet className="w-6 h-6 text-zinc-700" />
-            </div>
-
-            <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#1E2024]">
+          <div>
+            <h3 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
               {t.singleConvertTitle}
             </h3>
-            <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
               {t.singleConvertDesc}
             </p>
           </div>
 
-          {/* Action Button & Metadata */}
-          <div className="relative z-10 mt-6 pt-4 border-t border-zinc-200/60">
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+            <span className="text-[11px] font-mono text-slate-400">.xlsx · .xls</span>
             <button
               type="button"
               id="btn-single-browse"
@@ -192,17 +184,11 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
                 singleInputRef.current?.click();
               }}
               disabled={isLoading}
-              className="w-full liquid-glass-clear inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 h-10 sm:h-11 min-w-[148px] sm:min-w-[160px] px-5 py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-white border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-800 shadow-2xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
-              <Upload className="w-3.5 h-3.5 text-zinc-600" />
+              <Upload className="w-4 h-4 text-slate-600 shrink-0" />
               <span>{t.singleConvertBtn}</span>
             </button>
-
-            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C6068]">
-              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80 font-medium">
-                .xlsx / .xls
-              </span>
-            </div>
           </div>
         </div>
 
@@ -227,31 +213,23 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
               multiInputRef.current?.click();
             }
           }}
-          className={`relative group cursor-pointer transition-all duration-200 glass-panel-warm rounded-3xl p-6 sm:p-7 flex flex-col justify-between ${
+          className={`cursor-pointer transition-colors bg-white border rounded-xl p-6 flex flex-col justify-between ${
             isDragMulti
-              ? 'ring-2 ring-[#EA5413]/50 bg-white/95 scale-[0.995]'
-              : 'hover:bg-white/90 hover:shadow-[0_12px_36px_-6px_rgba(234,84,19,0.12)]'
+              ? 'border-slate-900 bg-slate-50'
+              : 'border-slate-200 hover:border-slate-300'
           }`}
         >
-          {/* Subtle warm orange glass ambient glow */}
-          <div className="absolute top-0 right-0 w-36 h-36 bg-gradient-to-br from-[#FF7B35]/15 to-transparent rounded-bl-full pointer-events-none" />
-
-          {/* Header */}
-          <div className="relative z-10">
-            <div className="w-12 h-12 rounded-2xl glass-card flex items-center justify-center mb-3 group-hover:scale-105 transition-transform text-[#EA5413] shadow-sm">
-              <Files className="w-6 h-6 text-[#EA5413]" />
-            </div>
-
-            <h3 className="text-lg sm:text-xl font-bold tracking-tight text-[#1E2024]">
+          <div>
+            <h3 className="text-base sm:text-lg font-bold tracking-tight text-slate-900">
               {t.multiConvertTitle}
             </h3>
-            <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+            <p className="text-xs text-slate-500 mt-1 leading-relaxed">
               {t.multiConvertDesc}
             </p>
           </div>
 
-          {/* Action Button & Metadata */}
-          <div className="relative z-10 mt-6 pt-4 border-t border-zinc-200/60">
+          <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+            <span className="text-[11px] font-mono text-slate-400">Batch · .xlsx · .xls</span>
             <button
               type="button"
               id="btn-multi-browse"
@@ -260,26 +238,13 @@ export const UploadDualContainer: React.FC<UploadDualContainerProps> = ({
                 multiInputRef.current?.click();
               }}
               disabled={isLoading}
-              className="w-full liquid-glass-primary inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-semibold uppercase tracking-wider cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center justify-center gap-2 h-10 sm:h-11 min-w-[148px] sm:min-w-[160px] px-5 py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-slate-900 hover:bg-slate-800 text-white shadow-2xs transition-all active:scale-[0.98] cursor-pointer disabled:opacity-50"
             >
-              <Files className="w-3.5 h-3.5 text-white" />
+              <Files className="w-4 h-4 text-slate-200 shrink-0" />
               <span>{t.multiConvertBtn}</span>
             </button>
-
-            <div className="flex flex-wrap items-center gap-1.5 mt-3 text-[11px] font-mono text-[#5C6068]">
-              <span className="bg-white/60 px-2 py-0.5 rounded-full border border-white/80 font-medium">
-                .xlsx / .xls
-              </span>
-            </div>
           </div>
         </div>
-      </div>
-
-      {/* Subtle Hint / Catatan Kaki Ukuran File */}
-      <div className="mt-3.5 text-center">
-        <p className="text-[11px] font-mono text-zinc-400">
-          * {t.fileLimits} per file &bull; Format didukung: <span className="text-zinc-600 font-medium">.xlsx, .xls</span>
-        </p>
       </div>
     </div>
   );

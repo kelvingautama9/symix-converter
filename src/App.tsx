@@ -179,7 +179,7 @@ export default function App() {
   const handleSingleFileSelected = async (file: File) => {
     setIsLoading(true);
     setErrorMessage(null);
-    setLoadingMessage('Membaca & mengonversi file...');
+    setLoadingMessage(t.readingConverting);
     setLoadingProgress(null);
     haptic.medium();
 
@@ -197,8 +197,8 @@ export default function App() {
       );
       setStatusMessage(
         conversionMode === 'DETAIL_SJ'
-          ? `File ${file.name} berhasil dikonversi (${converted.data.length} PO • ${totalSJ} Surat Jalan).`
-          : `File ${file.name} berhasil dikonversi (${converted.data.length} PO).`
+          ? `${file.name} ${t.fileConvertedSuccess} (${converted.data.length} ${t.unitPoShort} • ${totalSJ} ${t.unitSJ}).`
+          : `${file.name} ${t.fileConvertedSuccess} (${converted.data.length} ${t.unitPoShort}).`
       );
       haptic.success();
       confetti({
@@ -211,7 +211,7 @@ export default function App() {
       console.error('Single conversion error:', err);
       haptic.error();
       setErrorMessage(
-        err?.message || 'Gagal memproses file Excel. Pastikan format sesuai standar ERP.'
+        err?.message || t.errorReadingSheet
       );
       setStatusMessage(null);
     } finally {
@@ -278,7 +278,7 @@ export default function App() {
     setActiveFileId(fileId);
     const target = convertedFiles.find((f) => f.id === fileId);
     if (target) {
-      setStatusMessage(`File aktif: ${target.rawFileName}`);
+      setStatusMessage(`${t.activeFileToast} ${target.rawFileName}`);
     }
   };
 
@@ -306,11 +306,11 @@ export default function App() {
               : f
           )
         );
-        setStatusMessage(`Sheet diubah: ${sheetName}`);
+        setStatusMessage(`${t.sheetChangedToast} ${sheetName}`);
         haptic.success();
       } catch (err: any) {
         haptic.error();
-        setErrorMessage(err?.message || 'Gagal membaca sheet.');
+        setErrorMessage(err?.message || t.errorReadingSheet);
       } finally {
         setIsLoading(false);
       }
@@ -523,290 +523,104 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#E8EBF0] text-[#17191D] font-sans selection:bg-[#EA5413] selection:text-white pb-16 relative overflow-x-hidden">
-      {/* Subtle warm ambient lighting */}
-      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/5 via-transparent to-transparent -z-10" />
-
-      {/* Top Header Bar */}
-      <header className="border-b border-zinc-200/80 bg-white/90 backdrop-blur-xl sticky top-0 z-40 shadow-xs">
-        <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3 sm:gap-4">
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-2xl bg-white border border-zinc-200/80 flex items-center justify-center shrink-0 shadow-xs overflow-hidden p-0.5">
-              <img
-                src="/logo.jpg"
-                alt="BlackEYE Logo"
-                className="w-full h-full object-contain rounded-xl"
-                referrerPolicy="no-referrer"
-              />
-            </div>
-            <div className="min-w-0">
-              <h1 className="text-xs sm:text-sm md:text-base font-bold tracking-tight text-[#17191D] truncate">
-                {t.appTitle}
-              </h1>
-              <p className="text-[10px] sm:text-[11px] text-[#5C6068] hidden sm:block truncate">
-                {t.appSubtitle}
-              </p>
+    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] font-sans selection:bg-[#0F172A] selection:text-white pb-12 relative overflow-x-hidden">
+      {/* Top Header Bar (3-Zone Contract: Brand — Mode Switcher — Actions) */}
+      <header className="border-b border-slate-200 bg-white sticky top-0 z-40">
+        <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 h-13 sm:h-14 flex items-center justify-between gap-2 sm:gap-4">
+          {/* Zone 1: Brand Wordmark (Compact on mobile) */}
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink min-w-0">
+            <img
+              src="/logo.jpg"
+              alt="BlackEYE"
+              className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-md border border-slate-200 shrink-0"
+              referrerPolicy="no-referrer"
+            />
+            <div className="flex flex-col min-w-0">
+              <span className="text-[11px] sm:text-xs md:text-sm font-bold tracking-tight text-slate-900 leading-tight truncate">
+                <span className="sm:hidden">BLACKEYE · SYMIX</span>
+                <span className="hidden sm:inline">BLACKEYE - SYMIX STOCK CONVERTER</span>
+              </span>
+              <span className="text-[9px] sm:text-[10px] md:text-[11px] text-slate-500 font-medium leading-none truncate mt-0.5">
+                <span className="sm:hidden">{t.appSubtitleShort}</span>
+                <span className="hidden sm:inline">{t.appSubtitle}</span>
+              </span>
             </div>
           </div>
 
-          {/* Right Header Navigation & Language Switcher */}
-          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+          {/* Zone 2: Clean Mode Switcher */}
+          <div className="flex items-center bg-slate-100 p-0.5 sm:p-1 rounded-lg border border-slate-200/80 shrink-0">
+            <button
+              type="button"
+              id="btn-mode-normal"
+              onClick={() => {
+                haptic.selection();
+                setConversionMode('NORMAL');
+              }}
+              className={`px-2 sm:px-3 py-1 rounded-md text-[11px] sm:text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap ${
+                conversionMode === 'NORMAL'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {t.modeRekapPO}
+            </button>
+            <button
+              type="button"
+              id="btn-mode-detail-sj"
+              onClick={() => {
+                haptic.selection();
+                setConversionMode('DETAIL_SJ');
+              }}
+              className={`px-2 sm:px-3 py-1 rounded-md text-[11px] sm:text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                conversionMode === 'DETAIL_SJ'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>{t.modeDetailSJ}</span>
+              {convertedFiles.length > 0 && totalDeliveryLogsInActiveFile > 0 && (
+                <span
+                  className={`font-mono text-[9px] sm:text-[10px] ${
+                    conversionMode === 'DETAIL_SJ' ? 'text-slate-300' : 'text-slate-500'
+                  }`}
+                >
+                  ({totalDeliveryLogsInActiveFile})
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Zone 3: Guide & Language */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={() => setIsRulesModalOpen(true)}
+              className="px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer whitespace-nowrap hidden md:inline-flex"
+            >
+              {t.guideBtn}
+            </button>
             <LanguageSwitcher />
           </div>
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
-        {/* ============================================================== */}
-        {/* 0. DUAL CONVERSION MODE SWITCHER BAR (NORMAL vs DETAIL SJ)     */}
-        {/* ============================================================== */}
-        <div className="p-3 sm:p-4 glass-panel rounded-3xl border border-white/80 shadow-xs">
-          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <div
-                className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-colors ${
-                  conversionMode === 'DETAIL_SJ'
-                    ? 'bg-[#EA5413] text-white'
-                    : 'bg-[#17191D] text-white'
-                }`}
-              >
-                {conversionMode === 'DETAIL_SJ' ? (
-                  <Truck className="w-4 h-4" />
-                ) : (
-                  <Layers className="w-4 h-4" />
-                )}
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-xs font-extrabold uppercase tracking-wider text-[#17191D]">
-                    Pilih Mode Perekapan Konversi ERP
-                  </span>
-                  <span
-                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
-                      conversionMode === 'DETAIL_SJ'
-                        ? 'bg-orange-100 text-[#EA5413] border border-orange-300/70'
-                        : 'bg-zinc-200/80 text-zinc-800 border border-zinc-300'
-                    }`}
-                  >
-                    {conversionMode === 'DETAIL_SJ'
-                      ? 'Mode 2 Aktif: Detail per Surat Jalan (SJ)'
-                      : 'Mode 1 Aktif: Konversi Normal (Total per PO)'}
-                  </span>
-                </div>
-                <p className="text-[11px] text-[#5C6068] mt-0.5">
-                  {conversionMode === 'DETAIL_SJ'
-                    ? 'Menampilkan rincian setiap pengiriman berdasarkan No Surat Jalan (SJ), Tanggal Kirim, QTY Kirim, Sisa OS Berjalan, serta Fallback otomatis PO belum kirim.'
-                    : 'Menampilkan rekapitulasi konversi normal 15 kolom per Nomor PO beserta alokasi stok gudang FIFO (< 51 pcs threshold).'}
-                </p>
-              </div>
-            </div>
-
-            {/* Mode Buttons */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 shrink-0">
-              <button
-                type="button"
-                id="btn-mode-normal"
-                onClick={() => {
-                  haptic.selection();
-                  setConversionMode('NORMAL');
-                  setStatusMessage('Beralih ke Mode 1: Konversi Normal (Rekap Total per PO)');
-                }}
-                className={`px-4 py-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center gap-3 border ${
-                  conversionMode === 'NORMAL'
-                    ? 'bg-[#17191D] text-white border-[#17191D] shadow-sm'
-                    : 'bg-white/80 hover:bg-white text-[#17191D] border-zinc-200/90'
-                }`}
-              >
-                <div
-                  className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-bold ${
-                    conversionMode === 'NORMAL'
-                      ? 'bg-white/15 text-emerald-400'
-                      : 'bg-zinc-100 text-zinc-700'
-                  }`}
-                >
-                  1
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold leading-tight truncate">
-                    Mode 1: Konversi Normal
-                  </div>
-                  <div
-                    className={`text-[10px] truncate mt-0.5 ${
-                      conversionMode === 'NORMAL' ? 'text-zinc-300' : 'text-[#5C6068]'
-                    }`}
-                  >
-                    Rekap Total Kiriman &amp; Sisa OS per PO
-                  </div>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                id="btn-mode-detail-sj"
-                onClick={() => {
-                  haptic.selection();
-                  setConversionMode('DETAIL_SJ');
-                  setStatusMessage(
-                    'Beralih ke Mode 2: Rekap Detail Kiriman (Per No Surat Jalan / SJ)'
-                  );
-                }}
-                className={`px-4 py-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center gap-3 border ${
-                  conversionMode === 'DETAIL_SJ'
-                    ? 'bg-[#EA5413] text-white border-[#EA5413] shadow-sm'
-                    : 'bg-white/80 hover:bg-white text-[#17191D] border-zinc-200/90'
-                }`}
-              >
-                <div
-                  className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-bold ${
-                    conversionMode === 'DETAIL_SJ'
-                      ? 'bg-white/20 text-white'
-                      : 'bg-orange-50 text-[#EA5413] border border-orange-200/60'
-                  }`}
-                >
-                  2
-                </div>
-                <div className="min-w-0">
-                  <div className="text-xs font-bold leading-tight flex items-center gap-1.5">
-                    <span>Mode 2: Detail Kiriman (SJ)</span>
-                    {convertedFiles.length > 0 && totalDeliveryLogsInActiveFile > 0 && (
-                      <span
-                        className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
-                          conversionMode === 'DETAIL_SJ'
-                            ? 'bg-white/25 text-white'
-                            : 'bg-orange-100 text-[#EA5413]'
-                        }`}
-                      >
-                        {totalDeliveryLogsInActiveFile} SJ
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    className={`text-[10px] truncate mt-0.5 ${
-                      conversionMode === 'DETAIL_SJ' ? 'text-orange-100' : 'text-[#5C6068]'
-                    }`}
-                  >
-                    No SJ • Tgl Kirim • QTY Kirim • Fallback OS
-                  </div>
-                </div>
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* ============================================================== */}
-        {/* 1. INITIAL STATE: DUAL UPLOAD CONTAINERS                       */}
-        {/* ============================================================== */}
+      <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-5 space-y-4">
+        {/* 1. INITIAL STATE: UPLOAD CONTAINERS */}
         {convertedFiles.length === 0 && (
-          <div className="space-y-4">
-            <UploadDualContainer
-              onSingleFileSelected={handleSingleFileSelected}
-              onMultipleFilesSelected={handleMultipleFilesSelected}
-              isLoading={isLoading}
-              loadingMessage={loadingMessage}
-              loadingProgress={loadingProgress}
-              errorMessage={errorMessage}
-            />
-
-            {/* Quick Specifications Cards (Dynamic according to selected mode) */}
-            {conversionMode === 'NORMAL' ? (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#1E2024]">
-                      Mode 1: Convert Normal 15 Kolom
-                    </h4>
-                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                      Menyusun data mentah dari ERP ke dalam format file Excel 15 kolom standar per Nomor PO secara otomatis.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-[#EA5413] text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Cpu className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#1E2024]">
-                      Total Terkirim &amp; Fallback OS
-                    </h4>
-                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                      Merekap jumlah total terkirim per PO dan otomatis fallback ke QTY PO pada Sisa OS jika belum ada pengiriman.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Share2 className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#1E2024]">
-                      Alokasi Stok FIFO
-                    </h4>
-                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                      Mengalokasikan stok gudang sesuai urutan tanggal PO terlama untuk sisa OS di atas batas toleransi 51 pcs.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                <div className="p-4 glass-card rounded-2xl flex items-start gap-3 border border-orange-300/60">
-                  <div className="w-9 h-9 rounded-xl bg-[#EA5413] text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Truck className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#1E2024]">
-                      Mode 2: Rekap Detail Setiap Surat Jalan (SJ)
-                    </h4>
-                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                      Mengekstrak setiap kiriman (SJ #1, SJ #2, SJ #3, dst.) lengkap dengan No SJ (P26...), Tanggal Kirim, QTY Kirim, dan Berat KG.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 glass-card rounded-2xl flex items-start gap-3 border border-orange-300/60">
-                  <div className="w-9 h-9 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <Cpu className="w-4 h-4 text-amber-400" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#1E2024]">
-                      Sisa OS Berjalan &amp; Fallback Detail
-                    </h4>
-                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                      Menghitung pengurangan Sisa OS berjalan di setiap tahapan SJ hingga Sisa OS Akhir, serta fallback otomatis untuk PO yang belum dikirim.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="p-4 glass-card rounded-2xl flex items-start gap-3 border border-orange-300/60">
-                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                    <FileSpreadsheet className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-bold text-[#1E2024]">
-                      Output Excel 4-Sheet Standar Data Entry
-                    </h4>
-                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                      Menghasilkan buku kerja Excel profesional berisi sheet Detail Kiriman SJ, Grup PO &amp; Sub-Total OS, Database Flat SJ, dan Matriks Horizontal SJ.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <UploadDualContainer
+            onSingleFileSelected={handleSingleFileSelected}
+            onMultipleFilesSelected={handleMultipleFilesSelected}
+            isLoading={isLoading}
+            loadingMessage={loadingMessage}
+            loadingProgress={loadingProgress}
+            errorMessage={errorMessage}
+          />
         )}
 
-        {/* ============================================================== */}
-        {/* 2. CONVERTED STATE: FILE DROPDOWN SELECTOR & FULL ANALYSIS     */}
-        {/* ============================================================== */}
+        {/* 2. CONVERTED STATE: WORKSPACE */}
         {convertedFiles.length > 0 && activeFile && summary && (
-          <div className="space-y-4 sm:space-y-5 animate-fade-in">
-            {/* File Switcher Dropdown & Action Bar */}
+          <div className="space-y-4">
             <FileSwitcherBar
               files={convertedFiles}
               activeFileId={activeFile.id}
@@ -826,18 +640,11 @@ export default function App() {
               isMerging={isMerging}
             />
 
-            {/* ============================================================ */}
-            {/* MODE 1: KONVERSI NORMAL (REKAP TOTAL PER PO)                 */}
-            {/* ============================================================ */}
+            {/* MODE 1: REKAP PO (NORMAL) */}
             {conversionMode === 'NORMAL' && (
               <>
-                {/* Statistics Cards for Active File */}
                 <StatsOverview summary={summary} />
-
-                {/* Delivery Ratio Pie Chart */}
                 <DeliveryPieChart summary={summary} />
-
-                {/* Toolbar for Scope Export, WhatsApp, Sheets */}
                 <ActionToolbar
                   onDownloadExcel={handleDownloadExcel}
                   onShareExcelWhatsApp={handleShareExcelWhatsApp}
@@ -859,132 +666,40 @@ export default function App() {
                   totalOverKirimanPOs={totalOverKirimanPOs}
                   totalOverProduksiPOs={totalOverProduksiPOs}
                 />
-
-                {/* Main Interactive Table with Row Customization */}
                 <DataTable data={data} />
               </>
             )}
 
-            {/* ============================================================ */}
-            {/* MODE 2: REKAP DETAIL KIRIMAN PER SURAT JALAN (SJ)            */}
-            {/* ============================================================ */}
+            {/* MODE 2: DETAIL SURAT JALAN (SJ) */}
             {conversionMode === 'DETAIL_SJ' && (
-              <>
-                {/* Optional Sheet Selector & Quick Utilities Bar for Detail SJ Mode */}
-                <div className="p-3 sm:p-4 glass-panel rounded-2xl flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-bold text-[#17191D]">
-                      Sheet Aktif ({summary.activeSheetName}):
-                    </span>
-                    {summary.sheetNames.length > 1 ? (
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        {summary.sheetNames.map((sheet) => (
-                          <button
-                            key={sheet}
-                            type="button"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className={`px-3 py-1 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
-                              sheet === summary.activeSheetName
-                                ? 'bg-[#EA5413] text-white shadow-xs'
-                                : 'bg-white/80 text-zinc-700 hover:bg-white border border-zinc-200'
-                            }`}
-                          >
-                            {sheet}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="px-2.5 py-1 rounded-lg bg-white/80 border border-zinc-200/80 text-xs font-mono text-zinc-700">
-                        {summary.activeSheetName}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setIsRulesModalOpen(true)}
-                      className="liquid-glass-clear inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-950 cursor-pointer"
-                    >
-                      <BookOpen className="w-3.5 h-3.5 text-[#EA5413]" />
-                      <span>Aturan Parser &amp; SJ</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsAIChatOpen(true)}
-                      className="liquid-glass-clear inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-950 cursor-pointer"
-                    >
-                      <Bot className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>AI Data Assistant</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Detailed Delivery Per Surat Jalan Workspace */}
-                <DetailDeliveryView
-                  data={data}
-                  summary={summary}
-                  currentFileName={currentFileName}
-                  onDownloadDetailExcel={handleDownloadDetailSJExcel}
-                  onShareDetailExcelWhatsApp={handleShareDetailSJExcelWhatsApp}
-                  onCopyDetailWhatsAppText={handleCopyDetailSJWhatsAppText}
-                  isCopied={isDetailSJCopied}
-                  sheets={summary.sheetNames}
-                  activeSheet={summary.activeSheetName}
-                  onSelectSheet={handleSelectSheet}
-                  onReset={handleReset}
-                />
-              </>
+              <DetailDeliveryView
+                data={data}
+                summary={summary}
+                currentFileName={currentFileName}
+                onDownloadDetailExcel={handleDownloadDetailSJExcel}
+                onShareDetailExcelWhatsApp={handleShareDetailSJExcelWhatsApp}
+                onCopyDetailWhatsAppText={handleCopyDetailSJWhatsAppText}
+                isCopied={isDetailSJCopied}
+                sheets={summary.sheetNames}
+                activeSheet={summary.activeSheetName}
+                onSelectSheet={handleSelectSheet}
+                onReset={handleReset}
+              />
             )}
-
-            {/* Bottom Quick Notice */}
-            <div className="p-4 glass-panel rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-2.5 text-[#5C6068]">
-                <Info className="w-4 h-4 text-[#EA5413] shrink-0" />
-                <span>
-                  {convertedFiles.length > 1
-                    ? `Sedang menganalisis 1 dari ${convertedFiles.length} file pada ${
-                        conversionMode === 'DETAIL_SJ'
-                          ? 'Mode 2 (Rekap Detail Kiriman per SJ)'
-                          : 'Mode 1 (Konversi Normal)'
-                      }. Anda dapat berpindah file atau mode kapan saja.`
-                    : 'Anda dapat berpindah antara Mode 1 (Konversi Normal) dan Mode 2 (Detail Kiriman per SJ) secara instan tanpa perlu upload ulang file.'}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  type="button"
-                  id="btn-bottom-change-file"
-                  onClick={handleReset}
-                  className="liquid-glass-clear inline-flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider cursor-pointer text-zinc-700 hover:text-zinc-950"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Ganti File</span>
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </main>
 
-      {/* Footer */}
-      <footer className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-12 pt-6 border-t border-zinc-200/60 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#5C6068]">
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-6 h-6 rounded-lg bg-white/80 border border-white/90 overflow-hidden p-0.5 shadow-2xs">
-            <img
-              src="/logo.jpg"
-              alt="BlackEYE"
-              className="w-full h-full object-contain rounded"
-              referrerPolicy="no-referrer"
-            />
-          </div>
-          <span className="font-bold text-[#1E2024]">BLACKEYE</span>
-          <span>• ERP DATA ENGINE BROWSER_V2.0</span>
-          <span className="text-zinc-300">•</span>
-          <span className="font-medium text-[#1E2024]">
-            Developed by <strong className="font-semibold text-[#EA5413]">VINNS</strong>
-          </span>
+      {/* Quiet Footer */}
+      <footer className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 mt-10 pt-4 border-t border-slate-200 flex flex-col xs:flex-row items-center justify-between gap-1.5 text-[11px] sm:text-xs text-slate-500 text-center xs:text-left">
+        <div className="flex items-center gap-1.5 flex-wrap justify-center xs:justify-start">
+          <span className="font-semibold text-slate-700">BLACKEYE - SYMIX</span>
+          <span className="text-slate-300">·</span>
+          <span>{t.footerSubtitle}</span>
         </div>
+        <span className="text-slate-400">
+          {t.developedBy} <strong className="font-semibold text-slate-700">VINNS</strong>
+        </span>
       </footer>
 
       {/* Modals & Drawers */}
@@ -1008,23 +723,20 @@ export default function App() {
         currentFileName={currentFileName}
       />
 
-      {/* Floating Small Toast Notification (Kecil, Melayang, Tanpa Memakan Layout Halaman) */}
+      {/* Compact Toast Notification */}
       {statusMessage && (
         <div
           id="toast-notification"
-          className="fixed top-18 sm:top-20 right-4 sm:right-6 z-50 flex items-center gap-2.5 px-3.5 py-2 bg-white/95 backdrop-blur-md rounded-2xl shadow-[0_10px_30px_-5px_rgba(0,0,0,0.12),0_2px_8px_-2px_rgba(0,0,0,0.06)] border border-emerald-500/30 text-xs text-[#1E2024] animate-in fade-in slide-in-from-top-2 duration-200"
+          className="fixed top-16 right-4 sm:right-6 z-50 flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg shadow-lg text-xs animate-in fade-in duration-150"
         >
-          <div className="w-5 h-5 rounded-full bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-          </div>
-          <span className="font-semibold text-xs text-[#1E2024] pr-1">{statusMessage}</span>
+          <span className="font-medium pr-1">{statusMessage}</span>
           <button
             type="button"
             onClick={() => setStatusMessage(null)}
-            className="p-1 text-zinc-400 hover:text-zinc-700 transition-colors cursor-pointer rounded-full hover:bg-zinc-100 ml-1 shrink-0"
-            title="Tutup"
+            className="p-0.5 text-slate-400 hover:text-white transition-colors cursor-pointer rounded"
+            title={t.closeBtn}
           >
-            <X className="w-3 h-3" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       )}

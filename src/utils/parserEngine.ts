@@ -10,6 +10,11 @@ import {
   FlattenedDeliveryRow,
   DetailSJExportScope,
 } from '../types';
+import {
+  calculateLeadTimeDays,
+  getDeliveryStatusTag,
+  calculateOrderAgingDetails,
+} from './agingUtils';
 
 /**
  * Detect CO Status from CO string (e.g., "18H6941 5 C" -> CLOSED, "18H8550 1 O" -> OPEN)
@@ -967,7 +972,37 @@ export function flattenDeliveriesForDataEntry(
             },
           ];
 
-    const realSJCount = rawDeliveries.filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-').length;
+    const realDeliveriesForPO = rawDeliveries.filter(
+      (d) => !d.isFallbackNoDelivery && d.noSJ !== '-'
+    );
+    const realSJCount = realDeliveriesForPO.length;
+
+    // Calculate Lead Time per SJ & average Lead Time for this PO
+    const validLeadTimes: number[] = [];
+    realDeliveriesForPO.forEach((d) => {
+      const lt = calculateLeadTimeDays(po['Tanggal Input PO'], d.tanggalKirim);
+      if (lt !== null) validLeadTimes.push(lt);
+    });
+    const avgLeadTimePO =
+      validLeadTimes.length > 0
+        ? Math.round((validLeadTimes.reduce((a, b) => a + b, 0) / validLeadTimes.length) * 10) / 10
+        : null;
+
+    // Last SJ date for completion aging calculation
+    const lastSjDateStr =
+      realDeliveriesForPO.length > 0
+        ? realDeliveriesForPO[realDeliveriesForPO.length - 1].tanggalKirim
+        : null;
+
+    const { umurHari, kategoriAging } = calculateOrderAgingDetails(
+      po['Tanggal Input PO'],
+      lastSjDateStr,
+      sisaAkhirPcs,
+      totalTerkirimPcs
+    );
+
+    const fulfillmentRate = qtyPoPcs > 0 ? totalTerkirimPcs / qtyPoPcs : 0;
+    const statusPengiriman = getDeliveryStatusTag(qtyPoPcs, totalTerkirimPcs, sisaAkhirPcs);
 
     rawDeliveries.forEach((deliv, dIdx) => {
       const isFallback = Boolean(deliv.isFallbackNoDelivery || deliv.noSJ === '-');
@@ -977,6 +1012,10 @@ export function flattenDeliveriesForDataEntry(
       const labelKiriman = isFallback
         ? 'Belum Kirim'
         : `Kiriman Ke-${urutan} (dari ${realSJCount})`;
+
+      const leadTimeSJ = isFallback
+        ? null
+        : calculateLeadTimeDays(po['Tanggal Input PO'], deliv.tanggalKirim);
 
       flatRows.push({
         id: `${poRecordId}_sj_${dIdx + 1}`,
@@ -996,6 +1035,8 @@ export function flattenDeliveriesForDataEntry(
         labelKiriman,
         'No Surat Jalan (SJ)': deliv.noSJ || '-',
         'Tanggal Kirim (SJ)': deliv.tanggalKirim || '-',
+        'Lead Time SJ (Hari)': leadTimeSJ,
+        'Rata-rata Lead Time PO (Hari)': avgLeadTimePO,
         'QTY Kirim SJ (pcs)': Number(deliv.qtyKirimPcs) || 0,
         'Berat Kirim SJ (KG)': Number(deliv.beratKirimKg) || 0,
         'Akumulasi Terkirim (pcs)': Number(deliv.akumulasiKirimPcs) || 0,
@@ -1006,6 +1047,10 @@ export function flattenDeliveriesForDataEntry(
         'Total Terkirim PO (KG)': totalTerkirimKg,
         'Sisa OS Akhir PO (pcs)': sisaAkhirPcs,
         'Sisa OS Akhir PO (KG)': sisaAkhirKg,
+        '% Pemenuhan PO': fulfillmentRate,
+        'Status Pengiriman': statusPengiriman,
+        'Umur PO / Aging (Hari)': umurHari,
+        'Kategori Aging OS': kategoriAging,
         'Stock (pcs)': stockPcs,
         'Stock (kg)': stockKg,
         'Over Stock Gudang (PCS)': overStockPcs,

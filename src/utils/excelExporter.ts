@@ -1,6 +1,15 @@
 import * as XLSX from 'xlsx';
-import { ExtractedRecord, ExcelExportScope, DetailSJExportScope } from '../types';
+import {
+  ExtractedRecord,
+  ExcelExportScope,
+  DetailSJExportScope,
+  DeliveryStatusTag,
+} from '../types';
 import { recalculateFIFOStock, flattenDeliveriesForDataEntry } from './parserEngine';
+import {
+  getDeliveryStatusTag,
+  calculateOrderAgingDetails,
+} from './agingUtils';
 
 export const EXCEL_COLUMNS = [
   'CO',
@@ -24,6 +33,37 @@ export const EXCEL_COLUMNS = [
   'Harga',
 ] as const;
 
+/**
+ * 28-Column Master Data Entry Schema for Mode Detail Kiriman SJ:
+ * A (0): CO
+ * B (1): Status CO
+ * C (2): Artikel
+ * D (3): Item Description
+ * E (4): Tanggal Input PO
+ * F (5): No PO
+ * G (6): Substance
+ * H (7): QTY PO (pcs)
+ * I (8): Berat PO (KG)
+ * J (9): Urutan Kirim
+ * K (10): No Surat Jalan (SJ)
+ * L (11): Tanggal Kirim (SJ)
+ * M (12): Lead Time SJ (Hari)
+ * N (13): QTY Kirim SJ (pcs)
+ * O (14): Berat Kirim SJ (KG)
+ * P (15): Sisa OS Berjalan (pcs)
+ * Q (16): Sisa OS Berjalan (KG)
+ * R (17): Total Terkirim PO (pcs)
+ * S (18): Total Terkirim PO (KG)
+ * T (19): Sisa OS Akhir PO (pcs)
+ * U (20): Sisa OS Akhir PO (KG)
+ * V (21): % Pemenuhan PO
+ * W (22): Status Pengiriman
+ * X (23): Umur PO / Aging (Hari)
+ * Y (24): Kategori Aging OS
+ * Z (25): Stock Gudang (pcs)
+ * AA (26): Stock Gudang (KG)
+ * AB (27): Harga
+ */
 export const DETAIL_SJ_EXCEL_COLUMNS = [
   'CO',
   'Status CO',
@@ -37,6 +77,7 @@ export const DETAIL_SJ_EXCEL_COLUMNS = [
   'Urutan Kirim',
   'No Surat Jalan (SJ)',
   'Tanggal Kirim (SJ)',
+  'Lead Time SJ (Hari)',
   'QTY Kirim SJ (pcs)',
   'Berat Kirim SJ (KG)',
   'Sisa OS Berjalan (pcs)',
@@ -45,6 +86,10 @@ export const DETAIL_SJ_EXCEL_COLUMNS = [
   'Total Terkirim PO (KG)',
   'Sisa OS Akhir PO (pcs)',
   'Sisa OS Akhir PO (KG)',
+  '% Pemenuhan PO',
+  'Status Pengiriman',
+  'Umur PO / Aging (Hari)',
+  'Kategori Aging OS',
   'Stock Gudang (pcs)',
   'Stock Gudang (KG)',
   'Harga',
@@ -64,6 +109,34 @@ export interface ShareExcelResult {
   method: 'web-share' | 'download-and-web' | 'cancelled';
   fileName: string;
   message: string;
+}
+
+/**
+ * Helper: Creates a dynamic Excel numeric formula cell with cached result and number format.
+ * Note: SheetJS formulas must NOT start with '='.
+ */
+export function fNum(
+  formula: string,
+  cachedVal: number,
+  numFmt: string = '#,##0'
+): XLSX.CellObject {
+  return {
+    t: 'n',
+    f: formula,
+    v: Number.isFinite(cachedVal) ? cachedVal : 0,
+    z: numFmt,
+  };
+}
+
+/**
+ * Helper: Creates a dynamic Excel string formula cell with cached result.
+ */
+export function fStr(formula: string, cachedVal: string): XLSX.CellObject {
+  return {
+    t: 's',
+    f: formula,
+    v: cachedVal ?? '',
+  };
 }
 
 /**
@@ -132,13 +205,187 @@ export function getDetailSJExportFileName(
     case 'MULTI_DELIVERY_ONLY':
       return `${baseName}_DETAIL_KIRIMAN_MULTI_SJ.xlsx`;
     case 'NO_DELIVERY_FALLBACK':
-      return `${baseName}_DETAIL_BELUM_KIRIM_FALLBACK_OS.xlsx`;
+      return `${baseName}_DETAIL_BELUM_KIRIM.xlsx`;
     case 'HAS_SISA_OS':
       return `${baseName}_DETAIL_KIRIMAN_SISA_OS.xlsx`;
     case 'ALL':
     default:
       return `${baseName}_DETAIL_KIRIMAN_SJ.xlsx`;
   }
+}
+
+/**
+ * Builds the 19-column Rekap PO / Rekap OS worksheet with dynamic Excel formulas.
+ */
+export function buildRekapOSWorksheet(
+  filteredData: ExtractedRecord[],
+  scopeTitleSuffix: string
+): XLSX.WorkSheet {
+  const normalPoCountMap = new Map<string, number>();
+  for (const item of filteredData) {
+    const cleanNoPO = String(item['No PO'] || '').trim();
+    if (cleanNoPO && cleanNoPO !== '-') {
+      normalPoCountMap.set(cleanNoPO, (normalPoCountMap.get(cleanNoPO) || 0) + 1);
+    }
+  }
+  const normalUniquePONumbers =
+    normalPoCountMap.size > 0 ? normalPoCountMap.size : filteredData.length;
+  let normalMultiItemPOCount = 0;
+  for (const [, count] of normalPoCountMap) {
+    if (count > 1) normalMultiItemPOCount++;
+  }
+
+  const sheetData: any[][] = [];
+
+  // Row 1: Title (index 0)
+  sheetData.push([`REKAPITULASI STOCK & ORDER (OS) CUSTOMER - [${scopeTitleSuffix}]`]);
+
+  // Row 2: Subtitle / Timestamp (index 1)
+  const nowStr = new Date().toLocaleString('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  });
+  sheetData.push([
+    `Tanggal Rekap: ${nowStr} | Total No. PO Unik: ${normalUniquePONumbers} PO (${normalMultiItemPOCount} PO Multi-Item) | Total Baris PO-Item: ${filteredData.length} Baris | Filter: ${scopeTitleSuffix}`,
+  ]);
+
+  // Row 3: Empty spacing row (index 2)
+  sheetData.push([]);
+
+  // Row 4: Data headers start at row 4 (index 3) - 19 columns strictly ordered
+  sheetData.push([...EXCEL_COLUMNS]);
+
+  // Row 5+: Data rows (index 4+)
+  let sumQtyPcs = 0;
+  let sumBeratKg = 0;
+  let sumStockPcs = 0;
+  let sumStockKg = 0;
+  let sumSisaPcs = 0;
+  let sumSisaKg = 0;
+  let sumTerkirimPcs = 0;
+  let sumTerkirimKg = 0;
+  let sumOverStockPcs = 0;
+  let sumOverStockKg = 0;
+  let sumOverKirimanPcs = 0;
+  let sumOverKirimanKg = 0;
+
+  for (let i = 0; i < filteredData.length; i++) {
+    const item = filteredData[i];
+    const excelRow = i + 5;
+    const qtyPcs = Number(item['QTY PO (pcs)']) || 0;
+    const beratKg = Number(item['Berat PO (KG)']) || 0;
+    const stockPcs = Number(item['Stock (pcs)']) || 0;
+    const stockKg = Number(item['Stock (kg)']) || 0;
+    const sisaPcs = Number(item['Sisa OS (pcs)']) || 0;
+    const sisaKg = Number(item['Sisa OS (kg)']) || 0;
+    const terkirimPcs =
+      item['Terkirim (PCS)'] !== undefined
+        ? Number(item['Terkirim (PCS)'])
+        : Math.max(0, qtyPcs - sisaPcs);
+    const terkirimKg =
+      item['Terkirim (KG)'] !== undefined
+        ? Number(item['Terkirim (KG)'])
+        : Math.max(0, beratKg - sisaKg);
+    const overStockPcs = Number(item['Over Stock Gudang (PCS)']) || 0;
+    const overStockKg = Number(item['Over Stock Gudang (KG)']) || 0;
+    const overKirimanPcs = Number(item['Over Kiriman (PCS)']) || 0;
+    const overKirimanKg = Number(item['Over Kiriman (KG)']) || 0;
+    const harga = Number(item.Harga) || 0;
+
+    sumQtyPcs += qtyPcs;
+    sumBeratKg += beratKg;
+    sumStockPcs += stockPcs;
+    sumStockKg += stockKg;
+    sumSisaPcs += sisaPcs;
+    sumSisaKg += sisaKg;
+    sumTerkirimPcs += terkirimPcs;
+    sumTerkirimKg += terkirimKg;
+    sumOverStockPcs += overStockPcs;
+    sumOverStockKg += overStockKg;
+    sumOverKirimanPcs += overKirimanPcs;
+    sumOverKirimanKg += overKirimanKg;
+
+    sheetData.push([
+      item.CO || '',
+      item.Artikel || '',
+      item['Item Description'] || '',
+      item['Tanggal Input PO'] || '-',
+      item['No PO'] || '',
+      item.Substance || '',
+      qtyPcs,
+      beratKg,
+      stockPcs,
+      stockKg,
+      fNum(`MAX(0,G${excelRow}-M${excelRow})`, sisaPcs, '#,##0'),
+      fNum(`MAX(0,H${excelRow}-N${excelRow})`, sisaKg, '#,##0'),
+      terkirimPcs,
+      terkirimKg,
+      overStockPcs,
+      overStockKg,
+      fNum(`MAX(0,M${excelRow}-G${excelRow})`, overKirimanPcs, '#,##0'),
+      fNum(`MAX(0,N${excelRow}-H${excelRow})`, overKirimanKg, '#,##0'),
+      harga,
+    ]);
+  }
+
+  const lastNormalRow = filteredData.length + 4;
+
+  // Row Total Summary at the bottom with dynamic SUM formulas
+  sheetData.push([
+    `TOTAL REKAPITULASI (${normalUniquePONumbers} NO. PO UNIK / ${filteredData.length} BARIS ITEM)`,
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`SUM(G5:G${lastNormalRow})`, sumQtyPcs, '#,##0'),
+    fNum(`SUM(H5:H${lastNormalRow})`, sumBeratKg, '#,##0'),
+    fNum(`SUM(I5:I${lastNormalRow})`, sumStockPcs, '#,##0'),
+    fNum(`SUM(J5:J${lastNormalRow})`, sumStockKg, '#,##0'),
+    fNum(`SUM(K5:K${lastNormalRow})`, sumSisaPcs, '#,##0'),
+    fNum(`SUM(L5:L${lastNormalRow})`, sumSisaKg, '#,##0'),
+    fNum(`SUM(M5:M${lastNormalRow})`, sumTerkirimPcs, '#,##0'),
+    fNum(`SUM(N5:N${lastNormalRow})`, sumTerkirimKg, '#,##0'),
+    fNum(`SUM(O5:O${lastNormalRow})`, sumOverStockPcs, '#,##0'),
+    fNum(`SUM(P5:P${lastNormalRow})`, sumOverStockKg, '#,##0'),
+    fNum(`SUM(Q5:Q${lastNormalRow})`, sumOverKirimanPcs, '#,##0'),
+    fNum(`SUM(R5:R${lastNormalRow})`, sumOverKirimanKg, '#,##0'),
+    '',
+  ]);
+
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+  // Set column widths for optimal legibility (19 columns)
+  worksheet['!cols'] = [
+    { wch: 18 }, // CO
+    { wch: 18 }, // Artikel
+    { wch: 38 }, // Item Description
+    { wch: 18 }, // Tanggal Input PO
+    { wch: 28 }, // No PO
+    { wch: 16 }, // Substance
+    { wch: 15 }, // QTY PO (pcs)
+    { wch: 16 }, // Berat PO (KG)
+    { wch: 14 }, // Stock (pcs)
+    { wch: 14 }, // Stock (kg)
+    { wch: 15 }, // Sisa OS (pcs)
+    { wch: 15 }, // Sisa OS (kg)
+    { wch: 16 }, // Terkirim (PCS)
+    { wch: 16 }, // Terkirim (KG)
+    { wch: 22 }, // Over Stock Gudang (PCS)
+    { wch: 22 }, // Over Stock Gudang (KG)
+    { wch: 18 }, // Over Kiriman (PCS)
+    { wch: 18 }, // Over Kiriman (KG)
+    { wch: 14 }, // Harga
+  ];
+
+  // Set merges for Title row (A1 to S1, index 0 to 18)
+  worksheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 18 } }, // Title
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 18 } }, // Subtitle
+    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 5 } }, // Total label
+  ];
+
+  return worksheet;
 }
 
 /**
@@ -160,18 +407,18 @@ export function generateExcelBlobAndFile(
   let filteredData = scopedData;
   let scopeTitleSuffix = 'SELURUH CO';
   let defaultFilePrefix = 'Rekap_Customer_Semua_CO';
-  let sheetName = 'Rekap Seluruh CO';
+  let sheetName = 'Rekap OS';
 
   if (scope === 'OPEN_ONLY') {
     filteredData = scopedData.filter((d) => d.coStatus === 'OPEN');
     scopeTitleSuffix = 'KHUSUS CO OPEN (O)';
     defaultFilePrefix = 'Rekap_Customer_CO_Open_Only';
-    sheetName = 'CO Open Only';
+    sheetName = 'Rekap OS (CO Open)';
   } else if (scope === 'CLOSED_ONLY') {
     filteredData = scopedData.filter((d) => d.coStatus === 'CLOSED');
     scopeTitleSuffix = 'KHUSUS CO CLOSED (C)';
     defaultFilePrefix = 'Rekap_Customer_CO_Closed_Only';
-    sheetName = 'CO Closed Only';
+    sheetName = 'Rekap OS (CO Closed)';
   } else if (scope === 'STOCK_READY_ALL') {
     filteredData = scopedData.filter((d) => (d['Stock (pcs)'] || 0) > 0);
     scopeTitleSuffix = 'STOCK READY (SEMUA CO)';
@@ -210,165 +457,13 @@ export function generateExcelBlobAndFile(
     else if (scope === 'STOCK_READY_ALL') scopeDesc = 'kriteria "Stock Ready" (Semua CO)';
     else if (scope === 'STOCK_READY_OPEN') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Open)';
     else if (scope === 'STOCK_READY_CLOSED') scopeDesc = 'kriteria "Stock Ready" (Khusus CO Closed)';
-    else if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY') scopeDesc = 'kriteria "Over Stock Gudang"';
+    else if (scope === 'OVER_STOCK_GUDANG' || scope === 'OVER_PRODUCTION_ONLY')
+      scopeDesc = 'kriteria "Over Stock Gudang"';
     else if (scope === 'OVER_KIRIMAN') scopeDesc = 'kriteria "Over Kiriman"';
     throw new Error(`Tidak ada data dengan ${scopeDesc} untuk diekspor.`);
   }
 
-  // Compute unique No PO count vs PO-Item line count
-  const normalPoCountMap = new Map<string, number>();
-  for (const item of filteredData) {
-    const cleanNoPO = String(item['No PO'] || '').trim();
-    if (cleanNoPO && cleanNoPO !== '-') {
-      normalPoCountMap.set(cleanNoPO, (normalPoCountMap.get(cleanNoPO) || 0) + 1);
-    }
-  }
-  const normalUniquePONumbers = normalPoCountMap.size > 0 ? normalPoCountMap.size : filteredData.length;
-  let normalMultiItemPOCount = 0;
-  for (const [, count] of normalPoCountMap) {
-    if (count > 1) normalMultiItemPOCount++;
-  }
-
-  // Prepare 2D matrix
-  const sheetData: any[][] = [];
-
-  // Row 1: Title (index 0)
-  sheetData.push([`REKAPITULASI STOCK & ORDER (OS) CUSTOMER - [${scopeTitleSuffix}]`]);
-
-  // Row 2: Subtitle / Timestamp (index 1)
-  const nowStr = new Date().toLocaleString('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  });
-  sheetData.push([
-    `Tanggal Rekap: ${nowStr} | Total No. PO Unik: ${normalUniquePONumbers} PO (${normalMultiItemPOCount} PO Multi-Item) | Total Baris PO-Item: ${filteredData.length} Baris | Filter: ${scopeTitleSuffix}`,
-  ]);
-
-  // Row 3: Empty spacing row (index 2)
-  sheetData.push([]);
-
-  // Row 4: Data headers start at row 4 (index 3) - 19 columns strictly ordered
-  sheetData.push([...EXCEL_COLUMNS]);
-
-  // Row 5+: Data rows (index 4+)
-  let sumQtyPcs = 0;
-  let sumBeratKg = 0;
-  let sumStockPcs = 0;
-  let sumStockKg = 0;
-  let sumSisaPcs = 0;
-  let sumSisaKg = 0;
-  let sumTerkirimPcs = 0;
-  let sumTerkirimKg = 0;
-  let sumOverStockPcs = 0;
-  let sumOverStockKg = 0;
-  let sumOverKirimanPcs = 0;
-  let sumOverKirimanKg = 0;
-
-  for (const item of filteredData) {
-    const qtyPcs = Number(item['QTY PO (pcs)']) || 0;
-    const beratKg = Number(item['Berat PO (KG)']) || 0;
-    const stockPcs = Number(item['Stock (pcs)']) || 0;
-    const stockKg = Number(item['Stock (kg)']) || 0;
-    const sisaPcs = Number(item['Sisa OS (pcs)']) || 0;
-    const sisaKg = Number(item['Sisa OS (kg)']) || 0;
-    const terkirimPcs = item['Terkirim (PCS)'] !== undefined ? Number(item['Terkirim (PCS)']) : Math.max(0, qtyPcs - sisaPcs);
-    const terkirimKg = item['Terkirim (KG)'] !== undefined ? Number(item['Terkirim (KG)']) : Math.max(0, beratKg - sisaKg);
-    const overStockPcs = Number(item['Over Stock Gudang (PCS)']) || 0;
-    const overStockKg = Number(item['Over Stock Gudang (KG)']) || 0;
-    const overKirimanPcs = Number(item['Over Kiriman (PCS)']) || 0;
-    const overKirimanKg = Number(item['Over Kiriman (KG)']) || 0;
-    const harga = Number(item.Harga) || 0;
-
-    sumQtyPcs += qtyPcs;
-    sumBeratKg += beratKg;
-    sumStockPcs += stockPcs;
-    sumStockKg += stockKg;
-    sumSisaPcs += sisaPcs;
-    sumSisaKg += sisaKg;
-    sumTerkirimPcs += terkirimPcs;
-    sumTerkirimKg += terkirimKg;
-    sumOverStockPcs += overStockPcs;
-    sumOverStockKg += overStockKg;
-    sumOverKirimanPcs += overKirimanPcs;
-    sumOverKirimanKg += overKirimanKg;
-
-    sheetData.push([
-      item.CO || '',
-      item.Artikel || '',
-      item['Item Description'] || '',
-      item['Tanggal Input PO'] || '-',
-      item['No PO'] || '',
-      item.Substance || '',
-      qtyPcs,
-      beratKg,
-      stockPcs,
-      stockKg,
-      sisaPcs,
-      sisaKg,
-      terkirimPcs,
-      terkirimKg,
-      overStockPcs,
-      overStockKg,
-      overKirimanPcs,
-      overKirimanKg,
-      harga,
-    ]);
-  }
-
-  // Row Total Summary at the bottom
-  sheetData.push([
-    `TOTAL REKAPITULASI (${normalUniquePONumbers} NO. PO UNIK / ${filteredData.length} BARIS ITEM)`,
-    '',
-    '',
-    '',
-    '',
-    '',
-    sumQtyPcs,
-    sumBeratKg,
-    sumStockPcs,
-    sumStockKg,
-    sumSisaPcs,
-    sumSisaKg,
-    sumTerkirimPcs,
-    sumTerkirimKg,
-    sumOverStockPcs,
-    sumOverStockKg,
-    sumOverKirimanPcs,
-    sumOverKirimanKg,
-    '',
-  ]);
-
-  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
-
-  // Set column widths for optimal legibility (19 columns)
-  worksheet['!cols'] = [
-    { wch: 18 }, // CO
-    { wch: 18 }, // Artikel
-    { wch: 38 }, // Item Description
-    { wch: 18 }, // Tanggal Input PO
-    { wch: 28 }, // No PO
-    { wch: 16 }, // Substance
-    { wch: 15 }, // QTY PO (pcs)
-    { wch: 16 }, // Berat PO (KG)
-    { wch: 14 }, // Stock (pcs)
-    { wch: 14 }, // Stock (kg)
-    { wch: 15 }, // Sisa OS (pcs)
-    { wch: 15 }, // Sisa OS (kg)
-    { wch: 16 }, // Terkirim (PCS)
-    { wch: 16 }, // Terkirim (KG)
-    { wch: 22 }, // Over Stock Gudang (PCS)
-    { wch: 22 }, // Over Stock Gudang (KG)
-    { wch: 18 }, // Over Kiriman (PCS)
-    { wch: 18 }, // Over Kiriman (KG)
-    { wch: 14 }, // Harga
-  ];
-
-  // Set merges for Title row (A1 to S1, index 0 to 18)
-  worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 18 } }, // Title
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 18 } }, // Subtitle
-    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 5 } }, // Total label
-  ];
+  const worksheet = buildRekapOSWorksheet(filteredData, scopeTitleSuffix);
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
@@ -405,13 +500,11 @@ export function exportToExcel(
 }
 
 /**
- * Builds the Professional Standard Data Entry Excel Workbook for Mode Detail Kiriman (Per Surat Jalan / SJ).
- * Includes 5 structured sheets:
- * 1. "Detail Kiriman SJ" — Standard Data Entry tabular sheet (non-duplicated PO totals so column SUM is exact)
- * 2. "Rekap per No PO Unik" — Deduplicated by No PO Only (1 row per unique No PO, e.g. 18 PO, consolidating multi-item POs)
- * 3. "Grup PO & Sub-Total OS" — Grouped per PO-Item with explicit SUB-TOTAL & SISA OS row under each PO
- * 4. "Database Flat SJ" — Full repeated PO fields on every row for single-row SJ filter/VLOOKUP
- * 5. "Matriks Horizontal SJ" — 1 row per PO-Item with side-by-side columns SJ #1, SJ #2, SJ #3... and Sisa OS Akhir
+ * Builds the Master Data Entry Excel Workbook for Mode Detail Kiriman (Per Surat Jalan / SJ).
+ * Includes 3 focused sheets with Dynamic Excel Formulas:
+ * 1. "Detail Kiriman SJ" — Standard Data Entry tabular sheet (dynamic formulas for Running OS, Total Sent, Final OS, % Fulfillment, Delivery Status, Lead Time & Aging)
+ * 2. "Ringkasan" — Executive Dashboard & KPI Summary (live cross-sheet formulas for Fulfillment Rate, Delivery Status distribution, Lead Time & Aging, and Top Priority OS Backlog)
+ * 3. "Rekap OS" — Standard Rekap PO & Sisa OS Customer table (19 columns with dynamic formulas)
  */
 export function generateDetailSJExcelBlobAndFile(
   data: ExtractedRecord[],
@@ -430,8 +523,10 @@ export function generateDetailSJExcelBlobAndFile(
   let scopeTitleSuffix = 'SELURUH PO & SURAT JALAN';
   if (scope === 'OPEN_ONLY') scopeTitleSuffix = 'KHUSUS CO OPEN (O)';
   else if (scope === 'CLOSED_ONLY') scopeTitleSuffix = 'KHUSUS CO CLOSED (C)';
-  else if (scope === 'WITH_DELIVERY_ONLY') scopeTitleSuffix = 'KHUSUS PO SUDAH ADA KIRIMAN (SJ AKTIF)';
-  else if (scope === 'MULTI_DELIVERY_ONLY') scopeTitleSuffix = 'KHUSUS PO MULTI-KIRIMAN (2+ SURAT JALAN)';
+  else if (scope === 'WITH_DELIVERY_ONLY')
+    scopeTitleSuffix = 'KHUSUS PO SUDAH ADA KIRIMAN (SJ AKTIF)';
+  else if (scope === 'MULTI_DELIVERY_ONLY')
+    scopeTitleSuffix = 'KHUSUS PO MULTI-KIRIMAN (2+ SURAT JALAN)';
   else if (scope === 'NO_DELIVERY_FALLBACK') scopeTitleSuffix = 'KHUSUS PO BELUM KIRIM';
   else if (scope === 'HAS_SISA_OS') scopeTitleSuffix = 'KHUSUS PO MASIH ADA SISA OS (> 0 PCS)';
 
@@ -440,7 +535,7 @@ export function generateDetailSJExcelBlobAndFile(
     timeStyle: 'short',
   });
 
-  // Compute accurate PO-Item line count AND Unique No PO document count
+  // Compute accurate PO-Item line count, Unique No PO document count, Lead Time & Aging metrics
   let totalPOItemLines = 0;
   let totalRealSJCount = 0;
   let sumQtyPoPcs = 0;
@@ -455,8 +550,41 @@ export function generateDetailSJExcelBlobAndFile(
   let sumStockKg = 0;
 
   const uniqueNoPoCounts = new Map<string, number>();
+  const allLeadTimes: number[] = [];
+  const allAgingDays: number[] = [];
 
-  for (const r of flatRows) {
+  // Status & Aging distribution counters (per PO-Item line)
+  const statusStats: Record<
+    DeliveryStatusTag,
+    { count: number; qtyPo: number; terkirim: number; sisaOS: number }
+  > = {
+    'COMPLETED / LUNAS': { count: 0, qtyPo: 0, terkirim: 0, sisaOS: 0 },
+    'PARTIAL / CICIL': { count: 0, qtyPo: 0, terkirim: 0, sisaOS: 0 },
+    'UNTOUCHED / BELUM KIRIM': { count: 0, qtyPo: 0, terkirim: 0, sisaOS: 0 },
+    'OVER DELIVERY': { count: 0, qtyPo: 0, terkirim: 0, sisaOS: 0 },
+  };
+
+  const agingStats: Record<
+    string,
+    { count: number; sisaOSPcs: number; sisaOSKg: number; stockPcs: number }
+  > = {
+    'AMAN (<= 7 Hari)': { count: 0, sisaOSPcs: 0, sisaOSKg: 0, stockPcs: 0 },
+    'FOLLOW UP (8-14 Hari)': { count: 0, sisaOSPcs: 0, sisaOSKg: 0, stockPcs: 0 },
+    'KRITIS (> 14 Hari)': { count: 0, sisaOSPcs: 0, sisaOSKg: 0, stockPcs: 0 },
+    'LUNAS (0 OS)': { count: 0, sisaOSPcs: 0, sisaOSKg: 0, stockPcs: 0 },
+  };
+
+  // Pre-compute Sheet 1 Excel row bounds (1-based) per poRecordId (data starts at row 5)
+  const sheet1PoBounds = new Map<string, { firstRow: number; lastRow: number }>();
+
+  flatRows.forEach((r, idx) => {
+    const excelRow = idx + 5;
+    if (!sheet1PoBounds.has(r.poRecordId)) {
+      sheet1PoBounds.set(r.poRecordId, { firstRow: excelRow, lastRow: excelRow });
+    } else {
+      sheet1PoBounds.get(r.poRecordId)!.lastRow = excelRow;
+    }
+
     if (r.isFirstRowOfPO) {
       totalPOItemLines++;
       sumQtyPoPcs += r['QTY PO (pcs)'];
@@ -470,6 +598,9 @@ export function generateDetailSJExcelBlobAndFile(
       totalRealSJCount++;
       sumQtyKirimSJPcs += r['QTY Kirim SJ (pcs)'];
       sumBeratKirimSJKg += r['Berat Kirim SJ (KG)'];
+      if (r['Lead Time SJ (Hari)'] !== null) {
+        allLeadTimes.push(r['Lead Time SJ (Hari)']);
+      }
     }
     if (r.isLastRowOfPO) {
       sumTotalTerkirimPOPcs += r['Total Terkirim PO (pcs)'];
@@ -478,8 +609,28 @@ export function generateDetailSJExcelBlobAndFile(
       sumSisaOSAkhirKg += r['Sisa OS Akhir PO (KG)'];
       sumStockPcs += r['Stock (pcs)'];
       sumStockKg += r['Stock (kg)'];
+
+      if (r['Umur PO / Aging (Hari)'] !== null) {
+        allAgingDays.push(r['Umur PO / Aging (Hari)']);
+      }
+
+      const st = r['Status Pengiriman'];
+      if (statusStats[st]) {
+        statusStats[st].count++;
+        statusStats[st].qtyPo += r['QTY PO (pcs)'];
+        statusStats[st].terkirim += r['Total Terkirim PO (pcs)'];
+        statusStats[st].sisaOS += r['Sisa OS Akhir PO (pcs)'];
+      }
+
+      const agKey = r['Kategori Aging OS'];
+      if (agingStats[agKey]) {
+        agingStats[agKey].count++;
+        agingStats[agKey].sisaOSPcs += r['Sisa OS Akhir PO (pcs)'];
+        agingStats[agKey].sisaOSKg += r['Sisa OS Akhir PO (KG)'];
+        agingStats[agKey].stockPcs += r['Stock (pcs)'];
+      }
     }
-  }
+  });
 
   const totalUniqueNoPOs = uniqueNoPoCounts.size > 0 ? uniqueNoPoCounts.size : totalPOItemLines;
   let totalMultiItemNoPOs = 0;
@@ -487,46 +638,85 @@ export function generateDetailSJExcelBlobAndFile(
     if (count > 1) totalMultiItemNoPOs++;
   }
 
-  const colWidths23 = [
-    { wch: 16 }, // 1. CO
-    { wch: 12 }, // 2. Status CO
-    { wch: 18 }, // 3. Artikel
-    { wch: 34 }, // 4. Item Description
-    { wch: 16 }, // 5. Tanggal Input PO
-    { wch: 26 }, // 6. No PO
-    { wch: 16 }, // 7. Substance
-    { wch: 15 }, // 8. QTY PO (pcs)
-    { wch: 15 }, // 9. Berat PO (KG)
-    { wch: 24 }, // 10. Urutan Kirim
-    { wch: 20 }, // 11. No Surat Jalan (SJ)
-    { wch: 18 }, // 12. Tanggal Kirim (SJ)
-    { wch: 18 }, // 13. QTY Kirim SJ (pcs)
-    { wch: 18 }, // 14. Berat Kirim SJ (KG)
-    { wch: 20 }, // 15. Sisa OS Berjalan (pcs)
-    { wch: 20 }, // 16. Sisa OS Berjalan (KG)
-    { wch: 21 }, // 17. Total Terkirim PO (pcs)
-    { wch: 21 }, // 18. Total Terkirim PO (KG)
-    { wch: 20 }, // 19. Sisa OS Akhir PO (pcs)
-    { wch: 20 }, // 20. Sisa OS Akhir PO (KG)
-    { wch: 18 }, // 21. Stock Gudang (pcs)
-    { wch: 18 }, // 22. Stock Gudang (KG)
-    { wch: 14 }, // 23. Harga
+  const avgLeadTimeSJ =
+    allLeadTimes.length > 0
+      ? Math.round((allLeadTimes.reduce((a, b) => a + b, 0) / allLeadTimes.length) * 10) / 10
+      : 0;
+  const minLeadTimeSJ = allLeadTimes.length > 0 ? Math.min(...allLeadTimes) : 0;
+  const maxLeadTimeSJ = allLeadTimes.length > 0 ? Math.max(...allLeadTimes) : 0;
+
+  const avgAgingPO =
+    allAgingDays.length > 0
+      ? Math.round((allAgingDays.reduce((a, b) => a + b, 0) / allAgingDays.length) * 10) / 10
+      : 0;
+
+  const overallFulfillmentRate = sumQtyPoPcs > 0 ? sumTotalTerkirimPOPcs / sumQtyPoPcs : 0;
+  const overallBacklogRate = sumQtyPoPcs > 0 ? sumSisaOSAkhirPcs / sumQtyPoPcs : 0;
+  const overallStatusTag = getDeliveryStatusTag(
+    sumQtyPoPcs,
+    sumTotalTerkirimPOPcs,
+    sumSisaOSAkhirPcs
+  );
+
+  // 28 Column Widths (A..AB)
+  const colWidths28 = [
+    { wch: 16 }, // 1. A: CO
+    { wch: 12 }, // 2. B: Status CO
+    { wch: 18 }, // 3. C: Artikel
+    { wch: 34 }, // 4. D: Item Description
+    { wch: 16 }, // 5. E: Tanggal Input PO
+    { wch: 26 }, // 6. F: No PO
+    { wch: 16 }, // 7. G: Substance
+    { wch: 15 }, // 8. H: QTY PO (pcs)
+    { wch: 15 }, // 9. I: Berat PO (KG)
+    { wch: 22 }, // 10. J: Urutan Kirim
+    { wch: 20 }, // 11. K: No Surat Jalan (SJ)
+    { wch: 18 }, // 12. L: Tanggal Kirim (SJ)
+    { wch: 19 }, // 13. M: Lead Time SJ (Hari)
+    { wch: 18 }, // 14. N: QTY Kirim SJ (pcs)
+    { wch: 18 }, // 15. O: Berat Kirim SJ (KG)
+    { wch: 20 }, // 16. P: Sisa OS Berjalan (pcs)
+    { wch: 20 }, // 17. Q: Sisa OS Berjalan (KG)
+    { wch: 21 }, // 18. R: Total Terkirim PO (pcs)
+    { wch: 21 }, // 19. S: Total Terkirim PO (KG)
+    { wch: 20 }, // 20. T: Sisa OS Akhir PO (pcs)
+    { wch: 20 }, // 21. U: Sisa OS Akhir PO (KG)
+    { wch: 16 }, // 22. V: % Pemenuhan PO
+    { wch: 24 }, // 23. W: Status Pengiriman
+    { wch: 20 }, // 24. X: Umur PO / Aging (Hari)
+    { wch: 22 }, // 25. Y: Kategori Aging OS
+    { wch: 18 }, // 26. Z: Stock Gudang (pcs)
+    { wch: 18 }, // 27. AA: Stock Gudang (KG)
+    { wch: 14 }, // 28. AB: Harga
   ];
 
   // =========================================================================
-  // SHEET 1: Detail Kiriman SJ (Standard Data Entry Professional)
-  // QTY PO is placed on the first row of each PO, and Total Terkirim PO + Sisa OS Akhir PO
-  // are placed on the last row of each PO so Excel column SUM() is 100% exact without double-counting!
+  // SHEET 1: Detail Kiriman SJ (Standard Data Entry + Dynamic Excel Formulas)
   // =========================================================================
   const sheet1Data: any[][] = [];
-  sheet1Data.push([`REKAPITULASI DETAIL KIRIMAN PER SURAT JALAN (SJ) & SISA OS - [${scopeTitleSuffix}]`]);
   sheet1Data.push([
-    `Tanggal Rekap: ${nowStr} | Total No. PO Unik: ${totalUniqueNoPOs} PO (${totalMultiItemNoPOs} PO Multi-Item) | Total Baris PO-Item: ${totalPOItemLines} Baris | Total Transaksi SJ: ${totalRealSJCount} Kiriman | Total QTY PO: ${sumQtyPoPcs.toLocaleString('id-ID')} PCS | Total Terkirim: ${sumTotalTerkirimPOPcs.toLocaleString('id-ID')} PCS | Total Sisa OS: ${sumSisaOSAkhirPcs.toLocaleString('id-ID')} PCS`,
+    `REKAPITULASI DETAIL KIRIMAN PER SURAT JALAN (SJ) & SISA OS - [${scopeTitleSuffix}]`,
+  ]);
+  sheet1Data.push([
+    `Tanggal Rekap: ${nowStr} | Total No. PO Unik: ${totalUniqueNoPOs} PO (${totalMultiItemNoPOs} PO Multi-Item) | Total Baris PO-Item: ${totalPOItemLines} Baris | Total Transaksi SJ: ${totalRealSJCount} Kiriman | Total QTY PO: ${sumQtyPoPcs.toLocaleString('id-ID')} PCS | Total Terkirim: ${sumTotalTerkirimPOPcs.toLocaleString('id-ID')} PCS (${(overallFulfillmentRate * 100).toFixed(1)}%) | Total Sisa OS: ${sumSisaOSAkhirPcs.toLocaleString('id-ID')} PCS`,
   ]);
   sheet1Data.push([]);
   sheet1Data.push([...DETAIL_SJ_EXCEL_COLUMNS]);
 
-  for (const r of flatRows) {
+  flatRows.forEach((r, idx) => {
+    const excelRow = idx + 5;
+    const bounds = sheet1PoBounds.get(r.poRecordId)!;
+    const firstRow = bounds.firstRow;
+    const lastRow = bounds.lastRow;
+
+    const runningOSPcsCell = r.isFirstRowOfPO
+      ? fNum(`MAX(0,H${firstRow}-N${excelRow})`, r['Sisa OS Berjalan (pcs)'], '#,##0')
+      : fNum(`MAX(0,P${excelRow - 1}-N${excelRow})`, r['Sisa OS Berjalan (pcs)'], '#,##0');
+
+    const runningOSKgCell = r.isFirstRowOfPO
+      ? fNum(`MAX(0,I${firstRow}-O${excelRow})`, r['Sisa OS Berjalan (KG)'], '#,##0')
+      : fNum(`MAX(0,Q${excelRow - 1}-O${excelRow})`, r['Sisa OS Berjalan (KG)'], '#,##0');
+
     sheet1Data.push([
       r.CO,
       r.coStatus,
@@ -540,19 +730,42 @@ export function generateDetailSJExcelBlobAndFile(
       r.isFallbackNoDelivery ? 'Belum Kirim' : r.labelKiriman,
       r['No Surat Jalan (SJ)'],
       r['Tanggal Kirim (SJ)'],
+      r['Lead Time SJ (Hari)'] !== null ? r['Lead Time SJ (Hari)'] : '',
       r['QTY Kirim SJ (pcs)'],
       r['Berat Kirim SJ (KG)'],
-      r['Sisa OS Berjalan (pcs)'],
-      r['Sisa OS Berjalan (KG)'],
-      r.isLastRowOfPO ? r['Total Terkirim PO (pcs)'] : '',
-      r.isLastRowOfPO ? r['Total Terkirim PO (KG)'] : '',
-      r.isLastRowOfPO ? r['Sisa OS Akhir PO (pcs)'] : '',
-      r.isLastRowOfPO ? r['Sisa OS Akhir PO (KG)'] : '',
+      runningOSPcsCell,
+      runningOSKgCell,
+      r.isLastRowOfPO
+        ? fNum(`SUM(N${firstRow}:N${lastRow})`, r['Total Terkirim PO (pcs)'], '#,##0')
+        : '',
+      r.isLastRowOfPO
+        ? fNum(`SUM(O${firstRow}:O${lastRow})`, r['Total Terkirim PO (KG)'], '#,##0')
+        : '',
+      r.isLastRowOfPO
+        ? fNum(`MAX(0,H${firstRow}-R${excelRow})`, r['Sisa OS Akhir PO (pcs)'], '#,##0')
+        : '',
+      r.isLastRowOfPO
+        ? fNum(`MAX(0,I${firstRow}-S${excelRow})`, r['Sisa OS Akhir PO (KG)'], '#,##0')
+        : '',
+      r.isLastRowOfPO
+        ? fNum(`IF(H${firstRow}>0,R${excelRow}/H${firstRow},0)`, r['% Pemenuhan PO'], '0.0%')
+        : '',
+      r.isLastRowOfPO
+        ? fStr(
+            `IF(R${excelRow}=0,"UNTOUCHED / BELUM KIRIM",IF(R${excelRow}>H${firstRow},"OVER DELIVERY",IF(T${excelRow}<=0,"COMPLETED / LUNAS","PARTIAL / CICIL")))`,
+            r['Status Pengiriman']
+          )
+        : '',
+      r.isLastRowOfPO && r['Umur PO / Aging (Hari)'] !== null ? r['Umur PO / Aging (Hari)'] : '',
+      r.isLastRowOfPO ? r['Kategori Aging OS'] : '',
       r.isLastRowOfPO ? r['Stock (pcs)'] : '',
       r.isLastRowOfPO ? r['Stock (kg)'] : '',
       r.isFirstRowOfPO ? r.Harga : '',
     ]);
-  }
+  });
+
+  const lastDataRow1 = flatRows.length + 4;
+  const totRow1 = lastDataRow1 + 1;
 
   sheet1Data.push([
     'TOTAL REKAPITULASI KESELURUHAN',
@@ -562,185 +775,43 @@ export function generateDetailSJExcelBlobAndFile(
     '',
     `${totalUniqueNoPOs} PO Unik / ${totalPOItemLines} Item`,
     `${totalRealSJCount} SJ`,
-    sumQtyPoPcs,
-    sumBeratPoKg,
+    fNum(`SUM(H5:H${lastDataRow1})`, sumQtyPoPcs, '#,##0'),
+    fNum(`SUM(I5:I${lastDataRow1})`, sumBeratPoKg, '#,##0'),
     '',
     '',
+    'Rata-rata Lead Time:',
+    fNum(`IFERROR(AVERAGE(M5:M${lastDataRow1}),0)`, avgLeadTimeSJ, '0.0'),
+    fNum(`SUM(N5:N${lastDataRow1})`, sumQtyKirimSJPcs, '#,##0'),
+    fNum(`SUM(O5:O${lastDataRow1})`, sumBeratKirimSJKg, '#,##0'),
     '',
-    sumQtyKirimSJPcs,
-    sumBeratKirimSJKg,
     '',
+    fNum(`SUM(R5:R${lastDataRow1})`, sumTotalTerkirimPOPcs, '#,##0'),
+    fNum(`SUM(S5:S${lastDataRow1})`, sumTotalTerkirimPOKg, '#,##0'),
+    fNum(`SUM(T5:T${lastDataRow1})`, sumSisaOSAkhirPcs, '#,##0'),
+    fNum(`SUM(U5:U${lastDataRow1})`, sumSisaOSAkhirKg, '#,##0'),
+    fNum(`IF(H${totRow1}>0,R${totRow1}/H${totRow1},0)`, overallFulfillmentRate, '0.0%'),
+    fStr(
+      `IF(R${totRow1}=0,"UNTOUCHED / BELUM KIRIM",IF(R${totRow1}>H${totRow1},"OVER DELIVERY",IF(T${totRow1}<=0,"COMPLETED / LUNAS","PARTIAL / CICIL")))`,
+      overallStatusTag
+    ),
+    fNum(`IFERROR(AVERAGE(X5:X${lastDataRow1}),0)`, avgAgingPO, '0.0'),
     '',
-    sumTotalTerkirimPOPcs,
-    sumTotalTerkirimPOKg,
-    sumSisaOSAkhirPcs,
-    sumSisaOSAkhirKg,
-    sumStockPcs,
-    sumStockKg,
+    fNum(`SUM(Z5:Z${lastDataRow1})`, sumStockPcs, '#,##0'),
+    fNum(`SUM(AA5:AA${lastDataRow1})`, sumStockKg, '#,##0'),
     '',
   ]);
 
   const ws1 = XLSX.utils.aoa_to_sheet(sheet1Data);
-  ws1['!cols'] = colWidths23;
+  ws1['!cols'] = colWidths28;
   ws1['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 22 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 22 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 27 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 27 } },
     { s: { r: sheet1Data.length - 1, c: 0 }, e: { r: sheet1Data.length - 1, c: 4 } },
   ];
 
   // =========================================================================
-  // SHEET 2: Grup per PO & Sub-Total OS (Hierarchical with Sub-Total row after each PO)
-  // =========================================================================
-  const sheet2Data: any[][] = [];
-  sheet2Data.push([`REKAPITULASI GRUP PER PO & RINCIAN SURAT JALAN (DENGAN SUB-TOTAL SISA OS PER PO)`]);
-  sheet2Data.push([
-    `Tanggal Rekap: ${nowStr} | Total No. PO Unik: ${totalUniqueNoPOs} PO | Total Baris PO-Item: ${totalPOItemLines} Baris | Setiap PO dilengkapi rincian tahapan Surat Jalan (SJ) beserta baris Sub-Total & Sisa OS Akhir.`,
-  ]);
-  sheet2Data.push([]);
-  sheet2Data.push([...DETAIL_SJ_EXCEL_COLUMNS]);
-
-  for (const r of flatRows) {
-    sheet2Data.push([
-      r.isFirstRowOfPO ? r.CO : '',
-      r.isFirstRowOfPO ? r.coStatus : '',
-      r.isFirstRowOfPO ? r.Artikel : '',
-      r.isFirstRowOfPO ? r['Item Description'] : '',
-      r.isFirstRowOfPO ? r['Tanggal Input PO'] : '',
-      r.isFirstRowOfPO ? r['No PO'] : '',
-      r.isFirstRowOfPO ? r.Substance : '',
-      r.isFirstRowOfPO ? r['QTY PO (pcs)'] : '',
-      r.isFirstRowOfPO ? r['Berat PO (KG)'] : '',
-      r.isFallbackNoDelivery ? 'Belum Kirim' : r.labelKiriman,
-      r['No Surat Jalan (SJ)'],
-      r['Tanggal Kirim (SJ)'],
-      r['QTY Kirim SJ (pcs)'],
-      r['Berat Kirim SJ (KG)'],
-      r['Sisa OS Berjalan (pcs)'],
-      r['Sisa OS Berjalan (KG)'],
-      r.isLastRowOfPO ? r['Total Terkirim PO (pcs)'] : '',
-      r.isLastRowOfPO ? r['Total Terkirim PO (KG)'] : '',
-      r.isLastRowOfPO ? r['Sisa OS Akhir PO (pcs)'] : '',
-      r.isLastRowOfPO ? r['Sisa OS Akhir PO (KG)'] : '',
-      r.isLastRowOfPO ? r['Stock (pcs)'] : '',
-      r.isLastRowOfPO ? r['Stock (kg)'] : '',
-      r.isFirstRowOfPO ? r.Harga : '',
-    ]);
-
-    if (r.isLastRowOfPO) {
-      const statusInfo = r.isFallbackNoDelivery
-        ? 'Belum Kirim'
-        : `TOTAL ${r.frekuensiKirim}X KIRIM SJ`;
-      sheet2Data.push([
-        `   ↳ SUB-TOTAL PO: ${r['No PO']} (${r.Artikel})`,
-        r.coStatus,
-        r.Artikel,
-        statusInfo,
-        r['Tanggal Input PO'],
-        r['No PO'],
-        r.Substance,
-        r['QTY PO (pcs)'],
-        r['Berat PO (KG)'],
-        r.isFallbackNoDelivery ? 'Belum Kirim' : `REKAP PO (${r.frekuensiKirim} SJ)`,
-        '-',
-        '-',
-        r['Total Terkirim PO (pcs)'],
-        r['Total Terkirim PO (KG)'],
-        r['Sisa OS Akhir PO (pcs)'],
-        r['Sisa OS Akhir PO (KG)'],
-        r['Total Terkirim PO (pcs)'],
-        r['Total Terkirim PO (KG)'],
-        r['Sisa OS Akhir PO (pcs)'],
-        r['Sisa OS Akhir PO (KG)'],
-        r['Stock (pcs)'],
-        r['Stock (kg)'],
-        r.Harga,
-      ]);
-      // Blank separator row between POs for visual clarity
-      sheet2Data.push([]);
-    }
-  }
-
-  sheet2Data.push([
-    'GRAND TOTAL KESELURUHAN',
-    '',
-    '',
-    '',
-    '',
-    `${totalUniqueNoPOs} PO Unik / ${totalPOItemLines} Item`,
-    `${totalRealSJCount} SJ`,
-    sumQtyPoPcs,
-    sumBeratPoKg,
-    '',
-    '',
-    '',
-    sumQtyKirimSJPcs,
-    sumBeratKirimSJKg,
-    '',
-    '',
-    sumTotalTerkirimPOPcs,
-    sumTotalTerkirimPOKg,
-    sumSisaOSAkhirPcs,
-    sumSisaOSAkhirKg,
-    sumStockPcs,
-    sumStockKg,
-    '',
-  ]);
-
-  const ws2 = XLSX.utils.aoa_to_sheet(sheet2Data);
-  ws2['!cols'] = colWidths23;
-  ws2['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 22 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 22 } },
-  ];
-
-  // =========================================================================
-  // SHEET 3: Data Entry Flat Penuh (All columns repeated on every row for Pivot / Filter)
-  // =========================================================================
-  const sheet3Data: any[][] = [];
-  sheet3Data.push([`TABEL DATABASE FLAT DETAIL SURAT JALAN (UNTUK FILTER & PIVOT EXCEL)`]);
-  sheet3Data.push([
-    `Tanggal Rekap: ${nowStr} | Total No. PO Unik: ${totalUniqueNoPOs} PO | Total Baris PO-Item: ${totalPOItemLines} Baris | Seluruh atribut PO diulang penuh pada setiap baris SJ.`,
-  ]);
-  sheet3Data.push([]);
-  sheet3Data.push([...DETAIL_SJ_EXCEL_COLUMNS]);
-
-  for (const r of flatRows) {
-    sheet3Data.push([
-      r.CO,
-      r.coStatus,
-      r.Artikel,
-      r['Item Description'],
-      r['Tanggal Input PO'],
-      r['No PO'],
-      r.Substance,
-      r['QTY PO (pcs)'],
-      r['Berat PO (KG)'],
-      r.isFallbackNoDelivery ? 'Belum Kirim' : r.labelKiriman,
-      r['No Surat Jalan (SJ)'],
-      r['Tanggal Kirim (SJ)'],
-      r['QTY Kirim SJ (pcs)'],
-      r['Berat Kirim SJ (KG)'],
-      r['Sisa OS Berjalan (pcs)'],
-      r['Sisa OS Berjalan (KG)'],
-      r['Total Terkirim PO (pcs)'],
-      r['Total Terkirim PO (KG)'],
-      r['Sisa OS Akhir PO (pcs)'],
-      r['Sisa OS Akhir PO (KG)'],
-      r['Stock (pcs)'],
-      r['Stock (kg)'],
-      r.Harga,
-    ]);
-  }
-
-  const ws3 = XLSX.utils.aoa_to_sheet(sheet3Data);
-  ws3['!cols'] = colWidths23;
-  ws3['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 22 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 22 } },
-  ];
-
-  // =========================================================================
-  // SHEET 4: Matriks Horizontal (1 Baris = 1 PO-Item, Kolom Menyamping SJ #1, SJ #2, SJ #3...)
+  // SHEET 2: Ringkasan (Executive KPI Summary Dashboard)
+  // Live cross-sheet formulas referencing 'Detail Kiriman SJ'
   // =========================================================================
   const fifoScope =
     scope === 'OPEN_ONLY' ? 'OPEN' : scope === 'CLOSED_ONLY' ? 'CLOSED' : 'ALL';
@@ -751,274 +822,424 @@ export function generateDetailSJExcelBlobAndFile(
     if (scope === 'WITH_DELIVERY_ONLY') return realSJs.length > 0;
     if (scope === 'MULTI_DELIVERY_ONLY') return realSJs.length > 1;
     if (scope === 'NO_DELIVERY_FALLBACK') return realSJs.length === 0;
-    if (scope === 'HAS_SISA_OS') return (po['Sisa OS (pcs)'] || 0) > 0 || (po['Sisa OS (kg)'] || 0) > 0;
+    if (scope === 'HAS_SISA_OS')
+      return (po['Sisa OS (pcs)'] || 0) > 0 || (po['Sisa OS (kg)'] || 0) > 0;
     return true;
   });
 
-  const maxSJ = Math.max(
-    1,
-    ...scopedPOs.map((po) =>
-      (po.deliveries || []).filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-').length
-    )
-  );
+  const kpiSheetData: any[][] = [];
+  kpiSheetData.push([
+    `DASHBOARD RINGKASAN EKSEKUTIF (KPI SUMMARY & AUDIT MASTER DATA) - [${scopeTitleSuffix}]`,
+  ]);
+  kpiSheetData.push([
+    `Tanggal Rekap: ${nowStr} | Seluruh angka metrik di lembar ini terhubung dengan Formula Dinamis ke lembar 'Detail Kiriman SJ'.`,
+  ]);
+  kpiSheetData.push([]);
 
-  const horizHeaders: string[] = [
-    'CO',
-    'Status CO',
+  // Section A: Executive Volume & Fulfillment KPIs (Starts at Row 4)
+  kpiSheetData.push([
+    'A. INDIKATOR KINERJA UTAMA (KPI VOLUME, PEMENUHAN ORDER & KESIAPAN STOCK)',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ]);
+  kpiSheetData.push([
+    'No',
+    'Indikator Kinerja Utama (KPI)',
+    'Nilai Utama (PCS / Dokumen)',
+    'Nilai Sekunder (KG / Detail)',
+    'Satuan / Rasio',
+    'Keterangan Analitis Master Data',
+  ]);
+
+  // Row 6..15 in Excel (1-based)
+  kpiSheetData.push([
+    1,
+    'Total Dokumen Nomor PO Unik (By No. PO Only)',
+    totalUniqueNoPOs,
+    totalMultiItemNoPOs,
+    'Dokumen PO Unik',
+    `${totalMultiItemNoPOs} No. PO memiliki lebih dari 1 Artikel (Multi-Item PO)`,
+  ]);
+  kpiSheetData.push([
+    2,
+    'Total Baris Item PO (By PO-Artikel Line)',
+    fNum(`COUNTA('Detail Kiriman SJ'!H5:H${lastDataRow1})`, totalPOItemLines, '#,##0'),
+    totalRealSJCount,
+    'Baris PO-Item',
+    `Total ${totalRealSJCount} Transaksi Surat Jalan (SJ) aktif tercatat`,
+  ]);
+  kpiSheetData.push([
+    3,
+    'Total Kuota Order PO Customer',
+    fNum(`'Detail Kiriman SJ'!H${totRow1}`, sumQtyPoPcs, '#,##0'),
+    fNum(`'Detail Kiriman SJ'!I${totRow1}`, sumBeratPoKg, '#,##0'),
+    'PCS & KG',
+    'Total beban pemenuhan pesanan sesuai dokumen PO',
+  ]);
+  kpiSheetData.push([
+    4,
+    'Total Realisasi Terkirim (Akumulasi SJ)',
+    fNum(`'Detail Kiriman SJ'!R${totRow1}`, sumTotalTerkirimPOPcs, '#,##0'),
+    fNum(`'Detail Kiriman SJ'!S${totRow1}`, sumTotalTerkirimPOKg, '#,##0'),
+    'PCS & KG',
+    'Akumulasi barang yang sudah dikirim via Surat Jalan (SJ)',
+  ]);
+  kpiSheetData.push([
+    5,
+    'Total Sisa Outstanding Order (Sisa OS Akhir)',
+    fNum(`'Detail Kiriman SJ'!T${totRow1}`, sumSisaOSAkhirPcs, '#,##0'),
+    fNum(`'Detail Kiriman SJ'!U${totRow1}`, sumSisaOSAkhirKg, '#,##0'),
+    'PCS & KG',
+    'Kewajiban pengiriman yang masih menggantung (Backlog OS)',
+  ]);
+  kpiSheetData.push([
+    6,
+    'Persentase Pemenuhan Order (% Fulfillment Rate)',
+    fNum(`IF(C8>0,C9/C8,0)`, overallFulfillmentRate, '0.0%'),
+    fNum(`IF(D8>0,D9/D8,0)`, sumBeratPoKg > 0 ? sumTotalTerkirimPOKg / sumBeratPoKg : 0, '0.0%'),
+    '% Terkirim',
+    'Rasio penyelesaian pengiriman terhadap total kuota PO',
+  ]);
+  kpiSheetData.push([
+    7,
+    'Persentase Sisa OS Menggantung (% Backlog Rate)',
+    fNum(`IF(C8>0,C10/C8,0)`, overallBacklogRate, '0.0%'),
+    fNum(`IF(D8>0,D10/D8,0)`, sumBeratPoKg > 0 ? sumSisaOSAkhirKg / sumBeratPoKg : 0, '0.0%'),
+    '% Sisa OS',
+    'Persentase sisa order yang belum terpenuhi',
+  ]);
+  kpiSheetData.push([
+    8,
+    'Total Stock Gudang Tersedia (Alokasi FIFO)',
+    fNum(`'Detail Kiriman SJ'!Z${totRow1}`, sumStockPcs, '#,##0'),
+    fNum(`'Detail Kiriman SJ'!AA${totRow1}`, sumStockKg, '#,##0'),
+    'PCS & KG',
+    'Stok fisik di gudang yang siap dialokasikan ke Sisa OS',
+  ]);
+  kpiSheetData.push([
+    9,
+    'Rasio Kesiapan Stock terhadap Sisa OS (% Stock Coverage)',
+    fNum(
+      `IF(C10>0,C13/C10,1)`,
+      sumSisaOSAkhirPcs > 0 ? sumStockPcs / sumSisaOSAkhirPcs : 1,
+      '0.0%'
+    ),
+    '',
+    '% Coverage OS',
+    sumStockPcs >= sumSisaOSAkhirPcs && sumSisaOSAkhirPcs > 0
+      ? 'Stock gudang mencukupi untuk menutup seluruh Sisa OS'
+      : 'Perlu tambahan produksi untuk menutup selisih Sisa OS',
+  ]);
+
+  kpiSheetData.push([]);
+
+  // Section B: Delivery Status Breakdown (Starts at Row 16)
+  kpiSheetData.push([
+    'B. DISTRIBUSI STATUS PENGIRIMAN PO-ITEM (DELIVERY STATUS BREAKDOWN)',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ]);
+  kpiSheetData.push([
+    'Status Pengiriman (Tag)',
+    'Jumlah Baris PO-Item',
+    '% Porsi PO',
+    'Total Terkirim (PCS)',
+    'Total Sisa OS (PCS)',
+    'Tindak Lanjut Operasional',
+  ]);
+
+  // Rows 18..21 in Excel (total at Row 22)
+  const statusOrder: { tag: DeliveryStatusTag; desc: string }[] = [
+    {
+      tag: 'COMPLETED / LUNAS',
+      desc: 'Selesai 100% — Siap rekonsiliasi penagihan / tutup CO',
+    },
+    {
+      tag: 'PARTIAL / CICIL',
+      desc: 'Pengiriman bertahap berjalan — Pantau jadwal SJ berikutnya',
+    },
+    {
+      tag: 'UNTOUCHED / BELUM KIRIM',
+      desc: 'Belum ada Surat Jalan sama sekali — Cek kesiapan barang / jadwal truk',
+    },
+    {
+      tag: 'OVER DELIVERY',
+      desc: 'Kirim melebihi kuota PO — Verifikasi toleransi over-delivery customer',
+    },
+  ];
+
+  statusOrder.forEach((stItem, sIdx) => {
+    const excelRow = 18 + sIdx;
+    const stStat = statusStats[stItem.tag];
+    const ratio = totalPOItemLines > 0 ? stStat.count / totalPOItemLines : 0;
+    kpiSheetData.push([
+      stItem.tag,
+      fNum(
+        `COUNTIF('Detail Kiriman SJ'!W5:W${lastDataRow1},"${stItem.tag}")`,
+        stStat.count,
+        '#,##0'
+      ),
+      fNum(`IF($B$22>0,B${excelRow}/$B$22,0)`, ratio, '0.0%'),
+      fNum(
+        `SUMIF('Detail Kiriman SJ'!W5:W${lastDataRow1},"${stItem.tag}",'Detail Kiriman SJ'!R5:R${lastDataRow1})`,
+        stStat.terkirim,
+        '#,##0'
+      ),
+      fNum(
+        `SUMIF('Detail Kiriman SJ'!W5:W${lastDataRow1},"${stItem.tag}",'Detail Kiriman SJ'!T5:T${lastDataRow1})`,
+        stStat.sisaOS,
+        '#,##0'
+      ),
+      stItem.desc,
+    ]);
+  });
+
+  // Row 22: Total Status Breakdown
+  kpiSheetData.push([
+    'TOTAL BARIS PO-ITEM',
+    fNum(`SUM(B18:B21)`, totalPOItemLines, '#,##0'),
+    fNum(`SUM(C18:C21)`, 1, '0.0%'),
+    fNum(`SUM(D18:D21)`, sumTotalTerkirimPOPcs, '#,##0'),
+    fNum(`SUM(E18:E21)`, sumSisaOSAkhirPcs, '#,##0'),
+    '100% Terkonsolidasi dengan Sheet 1',
+  ]);
+
+  kpiSheetData.push([]);
+
+  // Section C: Speed & Aging Analysis (Starts at Row 24)
+  kpiSheetData.push([
+    'C. ANALISIS KECEPATAN KIRIM (LEAD TIME SJ) & UMUR TUNGGAKAN ORDER (AGING OS)',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ]);
+  kpiSheetData.push([
+    'Kategori Aging / Metrik Kecepatan',
+    'Jumlah PO / Nilai (Hari)',
+    'Total Sisa OS (PCS)',
+    'Total Sisa OS (KG)',
+    'Stock Siap (PCS)',
+    'Prioritas & Status SLA Pengiriman',
+  ]);
+
+  // Rows 26..28: Lead Time summary rows
+  kpiSheetData.push([
+    'Rata-rata Lead Time Pengiriman (Tgl PO -> Tgl SJ)',
+    fNum(`IFERROR(AVERAGE('Detail Kiriman SJ'!M5:M${lastDataRow1}),0)`, avgLeadTimeSJ, '0.0'),
+    '',
+    '',
+    '',
+    `Rata-rata kecepatan respons kirim sejak PO turun (${totalRealSJCount} SJ)`,
+  ]);
+  kpiSheetData.push([
+    'Lead Time Pengiriman Tercepat (Minimum Hari)',
+    fNum(`MIN('Detail Kiriman SJ'!M5:M${lastDataRow1})`, minLeadTimeSJ, '#,##0'),
+    '',
+    '',
+    '',
+    'Respons pengiriman tercepat (Hari Kalender)',
+  ]);
+  kpiSheetData.push([
+    'Lead Time Pengiriman Terlama (Maksimum Hari)',
+    fNum(`MAX('Detail Kiriman SJ'!M5:M${lastDataRow1})`, maxLeadTimeSJ, '#,##0'),
+    '',
+    '',
+    '',
+    'Rentang waktu pengiriman terlama sejak tanggal input PO',
+  ]);
+
+  // Rows 29..32: Aging Buckets
+  const agingBuckets: { key: string; desc: string }[] = [
+    {
+      key: 'AMAN (<= 7 Hari)',
+      desc: 'Aman / PO Baru (<= 7 Hari) — Dalam rentang SLA produksi normal',
+    },
+    {
+      key: 'FOLLOW UP (8-14 Hari)',
+      desc: 'Perlu Follow-Up (8-14 Hari) — Koordinasi jadwal kirim dengan PPIC / Ekspedisi',
+    },
+    {
+      key: 'KRITIS (> 14 Hari)',
+      desc: 'Kritis / Overdue (> 14 Hari) — Prioritas utama penyelesaian Sisa OS!',
+    },
+    {
+      key: 'LUNAS (0 OS)',
+      desc: 'Sudah Lunas Terkirim (Sisa OS = 0 PCS) — Kewajiban kirim terpenuhi',
+    },
+  ];
+
+  agingBuckets.forEach((agItem) => {
+    const agStat = agingStats[agItem.key] || {
+      count: 0,
+      sisaOSPcs: 0,
+      sisaOSKg: 0,
+      stockPcs: 0,
+    };
+    kpiSheetData.push([
+      agItem.key,
+      fNum(
+        `COUNTIF('Detail Kiriman SJ'!Y5:Y${lastDataRow1},"${agItem.key}")`,
+        agStat.count,
+        '#,##0'
+      ),
+      fNum(
+        `SUMIF('Detail Kiriman SJ'!Y5:Y${lastDataRow1},"${agItem.key}",'Detail Kiriman SJ'!T5:T${lastDataRow1})`,
+        agStat.sisaOSPcs,
+        '#,##0'
+      ),
+      fNum(
+        `SUMIF('Detail Kiriman SJ'!Y5:Y${lastDataRow1},"${agItem.key}",'Detail Kiriman SJ'!U5:U${lastDataRow1})`,
+        agStat.sisaOSKg,
+        '#,##0'
+      ),
+      fNum(
+        `SUMIF('Detail Kiriman SJ'!Y5:Y${lastDataRow1},"${agItem.key}",'Detail Kiriman SJ'!Z5:Z${lastDataRow1})`,
+        agStat.stockPcs,
+        '#,##0'
+      ),
+      agItem.desc,
+    ]);
+  });
+
+  kpiSheetData.push([]);
+
+  // Section D: Top 15 Priority Backlog POs with Sisa OS > 0
+  kpiSheetData.push([
+    'D. DAFTAR PRIORITAS PENYELESAIAN SISA OS TERBESAR & REKOMENDASI TINDAK LANJUT PPIC',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ]);
+  kpiSheetData.push([
+    'Prioritas',
+    'No PO',
+    'CO (Status)',
     'Artikel',
     'Item Description',
     'Tanggal Input PO',
-    'No PO',
-    'Substance',
+    'Umur PO (Hari)',
+    'Kategori Aging',
     'QTY PO (pcs)',
-    'Berat PO (KG)',
-    'Frekuensi Kirim (Kali)',
-  ];
-
-  for (let i = 1; i <= maxSJ; i++) {
-    horizHeaders.push(
-      `SJ #${i} - No SJ`,
-      `SJ #${i} - Tgl Kirim`,
-      `SJ #${i} - Qty Kirim (pcs)`,
-      `SJ #${i} - Berat Kirim (KG)`
-    );
-  }
-
-  horizHeaders.push(
-    'Total Terkirim (pcs)',
-    'Total Terkirim (KG)',
+    'Terkirim (pcs)',
     'Sisa OS Akhir (pcs)',
-    'Sisa OS Akhir (KG)',
     'Stock Gudang (pcs)',
-    'Stock Gudang (KG)',
-    'Harga'
-  );
-
-  const sheet4Data: any[][] = [];
-  sheet4Data.push([`MATRIKS HORIZONTAL DETAIL KIRIMAN SURAT JALAN (1 BARIS = 1 BARIS PO-ITEM)`]);
-  sheet4Data.push([
-    `Tanggal Rekap: ${nowStr} | Total No. PO Unik: ${totalUniqueNoPOs} PO | Total Baris PO-Item: ${totalPOItemLines} Baris | Maksimal Tahapan Kirim: ${maxSJ}x Surat Jalan`,
+    'Rekomendasi Tindak Lanjut Master Data',
   ]);
-  sheet4Data.push([]);
-  sheet4Data.push(horizHeaders);
 
-  for (const po of scopedPOs) {
-    const realSJs = (po.deliveries || []).filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-');
-    const rowArr: any[] = [
-      po.CO || '-',
-      po.coStatus || 'UNKNOWN',
-      po.Artikel || '-',
-      po['Item Description'] || '-',
-      po['Tanggal Input PO'] || '-',
-      po['No PO'] || '-',
-      po.Substance || '-',
-      Number(po['QTY PO (pcs)']) || 0,
-      Number(po['Berat PO (KG)']) || 0,
-      realSJs.length,
-    ];
+  const backlogPOs = scopedPOs
+    .filter((p) => (Number(p['Sisa OS (pcs)']) || 0) > 0)
+    .sort((a, b) => (Number(b['Sisa OS (pcs)']) || 0) - (Number(a['Sisa OS (pcs)']) || 0))
+    .slice(0, 15);
 
-    for (let i = 0; i < maxSJ; i++) {
-      const sj = realSJs[i];
-      if (sj) {
-        rowArr.push(sj.noSJ, sj.tanggalKirim, sj.qtyKirimPcs, sj.beratKirimKg);
-      } else {
-        rowArr.push('-', '-', 0, 0);
-      }
-    }
-
-    rowArr.push(
-      Number(po['Terkirim (PCS)']) || 0,
-      Number(po['Terkirim (KG)']) || 0,
-      Number(po['Sisa OS (pcs)']) || 0,
-      Number(po['Sisa OS (kg)']) || 0,
-      Number(po['Stock (pcs)']) || 0,
-      Number(po['Stock (kg)']) || 0,
-      Number(po.Harga) || 0
-    );
-
-    sheet4Data.push(rowArr);
-  }
-
-  const ws4 = XLSX.utils.aoa_to_sheet(sheet4Data);
-  ws4['!cols'] = horizHeaders.map((h) => ({ wch: Math.max(16, h.length + 3) }));
-
-  // =========================================================================
-  // SHEET 5: Rekap per No PO Unik (By PO Only — 1 Row = 1 Unique No PO)
-  // Consolidates POs that contain multiple items/articles under the same No PO
-  // =========================================================================
-  const uniquePOMap = new Map<
-    string,
-    {
-      noPO: string;
-      tanggalInputPO: string;
-      coList: string[];
-      artikelList: string[];
-      itemDescList: string[];
-      lineCount: number;
-      qtyPoPcs: number;
-      beratPoKg: number;
-      terkirimPcs: number;
-      terkirimKg: number;
-      sisaOSPcs: number;
-      sisaOSKg: number;
-      stockPcs: number;
-      stockKg: number;
-      sjList: string[];
-    }
-  >();
-
-  for (const po of scopedPOs) {
-    const key = String(po['No PO'] || '-').trim();
-    const realSJs = (po.deliveries || []).filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-');
-    if (!uniquePOMap.has(key)) {
-      uniquePOMap.set(key, {
-        noPO: key,
-        tanggalInputPO: po['Tanggal Input PO'] || '-',
-        coList: [],
-        artikelList: [],
-        itemDescList: [],
-        lineCount: 0,
-        qtyPoPcs: 0,
-        beratPoKg: 0,
-        terkirimPcs: 0,
-        terkirimKg: 0,
-        sisaOSPcs: 0,
-        sisaOSKg: 0,
-        stockPcs: 0,
-        stockKg: 0,
-        sjList: [],
-      });
-    }
-    const entry = uniquePOMap.get(key)!;
-    entry.lineCount++;
-    if (po.CO && !entry.coList.includes(po.CO)) entry.coList.push(po.CO);
-    if (po.Artikel && !entry.artikelList.includes(po.Artikel)) entry.artikelList.push(po.Artikel);
-    if (po['Item Description'] && !entry.itemDescList.includes(po['Item Description'])) {
-      entry.itemDescList.push(po['Item Description']);
-    }
-    entry.qtyPoPcs += Number(po['QTY PO (pcs)']) || 0;
-    entry.beratPoKg += Number(po['Berat PO (KG)']) || 0;
-    entry.terkirimPcs += Number(po['Terkirim (PCS)']) || 0;
-    entry.terkirimKg += Number(po['Terkirim (KG)']) || 0;
-    entry.sisaOSPcs += Number(po['Sisa OS (pcs)']) || 0;
-    entry.sisaOSKg += Number(po['Sisa OS (kg)']) || 0;
-    entry.stockPcs += Number(po['Stock (pcs)']) || 0;
-    entry.stockKg += Number(po['Stock (kg)']) || 0;
-    for (const sj of realSJs) {
-      const sjTag = `${sj.noSJ} (${sj.tanggalKirim}: ${sj.qtyKirimPcs})`;
-      if (!entry.sjList.includes(sjTag)) entry.sjList.push(sjTag);
-    }
-  }
-
-  const sheet5Headers = [
-    'No',
-    'No PO (Unik)',
-    'Tanggal Input PO',
-    'Jumlah Item di PO',
-    'Tipe PO',
-    'Daftar Artikel',
-    'Daftar CO',
-    'Total QTY PO (pcs)',
-    'Total Berat PO (KG)',
-    'Status Pengiriman',
-    'Jumlah Transaksi SJ',
-    'Rincian Surat Jalan (SJ)',
-    'Total Terkirim (pcs)',
-    'Total Terkirim (KG)',
-    'Total Sisa OS Akhir (pcs)',
-    'Total Sisa OS Akhir (KG)',
-    'Total Stock Gudang (pcs)',
-  ];
-
-  const sheet5Data: any[][] = [];
-  sheet5Data.push([`REKAPITULASI KONSOLIDASI PER NOMOR PO UNIK (BY NO. PO ONLY - TANPA DUPLIKAT PO MULTI-ITEM)`]);
-  sheet5Data.push([
-    `Tanggal Rekap: ${nowStr} | Total Dokumen No. PO Unik: ${uniquePOMap.size} PO | Total Baris PO-Item: ${totalPOItemLines} Baris (${totalMultiItemNoPOs} No. PO memiliki lebih dari 1 Artikel/Item)`,
-  ]);
-  sheet5Data.push([]);
-  sheet5Data.push(sheet5Headers);
-
-  let idxPoUnik = 0;
-  for (const [, entry] of uniquePOMap) {
-    idxPoUnik++;
-    const statusKirim =
-      entry.sjList.length === 0
-        ? 'Belum Kirim'
-        : entry.sisaOSPcs <= 0
-        ? 'Lunas Terkirim'
-        : `Terkirim Sebagian (${entry.sjList.length} SJ)`;
-    sheet5Data.push([
-      idxPoUnik,
-      entry.noPO,
-      entry.tanggalInputPO,
-      entry.lineCount,
-      entry.lineCount > 1 ? `Multi-Item (${entry.lineCount} Artikel)` : 'Single-Item (1 Artikel)',
-      entry.artikelList.join(', '),
-      entry.coList.join(', '),
-      entry.qtyPoPcs,
-      entry.beratPoKg,
-      statusKirim,
-      entry.sjList.length,
-      entry.sjList.length > 0 ? entry.sjList.join(' | ') : 'Belum Kirim',
-      entry.terkirimPcs,
-      entry.terkirimKg,
-      entry.sisaOSPcs,
-      entry.sisaOSKg,
-      entry.stockPcs,
+  if (backlogPOs.length === 0) {
+    kpiSheetData.push([
+      '-',
+      'SELURUH PO SUDAH LUNAS TERKIRIM (SISA OS = 0 PCS)',
+      '-',
+      '-',
+      '-',
+      '-',
+      0,
+      'LUNAS (0 OS)',
+      0,
+      0,
+      0,
+      0,
+      'Tidak ada tunggakan Sisa OS',
     ]);
+  } else {
+    backlogPOs.forEach((po, bIdx) => {
+      const qPo = Number(po['QTY PO (pcs)']) || 0;
+      const qSent = Number(po['Terkirim (PCS)']) || 0;
+      const qRem = Number(po['Sisa OS (pcs)']) || 0;
+      const qStk = Number(po['Stock (pcs)']) || 0;
+      const realSJs = (po.deliveries || []).filter(
+        (d) => !d.isFallbackNoDelivery && d.noSJ !== '-'
+      );
+      const lastSj = realSJs.length > 0 ? realSJs[realSJs.length - 1].tanggalKirim : null;
+      const { umurHari, kategoriAging } = calculateOrderAgingDetails(
+        po['Tanggal Input PO'],
+        lastSj,
+        qRem,
+        qSent
+      );
+
+      let rekomendasi = 'FOLLOW UP PRODUKSI PPIC (STOCK 0)';
+      if (qStk >= qRem && qRem > 0) {
+        rekomendasi = `SIAP KIRIM PENUH DARI STOCK (${qStk.toLocaleString('id-ID')} PCS READY)`;
+      } else if (qStk > 0 && qStk < qRem) {
+        rekomendasi = `KIRIM PARSIAL STOCK (${qStk.toLocaleString('id-ID')} PCS) & PRODUKSI SISA ${(qRem - qStk).toLocaleString('id-ID')} PCS`;
+      }
+
+      kpiSheetData.push([
+        `#${bIdx + 1}`,
+        po['No PO'] || '-',
+        `${po.CO || '-'} (${po.coStatus || '-'})`,
+        po.Artikel || '-',
+        po['Item Description'] || '-',
+        po['Tanggal Input PO'] || '-',
+        umurHari !== null ? umurHari : '-',
+        kategoriAging,
+        qPo,
+        qSent,
+        qRem,
+        qStk,
+        rekomendasi,
+      ]);
+    });
   }
 
-  sheet5Data.push([
-    'TOTAL KESELURUHAN',
-    `${uniquePOMap.size} No. PO Unik`,
-    '',
-    `${totalPOItemLines} Baris Item`,
-    `${totalMultiItemNoPOs} PO Multi-Item`,
-    '',
-    '',
-    sumQtyPoPcs,
-    sumBeratPoKg,
-    '',
-    totalRealSJCount,
-    '',
-    sumTotalTerkirimPOPcs,
-    sumTotalTerkirimPOKg,
-    sumSisaOSAkhirPcs,
-    sumSisaOSAkhirKg,
-    sumStockPcs,
-  ]);
-
-  const ws5 = XLSX.utils.aoa_to_sheet(sheet5Data);
-  ws5['!cols'] = [
-    { wch: 6 },
-    { wch: 26 },
+  const wsKPI = XLSX.utils.aoa_to_sheet(kpiSheetData);
+  wsKPI['!cols'] = [
+    { wch: 36 },
+    { wch: 44 },
+    { wch: 24 },
+    { wch: 24 },
+    { wch: 24 },
+    { wch: 52 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 16 },
     { wch: 16 },
     { wch: 18 },
-    { wch: 24 },
-    { wch: 36 },
-    { wch: 28 },
     { wch: 18 },
-    { wch: 18 },
-    { wch: 24 },
-    { wch: 18 },
-    { wch: 45 },
-    { wch: 18 },
-    { wch: 18 },
-    { wch: 20 },
-    { wch: 20 },
-    { wch: 18 },
+    { wch: 48 },
   ];
-  ws5['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 16 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 16 } },
+  wsKPI['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 5 } },
+    { s: { r: 15, c: 0 }, e: { r: 15, c: 5 } },
+    { s: { r: 23, c: 0 }, e: { r: 23, c: 5 } },
+    { s: { r: 33, c: 0 }, e: { r: 33, c: 12 } },
   ];
 
+  // =========================================================================
+  // SHEET 3: Rekap OS (Output dari Rekap PO — 19 Kolom dengan Formula Dinamis)
+  // =========================================================================
+  const wsRekapOS = buildRekapOSWorksheet(scopedPOs, scopeTitleSuffix);
+
+  // Assemble the 3-Sheet Workbook: Detail Kiriman SJ, Ringkasan, Rekap OS
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, ws1, 'Detail Kiriman SJ');
-  XLSX.utils.book_append_sheet(workbook, ws5, 'Rekap per No PO Unik');
-  XLSX.utils.book_append_sheet(workbook, ws2, 'Grup PO & Sub-Total OS');
-  XLSX.utils.book_append_sheet(workbook, ws3, 'Database Flat SJ');
-  XLSX.utils.book_append_sheet(workbook, ws4, 'Matriks Horizontal SJ');
+  XLSX.utils.book_append_sheet(workbook, wsKPI, 'Ringkasan');
+  XLSX.utils.book_append_sheet(workbook, wsRekapOS, 'Rekap OS');
 
   const resolvedFileName = customFileName
     ? customFileName.endsWith('.xlsx')
@@ -1049,7 +1270,11 @@ export function exportDetailSJToExcel(
   customFileName?: string,
   scope: DetailSJExportScope = 'ALL'
 ): void {
-  const { workbook, outputFileName } = generateDetailSJExcelBlobAndFile(data, customFileName, scope);
+  const { workbook, outputFileName } = generateDetailSJExcelBlobAndFile(
+    data,
+    customFileName,
+    scope
+  );
   XLSX.writeFile(workbook, outputFileName);
 }
 
@@ -1131,7 +1356,6 @@ export async function shareExcelFileToWhatsApp(
 ): Promise<ShareExcelResult> {
   const { blob, file, outputFileName } = generateExcelBlobAndFile(data, customFileName, scope);
 
-  // Check if Web Share API with files is available on this browser/device
   const canShareFiles =
     typeof navigator !== 'undefined' &&
     typeof navigator.canShare === 'function' &&
@@ -1139,7 +1363,6 @@ export async function shareExcelFileToWhatsApp(
 
   if (canShareFiles) {
     try {
-      // Pass ONLY the file document — strictly no text / no caption ("tanpa ketikan")
       await navigator.share({
         files: [file],
       });
@@ -1162,8 +1385,6 @@ export async function shareExcelFileToWhatsApp(
     }
   }
 
-  // Fallback for desktop or browsers without native file share:
-  // 1. Trigger instant download of the file to Downloads folder
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement('a');
   anchor.href = url;
@@ -1173,8 +1394,8 @@ export async function shareExcelFileToWhatsApp(
   document.body.removeChild(anchor);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 
-  // 2. Open WhatsApp directly with NO text parameters ("tanpa ketikan")
-  const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  const isMobile =
+    typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
   const waUrl = isMobile ? 'https://wa.me/' : 'https://web.whatsapp.com/';
   window.open(waUrl, '_blank', 'noopener,noreferrer');
 
@@ -1185,4 +1406,3 @@ export async function shareExcelFileToWhatsApp(
     message: `File "${outputFileName}" berhasil diunduh & WhatsApp dibuka (hanya file .xlsx, tanpa ketikan). Silakan lampirkan file ke chat.`,
   };
 }
-

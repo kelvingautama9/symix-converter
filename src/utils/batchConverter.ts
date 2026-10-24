@@ -517,9 +517,10 @@ export function exportCombinedDetailSJMasterWorkbook(
         r.Substance,
         r.isFirstRowOfPO ? r['QTY PO (pcs)'] : '',
         r.isFirstRowOfPO ? r['Berat PO (KG)'] : '',
-        r.labelKiriman,
+        r.isFallbackNoDelivery ? 'Belum Kirim' : r.labelKiriman,
         r['No Surat Jalan (SJ)'],
         r['Tanggal Kirim (SJ)'],
+        r['Lead Time SJ (Hari)'] !== null ? r['Lead Time SJ (Hari)'] : '',
         r['QTY Kirim SJ (pcs)'],
         r['Berat Kirim SJ (KG)'],
         r['Sisa OS Berjalan (pcs)'],
@@ -528,12 +529,26 @@ export function exportCombinedDetailSJMasterWorkbook(
         r.isLastRowOfPO ? r['Total Terkirim PO (KG)'] : '',
         r.isLastRowOfPO ? r['Sisa OS Akhir PO (pcs)'] : '',
         r.isLastRowOfPO ? r['Sisa OS Akhir PO (KG)'] : '',
+        r.isLastRowOfPO
+          ? {
+              t: 'n',
+              v: r['% Pemenuhan PO'],
+              z: '0.0%',
+            }
+          : '',
+        r.isLastRowOfPO ? r['Status Pengiriman'] : '',
+        r.isLastRowOfPO && r['Umur PO / Aging (Hari)'] !== null ? r['Umur PO / Aging (Hari)'] : '',
+        r.isLastRowOfPO ? r['Kategori Aging OS'] : '',
         r.isLastRowOfPO ? r['Stock (pcs)'] : '',
         r.isLastRowOfPO ? r['Stock (kg)'] : '',
         r.isFirstRowOfPO ? r.Harga : '',
       ]);
     }
   }
+
+  const lastMasterRow = masterRows.length;
+  const totMasterRow = lastMasterRow + 1;
+  const masterFulfillment = grandQtyPoPcs > 0 ? grandTotalTerkirimPcs / grandQtyPoPcs : 0;
 
   masterRows.push([
     'GRAND TOTAL REKAPITULASI',
@@ -544,21 +559,31 @@ export function exportCombinedDetailSJMasterWorkbook(
     '',
     `${grandTotalPOs} PO`,
     `${grandTotalSJs} SJ`,
-    grandQtyPoPcs,
-    grandBeratPoKg,
+    { t: 'n', f: `SUM(I5:I${lastMasterRow})`, v: grandQtyPoPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(J5:J${lastMasterRow})`, v: grandBeratPoKg, z: '#,##0' },
     '',
     '',
     '',
-    grandQtyKirimSJPcs,
-    grandBeratKirimSJKg,
+    { t: 'n', f: `IFERROR(AVERAGE(N5:N${lastMasterRow}),0)`, v: 0, z: '0.0' },
+    { t: 'n', f: `SUM(O5:O${lastMasterRow})`, v: grandQtyKirimSJPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(P5:P${lastMasterRow})`, v: grandBeratKirimSJKg, z: '#,##0' },
     '',
     '',
-    grandTotalTerkirimPcs,
-    grandTotalTerkirimKg,
-    grandSisaOSAkhirPcs,
-    grandSisaOSAkhirKg,
-    grandStockPcs,
-    grandStockKg,
+    { t: 'n', f: `SUM(S5:S${lastMasterRow})`, v: grandTotalTerkirimPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(T5:T${lastMasterRow})`, v: grandTotalTerkirimKg, z: '#,##0' },
+    { t: 'n', f: `SUM(U5:U${lastMasterRow})`, v: grandSisaOSAkhirPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(V5:V${lastMasterRow})`, v: grandSisaOSAkhirKg, z: '#,##0' },
+    {
+      t: 'n',
+      f: `IF(I${totMasterRow}>0,S${totMasterRow}/I${totMasterRow},0)`,
+      v: masterFulfillment,
+      z: '0.0%',
+    },
+    '',
+    '',
+    '',
+    { t: 'n', f: `SUM(AA5:AA${lastMasterRow})`, v: grandStockPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(AB5:AB${lastMasterRow})`, v: grandStockKg, z: '#,##0' },
     '',
   ]);
 
@@ -577,6 +602,7 @@ export function exportCombinedDetailSJMasterWorkbook(
     { wch: 24 }, // Urutan Kirim
     { wch: 20 }, // No Surat Jalan (SJ)
     { wch: 18 }, // Tanggal Kirim (SJ)
+    { wch: 19 }, // Lead Time SJ (Hari)
     { wch: 18 }, // QTY Kirim SJ (pcs)
     { wch: 18 }, // Berat Kirim SJ (KG)
     { wch: 20 }, // Sisa OS Berjalan (pcs)
@@ -585,14 +611,18 @@ export function exportCombinedDetailSJMasterWorkbook(
     { wch: 21 }, // Total Terkirim PO (KG)
     { wch: 20 }, // Sisa OS Akhir PO (pcs)
     { wch: 20 }, // Sisa OS Akhir PO (KG)
+    { wch: 16 }, // % Pemenuhan PO
+    { wch: 24 }, // Status Pengiriman
+    { wch: 20 }, // Umur PO / Aging (Hari)
+    { wch: 22 }, // Kategori Aging OS
     { wch: 18 }, // Stock Gudang (pcs)
     { wch: 18 }, // Stock Gudang (KG)
     { wch: 14 }, // Harga
   ];
 
   masterSheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 23 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 23 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 28 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 28 } },
     { s: { r: masterRows.length - 1, c: 0 }, e: { r: masterRows.length - 1, c: 5 } },
   ];
 

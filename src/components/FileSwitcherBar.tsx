@@ -1,13 +1,10 @@
 import React, { useRef } from 'react';
 import {
   FileSpreadsheet,
-  Download,
   FolderArchive,
   RefreshCw,
   Upload,
   ChevronDown,
-  Layers,
-  Sparkles,
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
@@ -42,7 +39,6 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
   files,
   activeFileId,
   onSelectFile,
-  onDownloadActiveExcel,
   onDownloadAllZip,
   onDownloadMasterCombined,
   onAddMoreFiles,
@@ -54,7 +50,6 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
   const addFileInputRef = useRef<HTMLInputElement>(null);
 
   const activeIndex = files.findIndex((f) => f.id === activeFileId);
-  const activeFile = files[activeIndex] || files[0];
 
   const handleAddFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -65,8 +60,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
   };
 
   return (
-    <div className="p-3 sm:p-4 glass-panel rounded-3xl">
-      {/* Hidden file input for adding more files */}
+    <div className="p-2.5 sm:px-4 sm:py-3 bg-white border border-slate-200 rounded-xl">
       <input
         type="file"
         ref={addFileInputRef}
@@ -77,20 +71,17 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
         id="add-more-files-input"
       />
 
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-        {/* Left: Dropdown File Selector */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] shrink-0" />
-            <label
-              htmlFor="active-file-dropdown"
-              className="text-xs font-semibold text-[#1E2024] tracking-wide whitespace-nowrap"
-            >
-              {t.activeDocument}:
-            </label>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+        {/* Left: File Selector */}
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <label
+            htmlFor="active-file-dropdown"
+            className="text-xs font-semibold text-slate-500 whitespace-nowrap shrink-0"
+          >
+            {t.fileLabel}
+          </label>
 
-          <div className="relative flex-1 max-w-xl">
+          <div className="relative flex-1 max-w-md">
             <select
               id="active-file-dropdown"
               value={activeFileId}
@@ -98,7 +89,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
                 haptic.selection();
                 onSelectFile(e.target.value);
               }}
-              className="w-full appearance-none bg-white/80 hover:bg-white/95 border border-white/90 rounded-full px-4 py-2 pr-9 text-xs font-semibold text-[#1E2024] focus:outline-none focus:ring-2 focus:ring-[#FF7B35]/40 cursor-pointer shadow-sm truncate transition-all"
+              className="w-full appearance-none bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-lg px-3 py-1.5 pr-8 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900/15 cursor-pointer truncate transition-colors"
             >
               {files.map((file, idx) => {
                 const poItemCount = file.data ? file.data.length : 0;
@@ -113,70 +104,53 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
                     : 0) ||
                   poItemCount;
                 return (
-                  <option key={file.id} value={file.id} className="bg-white text-[#1E2024]">
-                    {idx + 1}. {file.rawFileName} ({uniquePoCount} PO Unik / {poItemCount} Baris Item)
+                  <option key={file.id} value={file.id} className="bg-white text-slate-900">
+                    {idx + 1}. {file.rawFileName} ({uniquePoCount} {t.unitPoShort} · {poItemCount}{' '}
+                    {t.unitItem})
                   </option>
                 );
               })}
             </select>
-            <ChevronDown className="w-4 h-4 text-zinc-500 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
 
           {files.length > 1 && (
-            <span className="text-[11px] font-mono text-[#5C6068] shrink-0 hidden sm:inline">
-              {activeIndex + 1} {t.of} {files.length}
+            <span className="text-[11px] font-mono text-slate-500 tabular-nums shrink-0 hidden md:inline">
+              {activeIndex + 1}/{files.length}
             </span>
           )}
         </div>
 
-        {/* Right: Liquid Glass Quick Action Controls */}
-        <div className="flex flex-wrap items-center gap-2 shrink-0">
-          {/* Download Active File (Orange Liquid Glass Button) */}
-          <button
-            type="button"
-            id="btn-download-active-file"
-            onClick={() => {
-              haptic.success();
-              onDownloadActiveExcel();
-            }}
-            className="liquid-glass-orange inline-flex items-center gap-1.5 px-4 py-2 text-xs uppercase tracking-wider cursor-pointer"
-            title="Download file Excel yang sedang dipilih"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>{t.exportExcelBtn}</span>
-          </button>
-
-          {/* Download All as ZIP (if multiple files) */}
+        {/* Right: Quick File Actions */}
+        <div className="flex flex-wrap items-center gap-1.5 shrink-0">
           {files.length > 1 && onDownloadAllZip && (
             <button
               type="button"
               id="btn-download-all-zip"
               onClick={onDownloadAllZip}
               disabled={isZipping}
-              className="liquid-glass-clear inline-flex items-center gap-1.5 px-3.5 py-2 text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50"
-              title="Unduh seluruh file hasil konversi dalam 1 arsip .zip"
+              className="liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              title={t.downloadZipBtn}
             >
-              <FolderArchive className="w-3.5 h-3.5 text-[#19719C]" />
-              <span>{isZipping ? t.processingMsg : t.downloadZipBtn}</span>
+              <FolderArchive className="w-3.5 h-3.5 text-slate-600" />
+              <span>{isZipping ? t.processingMsg : t.zipAllBtn}</span>
             </button>
           )}
 
-          {/* Consolidate into Master Combined Workbook */}
           {files.length > 1 && onDownloadMasterCombined && (
             <button
               type="button"
               id="btn-download-master-combined"
               onClick={onDownloadMasterCombined}
               disabled={isMerging}
-              className="liquid-glass-clear inline-flex items-center gap-1.5 px-3.5 py-2 text-xs uppercase tracking-wider cursor-pointer disabled:opacity-50"
-              title="Gabungkan semua file menjadi 1 file Excel master"
+              className="liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
+              title={t.mergeMasterBtn}
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isMerging ? t.processingMsg : t.mergeMasterBtn}</span>
+              <span>{isMerging ? t.processingMsg : t.mergeMasterShortBtn}</span>
             </button>
           )}
 
-          {/* Add more files */}
           <button
             type="button"
             id="btn-add-more-files"
@@ -184,14 +158,13 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               haptic.selection();
               addFileInputRef.current?.click();
             }}
-            className="liquid-glass-clear inline-flex items-center gap-1.5 px-3.5 py-2 text-xs uppercase tracking-wider cursor-pointer"
-            title="Tambah file lain ke daftar ini"
+            className="liquid-glass-clear inline-flex items-center gap-1 px-3 py-1.5 text-xs cursor-pointer whitespace-nowrap"
+            title={t.addFileBtn}
           >
-            <Upload className="w-3.5 h-3.5 text-[#19719C]" />
-            <span>+ Tambah</span>
+            <Upload className="w-3.5 h-3.5 text-slate-600" />
+            <span>{t.addFileBtn}</span>
           </button>
 
-          {/* Reset / Upload New */}
           <button
             type="button"
             id="btn-reset-all-files"
@@ -199,11 +172,11 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               haptic.heavy();
               onReset();
             }}
-            className="liquid-glass-clear inline-flex items-center gap-1 px-3 py-2 text-xs uppercase tracking-wider cursor-pointer text-zinc-500 hover:text-zinc-800"
-            title="Ganti file / kembali ke halaman upload"
+            className="liquid-glass-clear inline-flex items-center gap-1 px-3 py-1.5 text-xs cursor-pointer text-slate-600 hover:text-slate-900 whitespace-nowrap"
+            title={t.resetBtn}
           >
             <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Ganti</span>
+            <span>{t.changeFileBtn}</span>
           </button>
         </div>
       </div>

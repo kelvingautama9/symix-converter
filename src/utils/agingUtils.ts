@@ -114,3 +114,107 @@ export function calculatePoAging(
     textClass: 'text-rose-700',
   };
 }
+
+export type DeliveryStatusTag =
+  | 'OVER DELIVERY'
+  | 'COMPLETED / LUNAS'
+  | 'PARTIAL / CICIL'
+  | 'UNTOUCHED / BELUM KIRIM';
+
+/**
+ * Determines the standardized Master Data Delivery Status Tag for a PO-Item
+ */
+export function getDeliveryStatusTag(
+  qtyPoPcs: number,
+  totalTerkirimPcs: number,
+  sisaAkhirPcs: number
+): DeliveryStatusTag {
+  const po = Number(qtyPoPcs) || 0;
+  const sent = Number(totalTerkirimPcs) || 0;
+  const rem = Number(sisaAkhirPcs) || 0;
+
+  if (sent <= 0) {
+    return 'UNTOUCHED / BELUM KIRIM';
+  }
+  if (po > 0 && sent > po) {
+    return 'OVER DELIVERY';
+  }
+  if (rem <= 0) {
+    return 'COMPLETED / LUNAS';
+  }
+  return 'PARTIAL / CICIL';
+}
+
+/**
+ * Calculates Lead Time in calendar days between Tanggal Input PO and Tanggal Kirim (SJ)
+ */
+export function calculateLeadTimeDays(
+  poDateStr: string | null | undefined,
+  sjDateStr: string | null | undefined
+): number | null {
+  const poDate = parsePoDate(poDateStr);
+  const sjDate = parsePoDate(sjDateStr);
+  if (!poDate || !sjDate) return null;
+
+  const poUtc = Date.UTC(poDate.getFullYear(), poDate.getMonth(), poDate.getDate());
+  const sjUtc = Date.UTC(sjDate.getFullYear(), sjDate.getMonth(), sjDate.getDate());
+  const diffDays = Math.round((sjUtc - poUtc) / (1000 * 60 * 60 * 24));
+  return Math.max(0, diffDays);
+}
+
+/**
+ * Calculates Order Aging (Umur PO) & Aging Category for Master Data reporting:
+ * - If COMPLETED / LUNAS (Sisa OS = 0 and Terkirim > 0): returns total days to complete (PO -> last SJ) and category "LUNAS (0 OS)"
+ * - If still has Sisa OS (> 0) or UNTOUCHED: returns days elapsed since Tanggal Input PO and aging tier
+ */
+export function calculateOrderAgingDetails(
+  poDateStr: string | null | undefined,
+  lastSjDateStr: string | null | undefined,
+  sisaAkhirPcs: number,
+  totalTerkirimPcs: number,
+  refDate: Date = new Date()
+): { umurHari: number | null; kategoriAging: string } {
+  const poDate = parsePoDate(poDateStr);
+  if (!poDate) {
+    return {
+      umurHari: null,
+      kategoriAging: sisaAkhirPcs <= 0 && totalTerkirimPcs > 0 ? 'LUNAS (0 OS)' : '-',
+    };
+  }
+
+  const poUtc = Date.UTC(poDate.getFullYear(), poDate.getMonth(), poDate.getDate());
+
+  // If PO is already fully delivered (Lunas OS)
+  if (sisaAkhirPcs <= 0 && totalTerkirimPcs > 0) {
+    const lastSjDate = parsePoDate(lastSjDateStr);
+    if (lastSjDate) {
+      const sjUtc = Date.UTC(
+        lastSjDate.getFullYear(),
+        lastSjDate.getMonth(),
+        lastSjDate.getDate()
+      );
+      const completionDays = Math.max(0, Math.round((sjUtc - poUtc) / (1000 * 60 * 60 * 24)));
+      return {
+        umurHari: completionDays,
+        kategoriAging: 'LUNAS (0 OS)',
+      };
+    }
+    return {
+      umurHari: 0,
+      kategoriAging: 'LUNAS (0 OS)',
+    };
+  }
+
+  // Otherwise PO still has outstanding Sisa OS
+  const refUtc = Date.UTC(refDate.getFullYear(), refDate.getMonth(), refDate.getDate());
+  const days = Math.max(0, Math.floor((refUtc - poUtc) / (1000 * 60 * 60 * 24)));
+
+  if (days <= 7) {
+    return { umurHari: days, kategoriAging: 'AMAN (<= 7 Hari)' };
+  }
+  if (days <= 14) {
+    return { umurHari: days, kategoriAging: 'FOLLOW UP (8-14 Hari)' };
+  }
+  return { umurHari: days, kategoriAging: 'KRITIS (> 14 Hari)' };
+}
+
