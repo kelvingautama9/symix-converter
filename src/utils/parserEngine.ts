@@ -1,6 +1,15 @@
-// BlackEYE ERP Engine: Standard 15-Column SYMIX Stock & OS Parser
+// BlackEYE ERP Engine: Standard 15-Column SYMIX Stock & OS Parser + Detailed Surat Jalan (SJ) Parser
 import * as XLSX from 'xlsx';
-import { ExtractedRecord, ParseSummary, CoStatus, CoFilterStatus, ExcelExportScope } from '../types';
+import {
+  ExtractedRecord,
+  ParseSummary,
+  CoStatus,
+  CoFilterStatus,
+  ExcelExportScope,
+  DeliveryRecord,
+  FlattenedDeliveryRow,
+  DetailSJExportScope,
+} from '../types';
 
 /**
  * Detect CO Status from CO string (e.g., "18H6941 5 C" -> CLOSED, "18H8550 1 O" -> OPEN)
@@ -157,11 +166,11 @@ export function isIgnoredHeaderRow(r: any[]): boolean {
     return false;
   }
 
-  // Never ignore actual P26 delivery rows
+  // Never ignore actual P26 / P25 / P27 delivery rows
   if (
-    (getStr(r, 10).toUpperCase().includes('P26') ||
-      getStr(r, 9).toUpperCase().includes('P26') ||
-      getStr(r, 8).toUpperCase().includes('P26')) &&
+    (getStr(r, 10).toUpperCase().includes('P2') ||
+      getStr(r, 9).toUpperCase().includes('P2') ||
+      getStr(r, 8).toUpperCase().includes('P2')) &&
     !fullRowStr.includes('S/J NO') &&
     !fullRowStr.includes('C/O NO')
   ) {
@@ -200,6 +209,7 @@ export function isIgnoredHeaderRow(r: any[]): boolean {
     fullRowStr.includes('PRICE SHIP TO') ||
     fullRowStr.includes('QTY.ORDER') ||
     fullRowStr.includes('DIV.SCHEDULE') ||
+    fullRowStr.includes('DLV.SC') ||
     fullRowStr.includes('S/J NO') ||
     fullRowStr.includes('S/J DATE') ||
     fullRowStr.includes('QTY.SHIP') ||
@@ -284,7 +294,227 @@ function getStr(row: any[], colIdx: number): string {
 }
 
 /**
- * Core Parser Engine translated directly from the reference Python logic
+ * Formats an Excel date cell (either string like "19/10/2026" or Excel serial number)
+ */
+function formatDateCell(val: any): string {
+  if (val === null || val === undefined) return '-';
+  if (typeof val === 'number' && val > 30000 && val < 70000) {
+    // Convert Excel serial date to DD/MM/YYYY
+    const utcDays = Math.floor(val - 25569);
+    const dateObj = new Date(utcDays * 86400 * 1000);
+    if (!isNaN(dateObj.getTime())) {
+      const dd = String(dateObj.getUTCDate()).padStart(2, '0');
+      const mm = String(dateObj.getUTCMonth() + 1).padStart(2, '0');
+      const yyyy = dateObj.getUTCFullYear();
+      return `${dd}/${mm}/${yyyy}`;
+    }
+  }
+  const str = String(val).trim();
+  return str.length > 0 ? str : '-';
+}
+
+/**
+ * Checks if a string looks like a valid Surat Jalan (SJ) number in SYMIX CO40-R
+ * e.g., "P26102464", "P25110012", "P27010001", "SJ-...", etc.
+ */
+function isValidSJCode(str: string): boolean {
+  if (!str) return false;
+  const clean = str.trim().toUpperCase();
+  if (!clean || clean === '-' || clean.includes('TOTAL') || clean.includes('S/J')) return false;
+  // Exclude dates like 19/10/2026
+  if (/^\d{1,4}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(clean)) return false;
+  // Standard SYMIX SJ: P followed by 5+ digits (e.g. P26102464), or alphanumeric code with letters & digits
+  if (/^P\d{5,}/i.test(clean)) return true;
+  if (/^(SJ|DO|DN)[A-Z0-9\-_\/]{3,}/i.test(clean)) return true;
+  // Also allow general SJ token at col 10 if it contains both letter and digit (e.g. A26102464)
+  if (/^[A-Z]{1,4}\d{4,}[A-Z0-9\-_\/]*$/i.test(clean)) return true;
+  return false;
+}
+
+interface RawExtractedSJ {
+  noSJ: string;
+  tanggalKirim: string;
+  qtyKirimPcs: number;
+  beratKirimKg: number;
+  rawBalancePcs: number | null;
+  rawBalanceKg: number | null;
+}
+
+/**
+ * Extracts Surat Jalan (SJ) delivery detail from a row (either a PO row or a sub-child delivery row).
+ * In SYMIX CO40-R:
+ * Col 10 = S/J No (e.g., P26102464)
+ * Col 11 = S/J Date (e.g., 19/10/2026)
+ * Col 12 = Qty.Ship PCS (e.g., 3600)
+ * Col 13 = Qty.Ship KG (e.g., 956)
+ * Col 14 = Balance PCS (e.g., 2500)
+ * Col 15 = Balance KG (e.g., 664)
+ */
+function extractDeliveryFromRow(r: any[]): RawExtractedSJ | null {
+  if (!r || r.length === 0) return null;
+
+  // Never extract from TOTAL row
+  for (let c = 0; c < r.length; c++) {
+    const v = r[c];
+    if (v !== null && v !== undefined && typeof v === 'string' && v.toUpperCase().includes('TOTAL')) {
+      return null;
+    }
+  }
+
+  // Prioritize column 10 first, then check 9, 11, 8 in case of column shift
+  const candidateCols = [10, 9, 11, 8, 12];
+  let sjCol = -1;
+
+  for (const colIdx of candidateCols) {
+    const val = getStr(r, colIdx);
+    if (isValidSJCode(val)) {
+      sjCol = colIdx;
+      break;
+    }
+  }
+
+  if (sjCol === -1) return null;
+
+  const noSJ = getStr(r, sjCol);
+  const tanggalKirim = r.length > sjCol + 1 ? formatDateCell(r[sjCol + 1]) : '-';
+  const rawShipPcs = r.length > sjCol + 2 ? r[sjCol + 2] : null;
+  const rawShipKg = r.length > sjCol + 3 ? r[sjCol + 3] : null;
+  const rawBalPcs = r.length > sjCol + 4 ? r[sjCol + 4] : null;
+  const rawBalKg = r.length > sjCol + 5 ? r[sjCol + 5] : null;
+
+  const qtyKirimPcs = isNumericCell(rawShipPcs) ? parseCleanInt(rawShipPcs) : 0;
+  const beratKirimKg = isNumericCell(rawShipKg) ? parseCleanInt(rawShipKg) : 0;
+  const rawBalancePcs = isNumericCell(rawBalPcs) ? parseCleanInt(rawBalPcs) : null;
+  const rawBalanceKg = isNumericCell(rawBalKg) ? parseCleanInt(rawBalKg) : null;
+
+  return {
+    noSJ,
+    tanggalKirim,
+    qtyKirimPcs,
+    beratKirimKg,
+    rawBalancePcs,
+    rawBalanceKg,
+  };
+}
+
+/**
+ * Finalizes a PO's delivery records, running OS balances, total shipped, and final Sisa OS with complete fallback.
+ */
+function finalizeCurrentPO(po: ExtractedRecord): ExtractedRecord {
+  const qtyPoPcs = po['QTY PO (pcs)'] || 0;
+  const beratPoKg = po['Berat PO (KG)'] || 0;
+  const rawDeliveries = po.deliveries || [];
+
+  if (rawDeliveries.length === 0) {
+    // Fallback when PO has NO deliveries (0 SJ)
+    if (!po._has_delivery) {
+      po['Sisa OS (pcs)'] = qtyPoPcs;
+      po['Sisa OS (kg)'] = beratPoKg;
+      po['Terkirim (PCS)'] = 0;
+      po['Terkirim (KG)'] = 0;
+    } else {
+      po['Terkirim (PCS)'] = Math.max(0, qtyPoPcs - (po['Sisa OS (pcs)'] || 0) + (po['Over Kiriman (PCS)'] || 0));
+      po['Terkirim (KG)'] = Math.max(0, beratPoKg - (po['Sisa OS (kg)'] || 0) + (po['Over Kiriman (KG)'] || 0));
+    }
+
+    po.deliveries = [
+      {
+        sequence: 0,
+        noSJ: '-',
+        tanggalKirim: '-',
+        qtyKirimPcs: 0,
+        beratKirimKg: 0,
+        akumulasiKirimPcs: po['Terkirim (PCS)'] || 0,
+        akumulasiKirimKg: po['Terkirim (KG)'] || 0,
+        sisaOsBerjalanPcs: po['Sisa OS (pcs)'] ?? qtyPoPcs,
+        sisaOsBerjalanKg: po['Sisa OS (kg)'] ?? beratPoKg,
+        isFallbackNoDelivery: true,
+      },
+    ];
+    return po;
+  }
+
+  // When PO has 1 or more SJ deliveries: compute step-by-step cumulative & running Sisa OS with fallback
+  let runningShippedPcs = 0;
+  let runningShippedKg = 0;
+  let prevSisaPcs = qtyPoPcs;
+  let prevSisaKg = beratPoKg;
+
+  const finalizedDeliveries: DeliveryRecord[] = rawDeliveries.map((d, idx) => {
+    let shipPcs = d.qtyKirimPcs || 0;
+    let shipKg = d.beratKirimKg || 0;
+
+    // Fallback: if shipPcs was 0/missing on the SJ row, but rawBalancePcs is present, infer from balance drop
+    if (shipPcs === 0 && d._rawBalancePcs !== undefined && d._rawBalancePcs !== null) {
+      const inferredPcs = prevSisaPcs - d._rawBalancePcs;
+      if (inferredPcs > 0) shipPcs = inferredPcs;
+    }
+    if (shipKg === 0 && d._rawBalanceKg !== undefined && d._rawBalanceKg !== null) {
+      const inferredKg = prevSisaKg - d._rawBalanceKg;
+      if (inferredKg > 0) shipKg = inferredKg;
+    }
+
+    runningShippedPcs += shipPcs;
+    runningShippedKg += shipKg;
+
+    // Running Sisa OS after this SJ: use explicit Balance column if valid, else fallback to (QTY PO - runningShipped)
+    let stepSisaPcs: number;
+    if (d._rawBalancePcs !== undefined && d._rawBalancePcs !== null) {
+      stepSisaPcs = Math.max(0, d._rawBalancePcs);
+    } else {
+      stepSisaPcs = Math.max(0, qtyPoPcs - runningShippedPcs);
+    }
+
+    let stepSisaKg: number;
+    if (d._rawBalanceKg !== undefined && d._rawBalanceKg !== null) {
+      stepSisaKg = Math.max(0, d._rawBalanceKg);
+    } else {
+      stepSisaKg = Math.max(0, beratPoKg - runningShippedKg);
+    }
+
+    prevSisaPcs = stepSisaPcs;
+    prevSisaKg = stepSisaKg;
+
+    return {
+      sequence: idx + 1,
+      noSJ: d.noSJ || '-',
+      tanggalKirim: d.tanggalKirim || '-',
+      qtyKirimPcs: shipPcs,
+      beratKirimKg: shipKg,
+      akumulasiKirimPcs: runningShippedPcs,
+      akumulasiKirimKg: runningShippedKg,
+      sisaOsBerjalanPcs: stepSisaPcs,
+      sisaOsBerjalanKg: stepSisaKg,
+      isFallbackNoDelivery: false,
+    };
+  });
+
+  const lastDeliv = finalizedDeliveries[finalizedDeliveries.length - 1];
+
+  // Overall Sisa OS Akhir & Total Terkirim for the PO
+  const finalSisaPcs = lastDeliv ? lastDeliv.sisaOsBerjalanPcs : Math.max(0, qtyPoPcs - runningShippedPcs);
+  const finalSisaKg = lastDeliv ? lastDeliv.sisaOsBerjalanKg : Math.max(0, beratPoKg - runningShippedKg);
+
+  const totalTerkirimPcs = runningShippedPcs > 0 ? runningShippedPcs : Math.max(0, qtyPoPcs - finalSisaPcs);
+  const totalTerkirimKg = runningShippedKg > 0 ? runningShippedKg : Math.max(0, beratPoKg - finalSisaKg);
+
+  const overKirimanPcs = Math.max(po['Over Kiriman (PCS)'] || 0, Math.max(0, totalTerkirimPcs - qtyPoPcs));
+  const overKirimanKg = Math.max(po['Over Kiriman (KG)'] || 0, Math.max(0, totalTerkirimKg - beratPoKg));
+
+  po['Sisa OS (pcs)'] = finalSisaPcs;
+  po['Sisa OS (kg)'] = finalSisaKg;
+  po['Terkirim (PCS)'] = totalTerkirimPcs;
+  po['Terkirim (KG)'] = totalTerkirimKg;
+  po['Over Kiriman (PCS)'] = overKirimanPcs;
+  po['Over Kiriman (KG)'] = overKirimanKg;
+  po._has_delivery = true;
+  po.deliveries = finalizedDeliveries;
+
+  return po;
+}
+
+/**
+ * Core Parser Engine translated directly from the reference Python logic + Detailed SJ Extraction
  */
 export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
   const rowsData: ExtractedRecord[] = [];
@@ -313,16 +543,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     // TAHAP KHUSUS PENUTUP SUB-TOTAL (TOTAL)
     if (isTotal) {
       if (currentPO) {
-        if (!currentPO._has_delivery) {
-          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
-          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
-          currentPO['Terkirim (PCS)'] = 0;
-          currentPO['Terkirim (KG)'] = 0;
-        } else {
-          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
-          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
-        }
-        rowsData.push(currentPO);
+        rowsData.push(finalizeCurrentPO(currentPO));
         currentPO = null;
       }
       continue;
@@ -335,19 +556,9 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     }
 
     // DETEKSI CERDAS MULTI-CUSTOMER: BARIS UNGROUP / GROUPING BANNER
-    // Muncul sebelum baris Sales saat pergantian kelompok customer
     if (isGroupHeaderRow(r)) {
       if (currentPO) {
-        if (!currentPO._has_delivery) {
-          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
-          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
-          currentPO['Terkirim (PCS)'] = 0;
-          currentPO['Terkirim (KG)'] = 0;
-        } else {
-          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
-          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
-        }
-        rowsData.push(currentPO);
+        rowsData.push(finalizeCurrentPO(currentPO));
         currentPO = null;
       }
       currentItemId = null;
@@ -359,40 +570,25 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     }
 
     // DETEKSI CERDAS MULTI-CUSTOMER: BARIS 1 (SALES REP / SALES NAME)
-    // Terjadi saat penarikan data ALL CUSTOMERS sekaligus
     if (isSalesRow(r)) {
-      // 1. Tutup dan simpan PO yang masih terbuka dari customer sebelumnya
       if (currentPO) {
-        if (!currentPO._has_delivery) {
-          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
-          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
-          currentPO['Terkirim (PCS)'] = 0;
-          currentPO['Terkirim (KG)'] = 0;
-        } else {
-          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
-          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
-        }
-        rowsData.push(currentPO);
+        rowsData.push(finalizeCurrentPO(currentPO));
         currentPO = null;
       }
 
-      // 2. Putus asosiasi artikel item sebelumnya agar tidak bocor ke customer baru
       currentItemId = null;
       currentItemDesc = '';
       currentSubstance = '';
       currentStockPcs = 0;
       currentStockKg = 0;
 
-      // 3. Pasang flag bahwa baris berikutnya adalah baris Nama Customer
       expectCustomerRow = true;
       continue;
     }
 
     // DETEKSI CERDAS MULTI-CUSTOMER: BARIS 2 (NAMA CUSTOMER / PERUSAHAAN)
-    // Terdeteksi baik via urutan baris setelah Sales maupun deteksi entitas PT/CV/Perusahaan
     if (expectCustomerRow || isCustomerCompanyRow(r)) {
       expectCustomerRow = false;
-      // Pastikan context artikel tetap bersih
       currentItemId = null;
       currentItemDesc = '';
       currentSubstance = '';
@@ -402,7 +598,6 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     }
 
     // TAHAP FILTER HEADER ERP / SYMIX / DASH / REPEATED COLUMN HEADERS
-    // Langsung lewati tanpa mereset currentPO (agar pengiriman P26 yang terpotong header tetap masuk ke currentPO)
     if (isIgnoredHeaderRow(r)) {
       continue;
     }
@@ -416,11 +611,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     if (isParentArticleItem(valA)) {
       expectCustomerRow = false;
       if (currentPO) {
-        if (!currentPO._has_delivery) {
-          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
-          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
-        }
-        rowsData.push(currentPO);
+        rowsData.push(finalizeCurrentPO(currentPO));
         currentPO = null;
       }
 
@@ -472,11 +663,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     ) {
       if ((valA.length > 0 || valB.length > 3) && !valA.includes('Gramature') && !valA.includes('Stock')) {
         if (currentPO) {
-          if (!currentPO._has_delivery) {
-            currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
-            currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
-          }
-          rowsData.push(currentPO);
+          rowsData.push(finalizeCurrentPO(currentPO));
         }
 
         // Ekstraksi Data CO (Customer Order No dari Kolom A)
@@ -486,7 +673,6 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         let poDate = '-';
         let cleanPoNo = valB ? valB.trim() : '-';
 
-        // Deteksi jika diawali format tanggal (misal: 26/08/2026 PO/MB/2026/08/0236)
         const dateMatch = valB.match(/^(\d{1,4}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s+(.+)$/);
         if (dateMatch) {
           poDate = dateMatch[1].trim();
@@ -515,6 +701,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
         const rawQtyPcs = r.length > 6 ? r[6] : null;
         const rawQtyKg = r.length > 7 ? r[7] : null;
+        const rawScheduleDate = r.length > 8 ? formatDateCell(r[8]) : '-';
 
         const qtyOrderPcs = isNumericCell(rawQtyPcs) ? parseCleanInt(rawQtyPcs) : 0;
         const qtyOrderKg = isNumericCell(rawQtyKg) ? parseCleanInt(rawQtyKg) : 0;
@@ -526,13 +713,30 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         const rawSisaPcsVal = isNumericCell(sisaPcsRaw) ? parseCleanInt(sisaPcsRaw) : 0;
         const rawSisaKgVal = isNumericCell(sisaKgRaw) ? parseCleanInt(sisaKgRaw) : 0;
 
-        // Jangan biarkan Sisa OS negatif. Jika ada pengiriman melebihi QTY, catat sebagai Over Kiriman
         const initialOverKirimanPcs = rawSisaPcsVal < 0 ? Math.abs(rawSisaPcsVal) : 0;
         const initialOverKirimanKg = rawSisaKgVal < 0 ? Math.abs(rawSisaKgVal) : 0;
         const sisaPcsVal = Math.max(0, rawSisaPcsVal);
         const sisaKgVal = Math.max(0, rawSisaKgVal);
 
-        // Membangun struktur kerangka 15 Kolom (dengan Tanggal Input PO sebelum No PO)
+        // Cek apakah pada baris pertama PO ini sudah langsung ada pengiriman ke-1 (misal: P26102464)
+        const initialSJ = extractDeliveryFromRow(r);
+        const initialDeliveries: DeliveryRecord[] = [];
+        if (initialSJ) {
+          initialDeliveries.push({
+            sequence: 1,
+            noSJ: initialSJ.noSJ,
+            tanggalKirim: initialSJ.tanggalKirim,
+            qtyKirimPcs: initialSJ.qtyKirimPcs,
+            beratKirimKg: initialSJ.beratKirimKg,
+            akumulasiKirimPcs: initialSJ.qtyKirimPcs,
+            akumulasiKirimKg: initialSJ.beratKirimKg,
+            sisaOsBerjalanPcs: initialSJ.rawBalancePcs !== null ? Math.max(0, initialSJ.rawBalancePcs) : Math.max(0, qtyOrderPcs - initialSJ.qtyKirimPcs),
+            sisaOsBerjalanKg: initialSJ.rawBalanceKg !== null ? Math.max(0, initialSJ.rawBalanceKg) : Math.max(0, qtyOrderKg - initialSJ.beratKirimKg),
+            _rawBalancePcs: initialSJ.rawBalancePcs,
+            _rawBalanceKg: initialSJ.rawBalanceKg,
+          });
+        }
+
         currentPO = {
           CO: coNumber,
           coStatus: parseCoStatus(coNumber),
@@ -543,8 +747,8 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           Substance: currentSubstance,
           'QTY PO (pcs)': qtyOrderPcs,
           'Berat PO (KG)': qtyOrderKg,
-          'Stock (pcs)': 0, // Dialokasikan secara proporsional/FIFO setelah seluruh Sisa OS terhitung
-          'Stock (kg)': 0,  // Dialokasikan secara proporsional/FIFO setelah seluruh Sisa OS terhitung
+          'Stock (pcs)': 0,
+          'Stock (kg)': 0,
           'Sisa OS (pcs)': sisaPcsVal,
           'Sisa OS (kg)': sisaKgVal,
           'Terkirim (PCS)': Math.max(0, qtyOrderPcs - sisaPcsVal + initialOverKirimanPcs),
@@ -556,7 +760,9 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           'Over Produksi (PCS)': 0,
           'Over Produksi (KG)': 0,
           Harga: priceVal,
-          _has_delivery: hasInitialDelivery,
+          scheduleDate: rawScheduleDate,
+          deliveries: initialDeliveries,
+          _has_delivery: hasInitialDelivery || initialDeliveries.length > 0,
           _parentIndex: parentCount,
           _parentStockPcs: currentStockPcs,
           _parentStockKg: currentStockKg,
@@ -569,14 +775,35 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
       (!r[0] || String(r[0]).trim() === '') &&
       (!r[1] || String(r[1]).trim() === '')
     ) {
-      // Cek apakah ada nomor surat jalan P26xxx di rentang kolom pengiriman
-      let hasDeliveryRecord = false;
-      for (let c = 6; c < Math.min(r.length, 14); c++) {
-        const cellVal = getStr(r, c).toUpperCase();
-        if (cellVal.startsWith('P26') || cellVal.startsWith('P25') || cellVal.startsWith('P27') || /P\d{6,}/i.test(cellVal)) {
-          hasDeliveryRecord = true;
-          break;
+      // Ekstrak detail SJ dari baris sub-child
+      const subSJ = extractDeliveryFromRow(r);
+
+      let hasDeliveryRecord = Boolean(subSJ);
+      if (!hasDeliveryRecord) {
+        for (let c = 6; c < Math.min(r.length, 14); c++) {
+          const cellVal = getStr(r, c).toUpperCase();
+          if (cellVal.startsWith('P26') || cellVal.startsWith('P25') || cellVal.startsWith('P27') || /P\d{5,}/i.test(cellVal)) {
+            hasDeliveryRecord = true;
+            break;
+          }
         }
+      }
+
+      if (subSJ) {
+        if (!currentPO.deliveries) currentPO.deliveries = [];
+        currentPO.deliveries.push({
+          sequence: currentPO.deliveries.length + 1,
+          noSJ: subSJ.noSJ,
+          tanggalKirim: subSJ.tanggalKirim,
+          qtyKirimPcs: subSJ.qtyKirimPcs,
+          beratKirimKg: subSJ.beratKirimKg,
+          akumulasiKirimPcs: 0,
+          akumulasiKirimKg: 0,
+          sisaOsBerjalanPcs: subSJ.rawBalancePcs !== null ? Math.max(0, subSJ.rawBalancePcs) : 0,
+          sisaOsBerjalanKg: subSJ.rawBalanceKg !== null ? Math.max(0, subSJ.rawBalanceKg) : 0,
+          _rawBalancePcs: subSJ.rawBalancePcs,
+          _rawBalanceKg: subSJ.rawBalanceKg,
+        });
       }
 
       if (hasDeliveryRecord || getStr(r, 10).includes('P26') || getStr(r, 9).includes('P26')) {
@@ -615,16 +842,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     // 4. TAHAP PENUTUP (FALLBACK & SAVING DATA)
     else if (isTotal || valA.startsWith('I t e m')) {
       if (currentPO) {
-        if (!currentPO._has_delivery) {
-          currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
-          currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
-          currentPO['Terkirim (PCS)'] = 0;
-          currentPO['Terkirim (KG)'] = 0;
-        } else {
-          currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
-          currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
-        }
-        rowsData.push(currentPO);
+        rowsData.push(finalizeCurrentPO(currentPO));
         currentPO = null;
       }
     }
@@ -632,25 +850,12 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 
   // Mengamankan baris terakhir yang mungkin menggantung saat file habis terbaca
   if (currentPO) {
-    if (!currentPO._has_delivery) {
-      currentPO['Sisa OS (pcs)'] = currentPO['QTY PO (pcs)'];
-      currentPO['Sisa OS (kg)'] = currentPO['Berat PO (KG)'];
-      currentPO['Terkirim (PCS)'] = 0;
-      currentPO['Terkirim (KG)'] = 0;
-    } else {
-      currentPO['Terkirim (PCS)'] = Math.max(0, (currentPO['QTY PO (pcs)'] || 0) - (currentPO['Sisa OS (pcs)'] || 0));
-      currentPO['Terkirim (KG)'] = Math.max(0, (currentPO['Berat PO (KG)'] || 0) - (currentPO['Sisa OS (kg)'] || 0));
-    }
-    rowsData.push(currentPO);
+    rowsData.push(finalizeCurrentPO(currentPO));
   }
 
   // 5. TAHAP ALOKASI STOK BERURUTAN (FIFO / TOP-TO-BOTTOM ACCUMULATION PER ARTIKEL)
-  // Menghindari duplikasi stok untuk artikel/item yang sama dengan beberapa baris PO.
-  // KONDISIONAL FIFO: Jika Sisa OS under 51 pcs (< 51 pcs), PO tersebut diabaikan dari alokasi FIFO stok (Stock = 0).
   const allocated = recalculateFIFOStock(rowsData, 'ALL');
 
-  // Membersihkan metadata internal non-persistent sebelum dikembalikan
-  // (_parentIndex, _parentStockPcs, _parentStockKg tetap disimpan untuk dynamic recalculation saat user filter CO Open / Closed)
   return allocated.map((item, idx) => {
     const qtyPcs = item['QTY PO (pcs)'] || 0;
     const qtyKg = item['Berat PO (KG)'] || 0;
@@ -677,7 +882,7 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
       'Over Stock Gudang (KG)': overStockKg,
       'Over Kiriman (PCS)': overKirimanPcs,
       'Over Kiriman (KG)': overKirimanKg,
-      'Over Produksi (PCS)': overStockPcs, // backward-compatible alias
+      'Over Produksi (PCS)': overStockPcs,
       'Over Produksi (KG)': overStockKg,
       'Terkirim (PCS)': terkirimPcs,
       'Terkirim (KG)': terkirimKg,
@@ -688,15 +893,138 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
 }
 
 /**
- * Recalculates FIFO stock allocation for records dynamically based on the active CO scope:
- * - 'ALL' | 'STOCK_READY_ALL': Allocates warehouse stock across OPEN records (over stock is physical stock exceeding open POs).
- * - 'OPEN' | 'OPEN_ONLY' | 'STOCK_READY_OPEN': Allocates warehouse stock strictly across OPEN records.
- * - 'CLOSED' | 'CLOSED_ONLY' | 'STOCK_READY_CLOSED': Allocates warehouse stock strictly across CLOSED records in sequence.
- *
- * Rules:
- * 1. Under 51 pcs threshold: If Sisa OS < 51 pcs, stock is set to 0 and not deducted from warehouse inventory.
- * 2. Sequential FIFO allocation per parent item (_parentIndex).
- * 3. Over Stock Gudang is calculated exclusively from physical warehouse stock remaining after OPEN POs are fulfilled.
+ * Flattens ExtractedRecord[] into FlattenedDeliveryRow[] for Mode Detail Kiriman (Per Surat Jalan).
+ * Every PO with N deliveries produces N rows; a PO with 0 deliveries produces 1 fallback row with Sisa OS = QTY PO.
+ */
+export function flattenDeliveriesForDataEntry(
+  records: ExtractedRecord[],
+  scope: CoFilterStatus | DetailSJExportScope = 'ALL'
+): FlattenedDeliveryRow[] {
+  if (!records || records.length === 0) return [];
+
+  const fifoScope: CoFilterStatus =
+    scope === 'OPEN_ONLY' || scope === 'OPEN'
+      ? 'OPEN'
+      : scope === 'CLOSED_ONLY' || scope === 'CLOSED'
+      ? 'CLOSED'
+      : 'ALL';
+
+  const scopedRecords = recalculateFIFOStock(records, fifoScope);
+
+  const filteredPOs = scopedRecords.filter((po) => {
+    if (scope === 'OPEN_ONLY' || scope === 'OPEN') return po.coStatus === 'OPEN';
+    if (scope === 'CLOSED_ONLY' || scope === 'CLOSED') return po.coStatus === 'CLOSED';
+
+    const realDeliveries = (po.deliveries || []).filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-');
+    if (scope === 'WITH_DELIVERY_ONLY') {
+      return realDeliveries.length > 0;
+    }
+    if (scope === 'MULTI_DELIVERY_ONLY') {
+      return realDeliveries.length > 1;
+    }
+    if (scope === 'NO_DELIVERY_FALLBACK') {
+      return realDeliveries.length === 0;
+    }
+    if (scope === 'HAS_SISA_OS') {
+      return (po['Sisa OS (pcs)'] || 0) > 0 || (po['Sisa OS (kg)'] || 0) > 0;
+    }
+    return true;
+  });
+
+  const flatRows: FlattenedDeliveryRow[] = [];
+
+  filteredPOs.forEach((po, poIdx) => {
+    const qtyPoPcs = Number(po['QTY PO (pcs)']) || 0;
+    const beratPoKg = Number(po['Berat PO (KG)']) || 0;
+    const sisaAkhirPcs = Number(po['Sisa OS (pcs)']) || 0;
+    const sisaAkhirKg = Number(po['Sisa OS (kg)']) || 0;
+    const totalTerkirimPcs = Number(po['Terkirim (PCS)']) || 0;
+    const totalTerkirimKg = Number(po['Terkirim (KG)']) || 0;
+    const stockPcs = Number(po['Stock (pcs)']) || 0;
+    const stockKg = Number(po['Stock (kg)']) || 0;
+    const overStockPcs = Number(po['Over Stock Gudang (PCS)'] || po['Over Produksi (PCS)']) || 0;
+    const overStockKg = Number(po['Over Stock Gudang (KG)'] || po['Over Produksi (KG)']) || 0;
+    const overKirimanPcs = Number(po['Over Kiriman (PCS)']) || 0;
+    const overKirimanKg = Number(po['Over Kiriman (KG)']) || 0;
+    const harga = Number(po.Harga) || 0;
+    const poRecordId = po.id || `po_${poIdx + 1}`;
+
+    const rawDeliveries =
+      po.deliveries && po.deliveries.length > 0
+        ? po.deliveries
+        : [
+            {
+              sequence: 0,
+              noSJ: '-',
+              tanggalKirim: '-',
+              qtyKirimPcs: 0,
+              beratKirimKg: 0,
+              akumulasiKirimPcs: totalTerkirimPcs,
+              akumulasiKirimKg: totalTerkirimKg,
+              sisaOsBerjalanPcs: sisaAkhirPcs,
+              sisaOsBerjalanKg: sisaAkhirKg,
+              isFallbackNoDelivery: true,
+            },
+          ];
+
+    const realSJCount = rawDeliveries.filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-').length;
+
+    rawDeliveries.forEach((deliv, dIdx) => {
+      const isFallback = Boolean(deliv.isFallbackNoDelivery || deliv.noSJ === '-');
+      const isFirst = dIdx === 0;
+      const isLast = dIdx === rawDeliveries.length - 1;
+      const urutan = isFallback ? 0 : dIdx + 1;
+      const labelKiriman = isFallback
+        ? 'Belum Kirim'
+        : `Kiriman Ke-${urutan} (dari ${realSJCount})`;
+
+      flatRows.push({
+        id: `${poRecordId}_sj_${dIdx + 1}`,
+        poRecordId,
+        poIndex: poIdx + 1,
+        CO: po.CO || '-',
+        coStatus: po.coStatus || parseCoStatus(po.CO),
+        Artikel: po.Artikel || '-',
+        'Item Description': po['Item Description'] || '-',
+        'Tanggal Input PO': po['Tanggal Input PO'] || '-',
+        'No PO': po['No PO'] || '-',
+        Substance: po.Substance || '-',
+        'QTY PO (pcs)': qtyPoPcs,
+        'Berat PO (KG)': beratPoKg,
+        frekuensiKirim: realSJCount,
+        urutanKirim: urutan,
+        labelKiriman,
+        'No Surat Jalan (SJ)': deliv.noSJ || '-',
+        'Tanggal Kirim (SJ)': deliv.tanggalKirim || '-',
+        'QTY Kirim SJ (pcs)': Number(deliv.qtyKirimPcs) || 0,
+        'Berat Kirim SJ (KG)': Number(deliv.beratKirimKg) || 0,
+        'Akumulasi Terkirim (pcs)': Number(deliv.akumulasiKirimPcs) || 0,
+        'Akumulasi Terkirim (KG)': Number(deliv.akumulasiKirimKg) || 0,
+        'Sisa OS Berjalan (pcs)': Number(deliv.sisaOsBerjalanPcs) ?? sisaAkhirPcs,
+        'Sisa OS Berjalan (KG)': Number(deliv.sisaOsBerjalanKg) ?? sisaAkhirKg,
+        'Total Terkirim PO (pcs)': totalTerkirimPcs,
+        'Total Terkirim PO (KG)': totalTerkirimKg,
+        'Sisa OS Akhir PO (pcs)': sisaAkhirPcs,
+        'Sisa OS Akhir PO (KG)': sisaAkhirKg,
+        'Stock (pcs)': stockPcs,
+        'Stock (kg)': stockKg,
+        'Over Stock Gudang (PCS)': overStockPcs,
+        'Over Stock Gudang (KG)': overStockKg,
+        'Over Kiriman (PCS)': overKirimanPcs,
+        'Over Kiriman (KG)': overKirimanKg,
+        Harga: harga,
+        isFirstRowOfPO: isFirst,
+        isLastRowOfPO: isLast,
+        isFallbackNoDelivery: isFallback,
+      });
+    });
+  });
+
+  return flatRows;
+}
+
+/**
+ * Recalculates FIFO stock allocation for records dynamically based on the active CO scope
  */
 export function recalculateFIFOStock(
   records: ExtractedRecord[],
@@ -773,10 +1101,7 @@ export function recalculateFIFOStock(
     }
 
     // Over Stock Gudang (Physical Surplus) allocation:
-    // Sisa fisik gudang yang tidak terserap oleh PO OPEN (atau jika Sisa OS PO Open = 0)
-    // Khusus ditempatkan pada baris PO OPEN terakhir (atau group fallback jika belum ada)
     if (remPcs > 0 || remKg > 0) {
-      // Prioritaskan ke baris PO OPEN terakhir agar terlihat oleh sales
       const targetItem = lastOpenItem || lastEligibleItem || group[group.length - 1];
       targetItem['Over Stock Gudang (PCS)'] = (targetItem['Over Stock Gudang (PCS)'] || 0) + remPcs;
       targetItem['Over Stock Gudang (KG)'] = (targetItem['Over Stock Gudang (KG)'] || 0) + remKg;
@@ -816,8 +1141,21 @@ export function parseExcelBuffer(
 
   const finalData = extractDataWithPoQty(rawRows);
 
-  // Compute summary metrics
+  // Compute summary metrics (distinguishing Total Baris PO-Item vs Total Nomor PO Unik)
   const uniqueItems = new Set(finalData.map((d) => d.Artikel)).size;
+  const poCountMap = new Map<string, number>();
+  for (const d of finalData) {
+    const cleanNoPO = String(d['No PO'] || '').trim();
+    if (cleanNoPO && cleanNoPO !== '-') {
+      poCountMap.set(cleanNoPO, (poCountMap.get(cleanNoPO) || 0) + 1);
+    }
+  }
+  const totalUniquePONumbers = poCountMap.size > 0 ? poCountMap.size : finalData.length;
+  let totalMultiItemPONumbers = 0;
+  for (const [, count] of poCountMap) {
+    if (count > 1) totalMultiItemPONumbers++;
+  }
+
   const totalCOOpen = finalData.filter((d) => d.coStatus === 'OPEN').length;
   const totalCOClosed = finalData.filter((d) => d.coStatus === 'CLOSED').length;
   const totalQtyOrderPcs = finalData.reduce((sum, d) => sum + (d['QTY PO (pcs)'] || 0), 0);
@@ -837,6 +1175,18 @@ export function parseExcelBuffer(
   const totalOverKirimanKg = finalData.reduce((sum, d) => sum + (d['Over Kiriman (KG)'] || 0), 0);
   const totalOverKirimanPOs = finalData.filter((d) => (d['Over Kiriman (PCS)'] || 0) > 0 || (d['Over Kiriman (KG)'] || 0) > 0).length;
 
+  // Delivery SJ summary metrics
+  let totalDeliveriesCount = 0;
+  let totalPOsWithMultiDelivery = 0;
+  let totalPOsWithoutDelivery = 0;
+
+  for (const d of finalData) {
+    const realSJs = (d.deliveries || []).filter((sj) => !sj.isFallbackNoDelivery && sj.noSJ !== '-');
+    totalDeliveriesCount += realSJs.length;
+    if (realSJs.length > 1) totalPOsWithMultiDelivery++;
+    if (realSJs.length === 0) totalPOsWithoutDelivery++;
+  }
+
   const totalValue = finalData.reduce((sum, d) => sum + (d['Sisa OS (pcs)'] || 0) * (d.Harga || 0), 0);
 
   const itemsWithDelivery = finalData.filter((d) => d['Sisa OS (pcs)'] < d['QTY PO (pcs)']).length;
@@ -848,6 +1198,8 @@ export function parseExcelBuffer(
 
   const summary: ParseSummary = {
     totalPOs: finalData.length,
+    totalUniquePONumbers,
+    totalMultiItemPONumbers,
     totalUniqueItems: uniqueItems,
     totalCOOpen,
     totalCOClosed,
@@ -868,6 +1220,9 @@ export function parseExcelBuffer(
     totalOverProduksiPcs: totalOverStockGudangPcs,
     totalOverProduksiKg: totalOverStockGudangKg,
     totalOverProduksiPOs: totalOverStockGudangPOs,
+    totalDeliveriesCount,
+    totalPOsWithMultiDelivery,
+    totalPOsWithoutDelivery,
     totalValue,
     itemsWithDelivery,
     itemsWithoutDelivery,
@@ -881,3 +1236,4 @@ export function parseExcelBuffer(
 
   return { data: finalData, summary, workbook };
 }
+

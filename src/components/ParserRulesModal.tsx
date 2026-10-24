@@ -211,6 +211,39 @@ export const ParserRulesModal: React.FC<ParserRulesModalProps> = ({ isOpen, onCl
               <li><strong>Anomaly Prevention:</strong> Prevents non-data header text such as <code className="font-semibold text-[#1E2024]">C/O No. L S</code> from being mistakenly parsed as a new order.</li>
             </ul>
           </div>
+
+          {/* Stage 8: Mode 2 — Rekap Detail Kiriman per Surat Jalan (SJ) & Fallback */}
+          <div className="glass-card p-4 rounded-2xl border-2 border-[#EA5413]/30 bg-amber-50/30">
+            <div className="flex items-center gap-2 font-bold text-xs text-[#EA5413] mb-2">
+              <span className="w-5 h-5 rounded-full bg-[#EA5413] text-white flex items-center justify-center font-mono text-[11px]">
+                8
+              </span>
+              <span>Stage 8: Mode 2 — Rekap Detail Kiriman per Surat Jalan (SJ) &amp; Fallback Berjalan</span>
+            </div>
+            <p className="text-xs text-[#5C6068] leading-relaxed mb-2">
+              Mode terpisah dari Konversi Normal yang mengekstrak seluruh riwayat pengiriman (<code className="font-semibold text-[#1E2024]">Surat Jalan / SJ</code>) secara berurutan pada setiap PO dan setiap Artikel:
+            </p>
+            <ul className="text-xs text-[#1E2024]/90 space-y-1.5 list-disc pl-5">
+              <li>
+                <strong>Ekstraksi SJ Baris Pertama &amp; Sub-Baris:</strong> Menangkap <code className="font-semibold text-[#1E2024]">SJ #1</code> yang sejajar pada baris PO (<code className="font-semibold text-[#1E2024]">Col 10=No SJ, Col 11=Tgl Kirim, Col 12=QTY Kirim PCS, Col 13=Berat Kirim KG, Col 14=Sisa OS PCS, Col 15=Sisa OS KG</code>) serta <code className="font-semibold text-[#1E2024]">SJ #2, #3, dst.</code> pada baris sub-child di bawahnya.
+              </li>
+              <li>
+                <strong>Contoh Presisi (SH-D009-00253-A — PO/BB/2026/10/0231, QTY PO 6.100):</strong>
+                <span className="block font-mono text-[11px] bg-white/80 p-2 rounded-lg border border-zinc-200 mt-1 text-zinc-800">
+                  • SJ #1: P26102464 | Tgl: 19/10/2026 | Kirim: 3.600 PCS (956 KG) | Sisa Berjalan: 2.500 PCS<br />
+                  • SJ #2: P26102595 | Tgl: 20/10/2026 | Kirim: 762 PCS (202 KG) | Sisa Berjalan: 1.738 PCS<br />
+                  • SJ #3: P26102784 | Tgl: 21/10/2026 | Kirim: 1.190 PCS (316 KG) | Sisa Berjalan: 548 PCS<br />
+                  &rarr; Total Terkirim: 5.552 PCS (1.474 KG) | Sisa OS Akhir: 548 PCS (145 KG)
+                </span>
+              </li>
+              <li>
+                <strong>Fallback Otomatis (0 Kiriman):</strong> Apabila suatu PO belum memiliki Surat Jalan (misal <code className="font-semibold text-[#1E2024]">SH-D009-00100-A</code>, QTY PO <code className="font-semibold text-[#1E2024]">4.400</code>), sistem otomatis membuat baris fallback <code className="font-semibold text-amber-700">BELUM KIRIM</code> dengan <code className="font-semibold text-[#1E2024]">Sisa OS Akhir = 4.400 PCS (460 KG)</code>.
+              </li>
+              <li>
+                <strong>Output Excel 4-Sheet Standar Data Entry Profesional:</strong> Menghasilkan file Excel berisi (1) <em>Detail Kiriman SJ</em>, (2) <em>Grup PO &amp; Sub-Total OS</em>, (3) <em>Database Flat SJ (Siap Pivot/VLOOKUP)</em>, dan (4) <em>Matriks Horizontal SJ 1..N</em>.
+              </li>
+            </ul>
+          </div>
         </div>
 
         {/* Footer */}

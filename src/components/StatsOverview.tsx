@@ -55,24 +55,40 @@ export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
       id="stats-overview-grid"
       className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3.5"
     >
-      {/* 1. Total PO */}
+      {/* 1. Total PO (Menampilkan 2 Kondisi: No. PO Unik & Baris PO-Item) */}
       <div
         id="stat-card-total-pos"
         className="glass-panel rounded-2xl p-3.5 sm:p-4 flex flex-col justify-between min-h-[142px] sm:min-h-[150px] transition-all hover:bg-white/85 shadow-2xs"
       >
         <div className="flex items-center justify-between text-[#5C6068] mb-1.5">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">{t.totalPoCard}</span>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-500 truncate">
+            Total PO & Baris Item
+          </span>
           <div className="w-7 h-7 rounded-lg bg-zinc-100/90 border border-zinc-200/50 flex items-center justify-center text-zinc-600 shrink-0">
             <ShoppingBag className="w-3.5 h-3.5" />
           </div>
         </div>
         <div>
-          <div className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none">
-            {summary.totalPOs.toLocaleString('id-ID')}
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <span
+              className="text-2xl sm:text-3xl font-black font-mono text-[#1E2024] tracking-tight leading-none"
+              title="Jumlah Nomor Dokumen PO Unik (Deduplikasi No. PO)"
+            >
+              {(summary.totalUniquePONumbers || summary.totalPOs).toLocaleString('id-ID')}
+            </span>
+            <span className="text-[11px] font-bold font-mono text-[#19719C]">PO Unik</span>
+            <span className="text-xs font-mono text-zinc-400">/</span>
+            <span
+              className="text-sm font-extrabold font-mono text-zinc-700"
+              title="Total Baris PO berdasarkan Item/Artikel"
+            >
+              {summary.totalPOs.toLocaleString('id-ID')} Item
+            </span>
           </div>
           <div className="mt-2.5 pt-2 border-t border-zinc-200/50 flex flex-col gap-1">
-            <div className="text-[11px] font-mono text-[#5C6068] truncate">
-              {summary.totalUniqueItems || summary.totalPOs} unique
+            <div className="text-[10px] font-mono text-[#5C6068] truncate">
+              {summary.totalUniqueItems || summary.totalPOs} Artikel •{' '}
+              {summary.totalMultiItemPONumbers || 0} PO Multi-Item
             </div>
             <div className="flex items-center gap-1.5 flex-nowrap overflow-x-auto no-scrollbar">
               <span

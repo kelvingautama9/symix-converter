@@ -101,10 +101,20 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               className="w-full appearance-none bg-white/80 hover:bg-white/95 border border-white/90 rounded-full px-4 py-2 pr-9 text-xs font-semibold text-[#1E2024] focus:outline-none focus:ring-2 focus:ring-[#FF7B35]/40 cursor-pointer shadow-sm truncate transition-all"
             >
               {files.map((file, idx) => {
-                const poCount = file.data ? file.data.length : 0;
+                const poItemCount = file.data ? file.data.length : 0;
+                const uniquePoCount =
+                  file.summary?.totalUniquePONumbers ||
+                  (file.data
+                    ? new Set(
+                        file.data
+                          .map((r: any) => String(r['No PO'] || '').trim())
+                          .filter((po: string) => po && po !== '-')
+                      ).size
+                    : 0) ||
+                  poItemCount;
                 return (
                   <option key={file.id} value={file.id} className="bg-white text-[#1E2024]">
-                    {idx + 1}. {file.rawFileName} ({poCount} {t.unitPo})
+                    {idx + 1}. {file.rawFileName} ({uniquePoCount} PO Unik / {poItemCount} Baris Item)
                   </option>
                 );
               })}

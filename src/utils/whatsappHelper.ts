@@ -1,4 +1,4 @@
-import { ExtractedRecord, WhatsAppReportScope } from '../types';
+import { ExtractedRecord, WhatsAppReportScope, DetailSJExportScope } from '../types';
 import { recalculateFIFOStock } from './parserEngine';
 
 /**
@@ -121,10 +121,7 @@ export function formatTonAndKg(totalKg: number): string {
 }
 
 /**
- * Resolves customer name or clean file name without extension, e.g.:
- * - "DwiGlobal.xls" -> "DwiGlobal"
- * - "PT_Dwi_Global.xlsx" -> "PT_Dwi_Global"
- * - records[0].Customer -> customer code / name
+ * Resolves customer name or clean file name without extension
  */
 export function extractCustomerBadge(
   fileName?: string | null,
@@ -150,13 +147,7 @@ export function extractCustomerBadge(
 }
 
 /**
- * Generates clean, WhatsApp-native report text strictly matching the user's template:
- *
- * *Update Stok Gudang Over PO :*
- * `DwiGlobal`
- * > (6491)-(Art 481) 590X995 = +200 (39kg)
- *
- * total = 0.2 ton (260kg)
+ * Generates clean, WhatsApp-native report text strictly matching the user's template (Normal Mode)
  */
 export function generateWhatsAppSummary(
   data: ExtractedRecord[],
@@ -272,12 +263,10 @@ export function generateWhatsAppSummary(
       }
 
       totalKg += stockKg;
-      // Format: > (8420)-(Art 607) 1157X529 = 1000 (567kg)
       lines.push(`> (${coShort})-(${artShort}) ${ukuran} = ${stockPcs} (${stockKg}kg)`);
     } else {
-      // Sisa OS format: > (8420)-(Art 607) 1157X529 = 1000 (567kg)
       const sisaPcs = Math.round(item['Sisa OS (pcs)'] || 0);
-      let sisaKg = Math.round(item['Sisa OS (kg)'] || item['Berat Sisa OS (kg)'] || 0);
+      let sisaKg = Math.round(item['Sisa OS (kg)'] || 0);
       if (sisaKg === 0 && sisaPcs > 0 && (item['QTY PO (pcs)'] || 0) > 0 && (item['Berat PO (KG)'] || 0) > 0) {
         sisaKg = Math.round((sisaPcs / item['QTY PO (pcs)']) * item['Berat PO (KG)']);
       }
@@ -289,6 +278,95 @@ export function generateWhatsAppSummary(
   // Empty line before total summary
   lines.push('');
   lines.push(formatTonAndKg(totalKg));
+
+  return lines.join('\n');
+}
+
+/**
+ * Generates structured WhatsApp text summary for Mode Detail Kiriman (Per Surat Jalan / SJ)
+ */
+export function generateDetailSJWhatsAppSummary(
+  data: ExtractedRecord[],
+  scope: DetailSJExportScope = 'ALL',
+  fileName?: string | null
+): string {
+  if (!data || data.length === 0) {
+    return '*Rekap Detail Kiriman (SJ) :*\nTidak ada data untuk ditampilkan.';
+  }
+
+  const fifoScope =
+    scope === 'OPEN_ONLY' ? 'OPEN' : scope === 'CLOSED_ONLY' ? 'CLOSED' : 'ALL';
+  const scopedData = recalculateFIFOStock(data, fifoScope);
+
+  const filtered = scopedData.filter((po) => {
+    if (scope === 'OPEN_ONLY') return po.coStatus === 'OPEN';
+    if (scope === 'CLOSED_ONLY') return po.coStatus === 'CLOSED';
+    const realSJs = (po.deliveries || []).filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-');
+    if (scope === 'WITH_DELIVERY_ONLY') return realSJs.length > 0;
+    if (scope === 'MULTI_DELIVERY_ONLY') return realSJs.length > 1;
+    if (scope === 'NO_DELIVERY_FALLBACK') return realSJs.length === 0;
+    if (scope === 'HAS_SISA_OS') return (po['Sisa OS (pcs)'] || 0) > 0;
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    return '*Rekap Detail Kiriman (SJ) :*\nTidak ada item pada kategori ini.';
+  }
+
+  const lines: string[] = ['*Rekap Detail Kiriman (SJ) & Sisa OS :*'];
+  const customerBadge = extractCustomerBadge(fileName, filtered);
+  if (customerBadge) {
+    lines.push(`\`${customerBadge}\``);
+  }
+  lines.push('');
+
+  let grandTotalOrderPcs = 0;
+  let grandTotalTerkirimPcs = 0;
+  let grandTotalSisaPcs = 0;
+  let grandTotalSisaKg = 0;
+
+  filtered.forEach((po, idx) => {
+    const qtyPo = Math.round(po['QTY PO (pcs)'] || 0);
+    const terkirimPo = Math.round(po['Terkirim (PCS)'] || 0);
+    const sisaPo = Math.round(po['Sisa OS (pcs)'] || 0);
+    const sisaKg = Math.round(po['Sisa OS (kg)'] || 0);
+
+    grandTotalOrderPcs += qtyPo;
+    grandTotalTerkirimPcs += terkirimPo;
+    grandTotalSisaPcs += sisaPo;
+    grandTotalSisaKg += sisaKg;
+
+    const realSJs = (po.deliveries || []).filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-');
+
+    lines.push(
+      `*${idx + 1}. ${po.Artikel}* (${formatUkuran(po['Item Description'] || '')})`
+    );
+    lines.push(`   PO: \`${po['No PO']}\` | CO: \`${po.CO}\``);
+    lines.push(`   QTY PO: *${qtyPo.toLocaleString('id-ID')} pcs*`);
+
+    if (realSJs.length === 0) {
+      lines.push(`   • _Belum ada kiriman SJ (Fallback Sisa OS)_`);
+    } else {
+      lines.push(`   • Total Kiriman: *${realSJs.length}x SJ* (${terkirimPo.toLocaleString('id-ID')} pcs):`);
+      realSJs.forEach((sj, sjIdx) => {
+        lines.push(
+          `     ${sjIdx + 1}) SJ \`${sj.noSJ}\` (${sj.tanggalKirim}) = *${sj.qtyKirimPcs.toLocaleString('id-ID')} pcs* (Sisa: ${sj.sisaOsBerjalanPcs.toLocaleString('id-ID')})`
+        );
+      });
+    }
+
+    lines.push(
+      `   ↳ *Sisa OS Akhir: ${sisaPo.toLocaleString('id-ID')} pcs (${sisaKg.toLocaleString('id-ID')} kg)*`
+    );
+    lines.push('');
+  });
+
+  lines.push('──────────────────────');
+  lines.push(`Total QTY PO: *${grandTotalOrderPcs.toLocaleString('id-ID')} pcs*`);
+  lines.push(`Total Terkirim: *${grandTotalTerkirimPcs.toLocaleString('id-ID')} pcs*`);
+  lines.push(
+    `Total Sisa OS: *${grandTotalSisaPcs.toLocaleString('id-ID')} pcs* (${grandTotalSisaKg.toLocaleString('id-ID')} kg)`
+  );
 
   return lines.join('\n');
 }
@@ -338,4 +416,9 @@ export function shareToWhatsApp(
   window.open(waUrl, '_blank', 'noopener,noreferrer');
 }
 
-export { shareExcelFileToWhatsApp, type ShareExcelResult } from './excelExporter';
+export {
+  shareExcelFileToWhatsApp,
+  shareDetailSJExcelFileToWhatsApp,
+  type ShareExcelResult,
+} from './excelExporter';
+

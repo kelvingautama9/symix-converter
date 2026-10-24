@@ -1,5 +1,22 @@
-// BlackEYE Data Types: Standard 15-Column Schema
+// BlackEYE Data Types: Standard 15-Column Schema & Detailed SJ Delivery Schema
 export type CoStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
+
+export type ConversionMode = 'NORMAL' | 'DETAIL_SJ';
+
+export interface DeliveryRecord {
+  sequence: number; // 1, 2, 3... (0 if fallback no delivery)
+  noSJ: string; // e.g., "P26102464", or "-" if no delivery
+  tanggalKirim: string; // e.g., "19/10/2026", or "-" if no delivery
+  qtyKirimPcs: number; // e.g., 3600
+  beratKirimKg: number; // e.g., 956
+  akumulasiKirimPcs: number; // e.g., 3600 -> 4362 -> 5552
+  akumulasiKirimKg: number; // e.g., 956 -> 1158 -> 1474
+  sisaOsBerjalanPcs: number; // e.g., 2500 -> 1738 -> 548 (or QTY PO if no delivery)
+  sisaOsBerjalanKg: number; // e.g., 664 -> 461 -> 145 (or Berat PO if no delivery)
+  isFallbackNoDelivery?: boolean;
+  _rawBalancePcs?: number | null;
+  _rawBalanceKg?: number | null;
+}
 
 export interface ExtractedRecord {
   id?: string;
@@ -25,14 +42,58 @@ export interface ExtractedRecord {
   'Over Produksi (PCS)'?: number;
   'Over Produksi (KG)'?: number;
   Harga: number;
+  scheduleDate?: string;
+  deliveries?: DeliveryRecord[];
   _has_delivery?: boolean;
   _parentIndex?: number;
   _parentStockPcs?: number;
   _parentStockKg?: number;
 }
 
+export interface FlattenedDeliveryRow {
+  id: string;
+  poRecordId: string;
+  poIndex: number; // 1-based PO index
+  CO: string;
+  coStatus: CoStatus;
+  Artikel: string;
+  'Item Description': string;
+  'Tanggal Input PO': string;
+  'No PO': string;
+  Substance: string;
+  'QTY PO (pcs)': number;
+  'Berat PO (KG)': number;
+  frekuensiKirim: number; // 0 if no delivery, else count of SJ
+  urutanKirim: number; // 0 if no delivery, else 1..N
+  labelKiriman: string; // e.g. "Kiriman Ke-1 (dari 3)" or "Belum Kirim"
+  'No Surat Jalan (SJ)': string;
+  'Tanggal Kirim (SJ)': string;
+  'QTY Kirim SJ (pcs)': number;
+  'Berat Kirim SJ (KG)': number;
+  'Akumulasi Terkirim (pcs)': number;
+  'Akumulasi Terkirim (KG)': number;
+  'Sisa OS Berjalan (pcs)': number;
+  'Sisa OS Berjalan (KG)': number;
+  'Total Terkirim PO (pcs)': number;
+  'Total Terkirim PO (KG)': number;
+  'Sisa OS Akhir PO (pcs)': number;
+  'Sisa OS Akhir PO (KG)': number;
+  'Stock (pcs)': number;
+  'Stock (kg)': number;
+  'Over Stock Gudang (PCS)': number;
+  'Over Stock Gudang (KG)': number;
+  'Over Kiriman (PCS)': number;
+  'Over Kiriman (KG)': number;
+  Harga: number;
+  isFirstRowOfPO: boolean;
+  isLastRowOfPO: boolean;
+  isFallbackNoDelivery: boolean;
+}
+
 export interface ParseSummary {
-  totalPOs: number;
+  totalPOs: number; // Total baris PO-Item (e.g. 23 baris)
+  totalUniquePONumbers?: number; // Total nomor dokumen PO unik (e.g. 18 No PO)
+  totalMultiItemPONumbers?: number; // Jumlah No PO yang memiliki > 1 item/artikel
   totalUniqueItems: number;
   totalCOOpen: number;
   totalCOClosed: number;
@@ -53,6 +114,9 @@ export interface ParseSummary {
   totalOverProduksiPcs?: number;
   totalOverProduksiKg?: number;
   totalOverProduksiPOs?: number;
+  totalDeliveriesCount?: number;
+  totalPOsWithMultiDelivery?: number;
+  totalPOsWithoutDelivery?: number;
   totalValue: number;
   itemsWithDelivery: number;
   itemsWithoutDelivery: number;
@@ -84,6 +148,15 @@ export type ExcelExportScope =
   | 'OVER_STOCK_GUDANG'
   | 'OVER_KIRIMAN'
   | 'OVER_PRODUCTION_ONLY';
+
+export type DetailSJExportScope =
+  | 'ALL'
+  | 'OPEN_ONLY'
+  | 'CLOSED_ONLY'
+  | 'WITH_DELIVERY_ONLY'
+  | 'MULTI_DELIVERY_ONLY'
+  | 'NO_DELIVERY_FALLBACK'
+  | 'HAS_SISA_OS';
 
 export type WhatsAppReportScope =
   | 'ALL'
@@ -127,4 +200,5 @@ export interface BatchAggregateStats {
   totalCOOpen: number;
   totalCOClosed: number;
 }
+
 

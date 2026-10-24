@@ -6,14 +6,29 @@ import {
   ExcelExportScope,
   WhatsAppReportScope,
   BatchFileItem,
+  ConversionMode,
+  DetailSJExportScope,
 } from './types';
 import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
-import { exportToExcel, shareExcelFileToWhatsApp, getExportFileName } from './utils/excelExporter';
-import { generateWhatsAppSummary, copyToClipboard } from './utils/whatsappHelper';
+import {
+  exportToExcel,
+  shareExcelFileToWhatsApp,
+  getExportFileName,
+  exportDetailSJToExcel,
+  shareDetailSJExcelFileToWhatsApp,
+  getDetailSJExportFileName,
+} from './utils/excelExporter';
+import {
+  generateWhatsAppSummary,
+  generateDetailSJWhatsAppSummary,
+  copyToClipboard,
+} from './utils/whatsappHelper';
 import {
   convertSingleRawFile,
   downloadAllAsZip,
   exportCombinedMasterWorkbook,
+  downloadAllDetailSJAsZip,
+  exportCombinedDetailSJMasterWorkbook,
 } from './utils/batchConverter';
 import { haptic } from './utils/haptics';
 import { UploadDualContainer } from './components/UploadDualContainer';
@@ -22,6 +37,7 @@ import { StatsOverview } from './components/StatsOverview';
 import { DeliveryPieChart } from './components/DeliveryPieChart';
 import { ActionToolbar } from './components/ActionToolbar';
 import { DataTable } from './components/DataTable';
+import { DetailDeliveryView } from './components/DetailDeliveryView';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { ParserRulesModal } from './components/ParserRulesModal';
 import { AIChatDrawer } from './components/AIChatDrawer';
@@ -36,11 +52,17 @@ import {
   RefreshCw,
   Layers,
   X,
+  Truck,
+  BookOpen,
+  Bot,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
 export default function App() {
   const { t } = useLanguage();
+  // Active Conversion Mode ('NORMAL' = Mode 1 Rekap Total per PO, 'DETAIL_SJ' = Mode 2 Rekap Detail Kiriman per Surat Jalan)
+  const [conversionMode, setConversionMode] = useState<ConversionMode>('NORMAL');
+
   // All converted files state
   const [convertedFiles, setConvertedFiles] = useState<ConvertedFileItem[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
@@ -77,6 +99,7 @@ export default function App() {
   const [isRulesModalOpen, setIsRulesModalOpen] = useState(false);
   const [isAIChatOpen, setIsAIChatOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [isDetailSJCopied, setIsDetailSJCopied] = useState(false);
 
   // Active file derived state
   const activeFile = useMemo(() => {
@@ -90,6 +113,19 @@ export default function App() {
     () => activeFile?.rawFileName || null,
     [activeFile]
   );
+
+  // Compute total Surat Jalan logs across active file for badge display
+  const totalDeliveryLogsInActiveFile = useMemo(() => {
+    if (!data || data.length === 0) return 0;
+    return data.reduce(
+      (acc, r) =>
+        acc +
+        (r.deliveries
+          ? r.deliveries.filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-').length
+          : 0),
+      0
+    );
+  }, [data]);
 
   // Compute FIFO Stock ready counts for action toolbar
   const totalStockReadyAll = useMemo(() => {
@@ -151,7 +187,19 @@ export default function App() {
       const converted = await processRawFile(file);
       setConvertedFiles([converted]);
       setActiveFileId(converted.id);
-      setStatusMessage(`File ${file.name} berhasil dikonversi (${converted.data.length} PO).`);
+      const totalSJ = converted.data.reduce(
+        (acc, r) =>
+          acc +
+          (r.deliveries
+            ? r.deliveries.filter((d) => !d.isFallbackNoDelivery && d.noSJ !== '-').length
+            : 0),
+        0
+      );
+      setStatusMessage(
+        conversionMode === 'DETAIL_SJ'
+          ? `File ${file.name} berhasil dikonversi (${converted.data.length} PO • ${totalSJ} Surat Jalan).`
+          : `File ${file.name} berhasil dikonversi (${converted.data.length} PO).`
+      );
       haptic.success();
       confetti({
         particleCount: 50,
@@ -269,7 +317,7 @@ export default function App() {
     }, 80);
   };
 
-  // Download active file Excel
+  // Download active file Excel (Normal Mode)
   const handleDownloadExcel = (scope: ExcelExportScope = 'ALL') => {
     if (!data || data.length === 0 || !currentFileName) return;
     haptic.success();
@@ -277,7 +325,16 @@ export default function App() {
     exportToExcel(data, filename, scope);
   };
 
-  // Download all converted files as a single ZIP archive
+  // Download active file Excel (Detail SJ Mode)
+  const handleDownloadDetailSJExcel = (scope: DetailSJExportScope = 'ALL') => {
+    if (!data || data.length === 0 || !currentFileName) return;
+    haptic.success();
+    const filename = getDetailSJExportFileName(currentFileName, scope);
+    exportDetailSJToExcel(data, filename, scope);
+    setStatusMessage(`File Excel Detail Kiriman SJ (${filename}) berhasil diunduh.`);
+  };
+
+  // Download all converted files as a single ZIP archive (respects active conversionMode)
   const handleDownloadAllZip = async () => {
     if (convertedFiles.length === 0) return;
     setIsZipping(true);
@@ -293,7 +350,11 @@ export default function App() {
         excelBlob: f.excelBlob,
         outputFileName: f.outputFileName,
       }));
-      await downloadAllAsZip(items);
+      if (conversionMode === 'DETAIL_SJ') {
+        await downloadAllDetailSJAsZip(items, 'ALL');
+      } else {
+        await downloadAllAsZip(items);
+      }
       haptic.success();
       confetti({
         particleCount: 50,
@@ -301,7 +362,11 @@ export default function App() {
         origin: { y: 0.7 },
         colors: ['#25D366', '#FF6B35', '#141414'],
       });
-      setStatusMessage(`Berhasil mengunduh zip untuk ${convertedFiles.length} file.`);
+      setStatusMessage(
+        conversionMode === 'DETAIL_SJ'
+          ? `Berhasil mengunduh ZIP Rekap Detail SJ untuk ${convertedFiles.length} file.`
+          : `Berhasil mengunduh zip untuk ${convertedFiles.length} file.`
+      );
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
       console.error('Error downloading zip:', err);
@@ -312,7 +377,7 @@ export default function App() {
     }
   };
 
-  // Download master consolidated workbook with all files
+  // Download master consolidated workbook with all files (respects active conversionMode)
   const handleDownloadMasterCombined = () => {
     if (convertedFiles.length === 0) return;
     setIsMerging(true);
@@ -328,7 +393,11 @@ export default function App() {
         excelBlob: f.excelBlob,
         outputFileName: f.outputFileName,
       }));
-      exportCombinedMasterWorkbook(items);
+      if (conversionMode === 'DETAIL_SJ') {
+        exportCombinedDetailSJMasterWorkbook(items, 'ALL');
+      } else {
+        exportCombinedMasterWorkbook(items);
+      }
       haptic.success();
       confetti({
         particleCount: 50,
@@ -336,7 +405,11 @@ export default function App() {
         origin: { y: 0.7 },
         colors: ['#10b981', '#FF6B35', '#141414'],
       });
-      setStatusMessage('Berhasil membuat Master Excel Gabungan.');
+      setStatusMessage(
+        conversionMode === 'DETAIL_SJ'
+          ? 'Berhasil membuat Master Excel Gabungan Detail Kiriman SJ.'
+          : 'Berhasil membuat Master Excel Gabungan.'
+      );
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
       console.error('Error combining master workbook:', err);
@@ -347,7 +420,7 @@ export default function App() {
     }
   };
 
-  // Share active file via WhatsApp
+  // Share active file via WhatsApp (Normal Mode)
   const handleShareExcelWhatsApp = async (scope: ExcelExportScope = 'ALL') => {
     if (!data || data.length === 0 || !currentFileName) return;
     haptic.medium();
@@ -374,6 +447,33 @@ export default function App() {
     }
   };
 
+  // Share active file via WhatsApp (Detail SJ Mode)
+  const handleShareDetailSJExcelWhatsApp = async (scope: DetailSJExportScope = 'ALL') => {
+    if (!data || data.length === 0 || !currentFileName) return;
+    haptic.medium();
+    try {
+      const filename = getDetailSJExportFileName(currentFileName, scope);
+      const result = await shareDetailSJExcelFileToWhatsApp(data, scope, filename);
+      if (result.success) {
+        haptic.success();
+        confetti({
+          particleCount: 40,
+          spread: 50,
+          origin: { y: 0.8 },
+          colors: ['#128C7E', '#25D366', '#FF6B35', '#141414'],
+        });
+        setStatusMessage(result.message);
+        setTimeout(() => setStatusMessage(null), 5000);
+      } else if (result.method !== 'cancelled') {
+        setStatusMessage(result.message);
+      }
+    } catch (err: any) {
+      console.error('Error sharing Detail SJ Excel via WhatsApp:', err);
+      haptic.error();
+      setErrorMessage(err?.message || 'Gagal membagikan file Detail SJ via WhatsApp.');
+    }
+  };
+
   // Open WhatsApp report modal
   const handleOpenWhatsApp = (
     scope: WhatsAppReportScope = 'ALL',
@@ -386,7 +486,7 @@ export default function App() {
     setIsWAModalOpen(true);
   };
 
-  // Copy WhatsApp summary text
+  // Copy WhatsApp summary text (Normal Mode)
   const handleCopyWhatsAppText = async (scope: WhatsAppReportScope = 'ALL') => {
     if (!data || data.length === 0) return;
     haptic.light();
@@ -396,6 +496,20 @@ export default function App() {
       haptic.success();
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
+    }
+  };
+
+  // Copy WhatsApp summary text (Detail SJ Mode)
+  const handleCopyDetailSJWhatsAppText = async (scope: DetailSJExportScope = 'ALL') => {
+    if (!data || data.length === 0) return;
+    haptic.light();
+    const text = generateDetailSJWhatsAppSummary(data, scope, currentFileName);
+    const success = await copyToClipboard(text);
+    if (success) {
+      haptic.success();
+      setIsDetailSJCopied(true);
+      setStatusMessage('Teks laporan Detail Kiriman SJ berhasil disalin ke clipboard.');
+      setTimeout(() => setIsDetailSJCopied(false), 2000);
     }
   };
 
@@ -445,7 +559,143 @@ export default function App() {
       {/* Main Container */}
       <main className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-4 sm:space-y-5">
         {/* ============================================================== */}
-        {/* 1. INITIAL STATE: DUAL UPLOAD CONTAINERS (Standard 15-Column) */}
+        {/* 0. DUAL CONVERSION MODE SWITCHER BAR (NORMAL vs DETAIL SJ)     */}
+        {/* ============================================================== */}
+        <div className="p-3 sm:p-4 glass-panel rounded-3xl border border-white/80 shadow-xs">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5">
+              <div
+                className={`w-9 h-9 rounded-2xl flex items-center justify-center shrink-0 shadow-xs transition-colors ${
+                  conversionMode === 'DETAIL_SJ'
+                    ? 'bg-[#EA5413] text-white'
+                    : 'bg-[#17191D] text-white'
+                }`}
+              >
+                {conversionMode === 'DETAIL_SJ' ? (
+                  <Truck className="w-4 h-4" />
+                ) : (
+                  <Layers className="w-4 h-4" />
+                )}
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs font-extrabold uppercase tracking-wider text-[#17191D]">
+                    Pilih Mode Perekapan Konversi ERP
+                  </span>
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                      conversionMode === 'DETAIL_SJ'
+                        ? 'bg-orange-100 text-[#EA5413] border border-orange-300/70'
+                        : 'bg-zinc-200/80 text-zinc-800 border border-zinc-300'
+                    }`}
+                  >
+                    {conversionMode === 'DETAIL_SJ'
+                      ? 'Mode 2 Aktif: Detail per Surat Jalan (SJ)'
+                      : 'Mode 1 Aktif: Konversi Normal (Total per PO)'}
+                  </span>
+                </div>
+                <p className="text-[11px] text-[#5C6068] mt-0.5">
+                  {conversionMode === 'DETAIL_SJ'
+                    ? 'Menampilkan rincian setiap pengiriman berdasarkan No Surat Jalan (SJ), Tanggal Kirim, QTY Kirim, Sisa OS Berjalan, serta Fallback otomatis PO belum kirim.'
+                    : 'Menampilkan rekapitulasi konversi normal 15 kolom per Nomor PO beserta alokasi stok gudang FIFO (< 51 pcs threshold).'}
+                </p>
+              </div>
+            </div>
+
+            {/* Mode Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 shrink-0">
+              <button
+                type="button"
+                id="btn-mode-normal"
+                onClick={() => {
+                  haptic.selection();
+                  setConversionMode('NORMAL');
+                  setStatusMessage('Beralih ke Mode 1: Konversi Normal (Rekap Total per PO)');
+                }}
+                className={`px-4 py-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center gap-3 border ${
+                  conversionMode === 'NORMAL'
+                    ? 'bg-[#17191D] text-white border-[#17191D] shadow-sm'
+                    : 'bg-white/80 hover:bg-white text-[#17191D] border-zinc-200/90'
+                }`}
+              >
+                <div
+                  className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-bold ${
+                    conversionMode === 'NORMAL'
+                      ? 'bg-white/15 text-emerald-400'
+                      : 'bg-zinc-100 text-zinc-700'
+                  }`}
+                >
+                  1
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold leading-tight truncate">
+                    Mode 1: Konversi Normal
+                  </div>
+                  <div
+                    className={`text-[10px] truncate mt-0.5 ${
+                      conversionMode === 'NORMAL' ? 'text-zinc-300' : 'text-[#5C6068]'
+                    }`}
+                  >
+                    Rekap Total Kiriman &amp; Sisa OS per PO
+                  </div>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                id="btn-mode-detail-sj"
+                onClick={() => {
+                  haptic.selection();
+                  setConversionMode('DETAIL_SJ');
+                  setStatusMessage(
+                    'Beralih ke Mode 2: Rekap Detail Kiriman (Per No Surat Jalan / SJ)'
+                  );
+                }}
+                className={`px-4 py-2.5 rounded-2xl text-left transition-all cursor-pointer flex items-center gap-3 border ${
+                  conversionMode === 'DETAIL_SJ'
+                    ? 'bg-[#EA5413] text-white border-[#EA5413] shadow-sm'
+                    : 'bg-white/80 hover:bg-white text-[#17191D] border-zinc-200/90'
+                }`}
+              >
+                <div
+                  className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 font-mono text-xs font-bold ${
+                    conversionMode === 'DETAIL_SJ'
+                      ? 'bg-white/20 text-white'
+                      : 'bg-orange-50 text-[#EA5413] border border-orange-200/60'
+                  }`}
+                >
+                  2
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold leading-tight flex items-center gap-1.5">
+                    <span>Mode 2: Detail Kiriman (SJ)</span>
+                    {convertedFiles.length > 0 && totalDeliveryLogsInActiveFile > 0 && (
+                      <span
+                        className={`px-1.5 py-0.2 rounded text-[10px] font-mono ${
+                          conversionMode === 'DETAIL_SJ'
+                            ? 'bg-white/25 text-white'
+                            : 'bg-orange-100 text-[#EA5413]'
+                        }`}
+                      >
+                        {totalDeliveryLogsInActiveFile} SJ
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    className={`text-[10px] truncate mt-0.5 ${
+                      conversionMode === 'DETAIL_SJ' ? 'text-orange-100' : 'text-[#5C6068]'
+                    }`}
+                  >
+                    No SJ • Tgl Kirim • QTY Kirim • Fallback OS
+                  </div>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* 1. INITIAL STATE: DUAL UPLOAD CONTAINERS                       */}
         {/* ============================================================== */}
         {convertedFiles.length === 0 && (
           <div className="space-y-4">
@@ -458,50 +708,96 @@ export default function App() {
               errorMessage={errorMessage}
             />
 
-            {/* Quick Specifications Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-              <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            {/* Quick Specifications Cards (Dynamic according to selected mode) */}
+            {conversionMode === 'NORMAL' ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1E2024]">
+                      Mode 1: Convert Normal 15 Kolom
+                    </h4>
+                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                      Menyusun data mentah dari ERP ke dalam format file Excel 15 kolom standar per Nomor PO secara otomatis.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1E2024]">
-                    Convert ke Excel Otomatis
-                  </h4>
-                  <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                    Menyusun data mentah dari ERP ke dalam format file excel yang terusun rapi dan akurat secara otomatis
-                  </p>
-                </div>
-              </div>
 
-              <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#EA5413] text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Cpu className="w-4 h-4 text-white" />
+                <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#EA5413] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Cpu className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1E2024]">
+                      Total Terkirim &amp; Fallback OS
+                    </h4>
+                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                      Merekap jumlah total terkirim per PO dan otomatis fallback ke QTY PO pada Sisa OS jika belum ada pengiriman.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1E2024]">
-                    Deteksi SJ & Fallback
-                  </h4>
-                  <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                    Membaca surat jalan terbaru (P26) dan otomatis fallback ke QTY PO jika belum dikirim.
-                  </p>
-                </div>
-              </div>
 
-              <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <Share2 className="w-4 h-4 text-white" />
-                </div>
-                <div>
-                  <h4 className="text-xs font-bold text-[#1E2024]">
-                    Alokasi Stok FIFO
-                  </h4>
-                  <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
-                    Mengalokasikan stok gudang sesuai urutan tanggal PO terlama untuk sisa OS di bawah 51 pcs.
-                  </p>
+                <div className="p-4 glass-card rounded-2xl flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Share2 className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1E2024]">
+                      Alokasi Stok FIFO
+                    </h4>
+                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                      Mengalokasikan stok gudang sesuai urutan tanggal PO terlama untuk sisa OS di atas batas toleransi 51 pcs.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                <div className="p-4 glass-card rounded-2xl flex items-start gap-3 border border-orange-300/60">
+                  <div className="w-9 h-9 rounded-xl bg-[#EA5413] text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Truck className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1E2024]">
+                      Mode 2: Rekap Detail Setiap Surat Jalan (SJ)
+                    </h4>
+                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                      Mengekstrak setiap kiriman (SJ #1, SJ #2, SJ #3, dst.) lengkap dengan No SJ (P26...), Tanggal Kirim, QTY Kirim, dan Berat KG.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 glass-card rounded-2xl flex items-start gap-3 border border-orange-300/60">
+                  <div className="w-9 h-9 rounded-xl bg-zinc-800 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <Cpu className="w-4 h-4 text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1E2024]">
+                      Sisa OS Berjalan &amp; Fallback Detail
+                    </h4>
+                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                      Menghitung pengurangan Sisa OS berjalan di setiap tahapan SJ hingga Sisa OS Akhir, serta fallback otomatis untuk PO yang belum dikirim.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="p-4 glass-card rounded-2xl flex items-start gap-3 border border-orange-300/60">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <FileSpreadsheet className="w-4 h-4 text-white" />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-[#1E2024]">
+                      Output Excel 4-Sheet Standar Data Entry
+                    </h4>
+                    <p className="text-xs text-[#5C6068] mt-1 leading-relaxed">
+                      Menghasilkan buku kerja Excel profesional berisi sheet Detail Kiriman SJ, Grup PO &amp; Sub-Total OS, Database Flat SJ, dan Matriks Horizontal SJ.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -515,7 +811,11 @@ export default function App() {
               files={convertedFiles}
               activeFileId={activeFile.id}
               onSelectFile={handleSelectFile}
-              onDownloadActiveExcel={() => handleDownloadExcel('ALL')}
+              onDownloadActiveExcel={() =>
+                conversionMode === 'DETAIL_SJ'
+                  ? handleDownloadDetailSJExcel('ALL')
+                  : handleDownloadExcel('ALL')
+              }
               onDownloadAllZip={convertedFiles.length > 1 ? handleDownloadAllZip : undefined}
               onDownloadMasterCombined={
                 convertedFiles.length > 1 ? handleDownloadMasterCombined : undefined
@@ -526,37 +826,116 @@ export default function App() {
               isMerging={isMerging}
             />
 
-            {/* Statistics Cards for Active File */}
-            <StatsOverview summary={summary} />
+            {/* ============================================================ */}
+            {/* MODE 1: KONVERSI NORMAL (REKAP TOTAL PER PO)                 */}
+            {/* ============================================================ */}
+            {conversionMode === 'NORMAL' && (
+              <>
+                {/* Statistics Cards for Active File */}
+                <StatsOverview summary={summary} />
 
-            {/* Delivery Ratio Pie Chart */}
-            <DeliveryPieChart summary={summary} />
+                {/* Delivery Ratio Pie Chart */}
+                <DeliveryPieChart summary={summary} />
 
-            {/* Toolbar for Scope Export, WhatsApp, Sheets */}
-            <ActionToolbar
-              onDownloadExcel={handleDownloadExcel}
-              onShareExcelWhatsApp={handleShareExcelWhatsApp}
-              onOpenWhatsApp={handleOpenWhatsApp}
-              onCopyWhatsAppText={handleCopyWhatsAppText}
-              onReset={handleReset}
-              onToggleDoc={() => setIsRulesModalOpen(true)}
-              onOpenAIChat={() => setIsAIChatOpen(true)}
-              isCopied={isCopied}
-              sheets={summary.sheetNames}
-              activeSheet={summary.activeSheetName}
-              onSelectSheet={handleSelectSheet}
-              totalRecords={data.length}
-              totalCOOpen={summary.totalCOOpen}
-              totalCOClosed={summary.totalCOClosed}
-              totalStockReadyAll={totalStockReadyAll}
-              totalStockReadyOpen={totalStockReadyOpen}
-              totalOverStockGudangPOs={totalOverStockGudangPOs}
-              totalOverKirimanPOs={totalOverKirimanPOs}
-              totalOverProduksiPOs={totalOverProduksiPOs}
-            />
+                {/* Toolbar for Scope Export, WhatsApp, Sheets */}
+                <ActionToolbar
+                  onDownloadExcel={handleDownloadExcel}
+                  onShareExcelWhatsApp={handleShareExcelWhatsApp}
+                  onOpenWhatsApp={handleOpenWhatsApp}
+                  onCopyWhatsAppText={handleCopyWhatsAppText}
+                  onReset={handleReset}
+                  onToggleDoc={() => setIsRulesModalOpen(true)}
+                  onOpenAIChat={() => setIsAIChatOpen(true)}
+                  isCopied={isCopied}
+                  sheets={summary.sheetNames}
+                  activeSheet={summary.activeSheetName}
+                  onSelectSheet={handleSelectSheet}
+                  totalRecords={data.length}
+                  totalCOOpen={summary.totalCOOpen}
+                  totalCOClosed={summary.totalCOClosed}
+                  totalStockReadyAll={totalStockReadyAll}
+                  totalStockReadyOpen={totalStockReadyOpen}
+                  totalOverStockGudangPOs={totalOverStockGudangPOs}
+                  totalOverKirimanPOs={totalOverKirimanPOs}
+                  totalOverProduksiPOs={totalOverProduksiPOs}
+                />
 
-            {/* Main Interactive Table with Row Customization */}
-            <DataTable data={data} />
+                {/* Main Interactive Table with Row Customization */}
+                <DataTable data={data} />
+              </>
+            )}
+
+            {/* ============================================================ */}
+            {/* MODE 2: REKAP DETAIL KIRIMAN PER SURAT JALAN (SJ)            */}
+            {/* ============================================================ */}
+            {conversionMode === 'DETAIL_SJ' && (
+              <>
+                {/* Optional Sheet Selector & Quick Utilities Bar for Detail SJ Mode */}
+                <div className="p-3 sm:p-4 glass-panel rounded-2xl flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-bold text-[#17191D]">
+                      Sheet Aktif ({summary.activeSheetName}):
+                    </span>
+                    {summary.sheetNames.length > 1 ? (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {summary.sheetNames.map((sheet) => (
+                          <button
+                            key={sheet}
+                            type="button"
+                            onClick={() => handleSelectSheet(sheet)}
+                            className={`px-3 py-1 rounded-xl text-xs font-semibold cursor-pointer transition-all ${
+                              sheet === summary.activeSheetName
+                                ? 'bg-[#EA5413] text-white shadow-xs'
+                                : 'bg-white/80 text-zinc-700 hover:bg-white border border-zinc-200'
+                            }`}
+                          >
+                            {sheet}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-lg bg-white/80 border border-zinc-200/80 text-xs font-mono text-zinc-700">
+                        {summary.activeSheetName}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsRulesModalOpen(true)}
+                      className="liquid-glass-clear inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-950 cursor-pointer"
+                    >
+                      <BookOpen className="w-3.5 h-3.5 text-[#EA5413]" />
+                      <span>Aturan Parser &amp; SJ</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsAIChatOpen(true)}
+                      className="liquid-glass-clear inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-950 cursor-pointer"
+                    >
+                      <Bot className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>AI Data Assistant</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Detailed Delivery Per Surat Jalan Workspace */}
+                <DetailDeliveryView
+                  data={data}
+                  summary={summary}
+                  currentFileName={currentFileName}
+                  onDownloadDetailExcel={handleDownloadDetailSJExcel}
+                  onShareDetailExcelWhatsApp={handleShareDetailSJExcelWhatsApp}
+                  onCopyDetailWhatsAppText={handleCopyDetailSJWhatsAppText}
+                  isCopied={isDetailSJCopied}
+                  sheets={summary.sheetNames}
+                  activeSheet={summary.activeSheetName}
+                  onSelectSheet={handleSelectSheet}
+                  onReset={handleReset}
+                />
+              </>
+            )}
 
             {/* Bottom Quick Notice */}
             <div className="p-4 glass-panel rounded-2xl flex flex-col md:flex-row items-center justify-between gap-3 text-xs">
@@ -564,8 +943,12 @@ export default function App() {
                 <Info className="w-4 h-4 text-[#EA5413] shrink-0" />
                 <span>
                   {convertedFiles.length > 1
-                    ? `Sedang menganalisis 1 dari ${convertedFiles.length} file. Anda dapat berpindah file kapan saja melalui dropdown di atas.`
-                    : 'Ingin memproses file lain? Klik "+ Tambah File" untuk menambah file baru atau "Ganti File" untuk mulai dari awal.'}
+                    ? `Sedang menganalisis 1 dari ${convertedFiles.length} file pada ${
+                        conversionMode === 'DETAIL_SJ'
+                          ? 'Mode 2 (Rekap Detail Kiriman per SJ)'
+                          : 'Mode 1 (Konversi Normal)'
+                      }. Anda dapat berpindah file atau mode kapan saja.`
+                    : 'Anda dapat berpindah antara Mode 1 (Konversi Normal) dan Mode 2 (Detail Kiriman per SJ) secara instan tanpa perlu upload ulang file.'}
                 </span>
               </div>
               <div className="flex items-center gap-2 shrink-0">
@@ -598,7 +981,9 @@ export default function App() {
           <span className="font-bold text-[#1E2024]">BLACKEYE</span>
           <span>• ERP DATA ENGINE BROWSER_V2.0</span>
           <span className="text-zinc-300">•</span>
-          <span className="font-medium text-[#1E2024]">Developed by <strong className="font-semibold text-[#EA5413]">VINNS</strong></span>
+          <span className="font-medium text-[#1E2024]">
+            Developed by <strong className="font-semibold text-[#EA5413]">VINNS</strong>
+          </span>
         </div>
       </footer>
 
@@ -646,3 +1031,4 @@ export default function App() {
     </div>
   );
 }
+
