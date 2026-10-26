@@ -9,6 +9,9 @@ import {
   DeliveryRecord,
   FlattenedDeliveryRow,
   DetailSJExportScope,
+  DeliveryScheduleRecord,
+  SalesOrderRow,
+  SalesOrderExportScope,
 } from '../types';
 import {
   calculateLeadTimeDays,
@@ -403,6 +406,131 @@ function extractDeliveryFromRow(r: any[]): RawExtractedSJ | null {
 }
 
 /**
+ * Robust parsing for Substance and Flute separation.
+ * Handles flute types: BC (2-chars, highest priority), C, B, E.
+ * Examples:
+ * "K200M100K125   C"  -> substance: "K200M100K125", flute: "C"
+ * "K200M100K125   BC" -> substance: "K200M100K125", flute: "BC"
+ * "K150M125K125   B"  -> substance: "K150M125K125", flute: "B"
+ * "K125M125K125   E"  -> substance: "K125M125K125", flute: "E"
+ */
+export function parseSubstanceAndFlute(rawText: string | undefined | null): {
+  substance: string;
+  flute: string;
+} {
+  if (!rawText) return { substance: '-', flute: '-' };
+  const clean = String(rawText).trim();
+  if (!clean || clean === '-') return { substance: '-', flute: '-' };
+
+  // 1. Ending with space(s) and flute type: BC must come first before B and C!
+  const matchSpace = clean.match(/^(.*?)\s+(BC|B|C|E)$/i);
+  if (matchSpace) {
+    return {
+      substance: matchSpace[1].trim(),
+      flute: matchSpace[2].toUpperCase().trim(),
+    };
+  }
+
+  // 2. Ending with delimiter like slash/dash/underscore: e.g. "K125/M125/K125/BC"
+  const matchDelim = clean.match(/^(.*?)[/_\-](BC|B|C|E)$/i);
+  if (matchDelim && !matchDelim[1].endsWith('B') && !matchDelim[1].endsWith('C')) {
+    return {
+      substance: matchDelim[1].trim(),
+      flute: matchDelim[2].toUpperCase().trim(),
+    };
+  }
+
+  // 3. Attached directly after digits: e.g. "K200M100K125BC" or "K200M100K125C"
+  const matchDigits = clean.match(/^(.*?\d+)(BC|B|C|E)$/i);
+  if (matchDigits) {
+    return {
+      substance: matchDigits[1].trim(),
+      flute: matchDigits[2].toUpperCase().trim(),
+    };
+  }
+
+  // 4. Standalone flute type
+  if (/^(BC|B|C|E)$/i.test(clean)) {
+    return {
+      substance: '-',
+      flute: clean.toUpperCase(),
+    };
+  }
+
+  return {
+    substance: clean,
+    flute: '-',
+  };
+}
+
+/**
+ * Extracts Panjang (P) and Lebar (L) dimensions from size column or item description.
+ * e.g., "PCS 1060 X 540 X " or "SHEET 1060X540 MM" -> P: 1060, L: 540
+ */
+export function parseDimensions(
+  sizeStr: string | undefined | null,
+  descStr: string | undefined | null
+): { p: number | string; l: number | string; raw: string } {
+  const combined = `${sizeStr || ''} ${descStr || ''}`.trim();
+  if (!combined) return { p: '-', l: '-', raw: '-' };
+
+  // Look for pattern: <P> X <L> (e.g. 1060 X 540 or 1060X540 or 1060*540)
+  const match = combined.match(/(\d+(?:\.\d+)?)\s*[xX*]\s*(\d+(?:\.\d+)?)/);
+  if (match) {
+    const pNum = parseFloat(match[1]);
+    const lNum = parseFloat(match[2]);
+    return {
+      p: !isNaN(pNum) ? pNum : match[1],
+      l: !isNaN(lNum) ? lNum : match[2],
+      raw: `${match[1]} X ${match[2]}`,
+    };
+  }
+
+  return { p: '-', l: '-', raw: sizeStr ? String(sizeStr).trim() : '-' };
+}
+
+/**
+ * Extracts delivery schedule date and qty from a row.
+ * In SyMix:
+ * Col 8 = Dlv. Schedule Date
+ * Col 9 = Dlv. Schedule QTY
+ */
+export function extractScheduleFromRow(
+  r: any[]
+): { scheduleDate: string; scheduleQty: number } | null {
+  if (!r || r.length === 0) return null;
+  // Never extract from total row
+  for (let c = 0; c < r.length; c++) {
+    const v = r[c];
+    if (v !== null && v !== undefined && typeof v === 'string' && v.toUpperCase().includes('TOTAL')) {
+      return null;
+    }
+  }
+
+  const candidateCols = [8, 7, 9];
+  for (const colIdx of candidateCols) {
+    if (r.length <= colIdx) continue;
+    const rawVal = r[colIdx];
+    const formatted = formatDateCell(rawVal);
+    if (formatted !== '-' && /^\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4}$/.test(formatted)) {
+      const rawQty = r.length > colIdx + 1 ? r[colIdx + 1] : null;
+      const qtyStr = getStr(r, colIdx + 1);
+      if (!isValidSJCode(qtyStr) && isNumericCell(rawQty)) {
+        return {
+          scheduleDate: formatted,
+          scheduleQty: parseCleanInt(rawQty),
+        };
+      }
+      return {
+        scheduleDate: formatted,
+        scheduleQty: 0,
+      };
+    }
+  }
+  return null;
+}
+
+/**
  * Finalizes a PO's delivery records, running OS balances, total shipped, and final Sisa OS with complete fallback.
  */
 function finalizeCurrentPO(po: ExtractedRecord): ExtractedRecord {
@@ -515,17 +643,33 @@ function finalizeCurrentPO(po: ExtractedRecord): ExtractedRecord {
   po._has_delivery = true;
   po.deliveries = finalizedDeliveries;
 
+  if (!po.schedules || po.schedules.length === 0) {
+    po.schedules = [
+      {
+        sequence: 1,
+        scheduleDate: po.scheduleDate || '-',
+        scheduleQty: po.scheduleQty || qtyPoPcs,
+      },
+    ];
+  }
+
   return po;
 }
 
 /**
- * Core Parser Engine translated directly from the reference Python logic + Detailed SJ Extraction
+ * Core Parser Engine translated directly from the reference Python logic + Detailed SJ Extraction + Sales Order Schema
  */
 export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
   const rowsData: ExtractedRecord[] = [];
   let currentItemId: string | null = null;
   let currentItemDesc: string = '';
   let currentSubstance: string = '';
+  let currentPureSubstance: string = '';
+  let currentFlute: string = '-';
+  let currentSizeP: number | string = '-';
+  let currentSizeL: number | string = '-';
+  let currentRawSize: string = '';
+  let currentCustomerName: string = '';
   let currentStockPcs: number = 0;
   let currentStockKg: number = 0;
   let parentCount: number = 0;
@@ -594,9 +738,22 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
     // DETEKSI CERDAS MULTI-CUSTOMER: BARIS 2 (NAMA CUSTOMER / PERUSAHAAN)
     if (expectCustomerRow || isCustomerCompanyRow(r)) {
       expectCustomerRow = false;
+      const custCandidate = `${getStr(r, 0)} ${getStr(r, 1)}`.replace(/\s+/g, ' ').trim();
+      if (
+        custCandidate &&
+        !custCandidate.includes('---') &&
+        !custCandidate.toUpperCase().includes('TOTAL')
+      ) {
+        currentCustomerName = custCandidate;
+      }
       currentItemId = null;
       currentItemDesc = '';
       currentSubstance = '';
+      currentPureSubstance = '';
+      currentFlute = '-';
+      currentSizeP = '-';
+      currentSizeL = '-';
+      currentRawSize = '';
       currentStockPcs = 0;
       currentStockKg = 0;
       continue;
@@ -623,7 +780,14 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
       parentCount++;
       currentItemId = valA;
       currentItemDesc = valB;
+      currentRawSize = valC;
+      const dims = parseDimensions(valC, valB);
+      currentSizeP = dims.p;
+      currentSizeL = dims.l;
+      const parsedSub = parseSubstanceAndFlute(valD);
       currentSubstance = valD;
+      currentPureSubstance = parsedSub.substance;
+      currentFlute = parsedSub.flute;
 
       // Deteksi stok gudang yang rentan bergeser kolomnya
       let stockPcs = 0;
@@ -711,6 +875,18 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         const qtyOrderPcs = isNumericCell(rawQtyPcs) ? parseCleanInt(rawQtyPcs) : 0;
         const qtyOrderKg = isNumericCell(rawQtyKg) ? parseCleanInt(rawQtyKg) : 0;
 
+        // Ekstraksi Delivery Schedule (Rencana Jadwal Kirim)
+        const sched = extractScheduleFromRow(r);
+        const schedDate = sched ? sched.scheduleDate : rawScheduleDate;
+        const schedQty = sched && sched.scheduleQty > 0 ? sched.scheduleQty : qtyOrderPcs;
+        const initialSchedules: DeliveryScheduleRecord[] = [
+          {
+            sequence: 1,
+            scheduleDate: schedDate !== '-' ? schedDate : '-',
+            scheduleQty: schedQty > 0 ? schedQty : qtyOrderPcs,
+          },
+        ];
+
         const sisaPcsRaw = r.length > 14 ? r[14] : null;
         const sisaKgRaw = r.length > 15 ? r[15] : null;
 
@@ -750,6 +926,11 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           'Tanggal Input PO': poDate,
           'No PO': cleanPoNo,
           Substance: currentSubstance,
+          PureSubstance: currentPureSubstance || currentSubstance,
+          Flute: currentFlute || '-',
+          SizeP: currentSizeP,
+          SizeL: currentSizeL,
+          RawSize: currentRawSize,
           'QTY PO (pcs)': qtyOrderPcs,
           'Berat PO (KG)': qtyOrderKg,
           'Stock (pcs)': 0,
@@ -765,7 +946,10 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
           'Over Produksi (PCS)': 0,
           'Over Produksi (KG)': 0,
           Harga: priceVal,
-          scheduleDate: rawScheduleDate,
+          scheduleDate: schedDate,
+          scheduleQty: schedQty,
+          schedules: initialSchedules,
+          customerName: currentCustomerName,
           deliveries: initialDeliveries,
           _has_delivery: hasInitialDelivery || initialDeliveries.length > 0,
           _parentIndex: parentCount,
@@ -774,12 +958,28 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
         };
       }
     }
-    // 3. TAHAP DETEKSI SUB-CHILD (BARIS PENGIRIMAN / SISA OS TERBARU P26...)
+    // 3. TAHAP DETEKSI SUB-CHILD (BARIS PENGIRIMAN / SISA OS TERBARU P26... / DELIVERY SCHEDULE)
     else if (
       currentPO &&
       (!r[0] || String(r[0]).trim() === '') &&
       (!r[1] || String(r[1]).trim() === '')
     ) {
+      // Ekstrak detail jadwal kirim tambahan (Delivery Schedule) jika ada di baris sub-child
+      const subSched = extractScheduleFromRow(r);
+      if (subSched && subSched.scheduleDate !== '-') {
+        if (!currentPO.schedules) currentPO.schedules = [];
+        const isDup = currentPO.schedules.some(
+          (s) => s.scheduleDate === subSched.scheduleDate && s.scheduleQty === subSched.scheduleQty
+        );
+        if (!isDup) {
+          currentPO.schedules.push({
+            sequence: currentPO.schedules.length + 1,
+            scheduleDate: subSched.scheduleDate,
+            scheduleQty: subSched.scheduleQty,
+          });
+        }
+      }
+
       // Ekstrak detail SJ dari baris sub-child
       const subSJ = extractDeliveryFromRow(r);
 
@@ -1061,6 +1261,98 @@ export function flattenDeliveriesForDataEntry(
         isFirstRowOfPO: isFirst,
         isLastRowOfPO: isLast,
         isFallbackNoDelivery: isFallback,
+      });
+    });
+  });
+
+  return flatRows;
+}
+
+/**
+ * Flattens ExtractedRecord[] into SalesOrderRow[] matching the 13-column Sales Order format requested:
+ * Col A: NO PO
+ * Col B: Date Receive PO (empty)
+ * Col C: Substance (pure substance without flute)
+ * Col D: Flute (BC, C, B, E)
+ * Col E: Size P
+ * Col F: Size L
+ * Col G: Artikel
+ * Col H: Item Name
+ * Col I: Qty (Pcs) - PO Qty
+ * Col J: Qty (Kg) - PO Weight
+ * Col K: Delivery Date - Rencana jadwal kirim
+ * Col L: Qty Delivery - Rencana qty kirim
+ * Col M: Remarks (empty)
+ *
+ * If a PO has multiple delivery schedules, row 1 contains PO info and schedule 1,
+ * and subsequent schedules are placed on row 2+ directly beneath it with columns A..J left blank (fallback kebawahnya).
+ */
+export function flattenSalesOrderRows(
+  records: ExtractedRecord[],
+  scope: CoFilterStatus | SalesOrderExportScope = 'ALL'
+): SalesOrderRow[] {
+  if (!records || records.length === 0) return [];
+
+  const filteredPOs = records.filter((po) => {
+    if (scope === 'OPEN_ONLY' || scope === 'OPEN') return po.coStatus === 'OPEN';
+    if (scope === 'CLOSED_ONLY' || scope === 'CLOSED') return po.coStatus === 'CLOSED';
+    return true;
+  });
+
+  const flatRows: SalesOrderRow[] = [];
+
+  filteredPOs.forEach((po, poIdx) => {
+    const qtyPoPcs = Number(po['QTY PO (pcs)']) || 0;
+    const beratPoKg = Number(po['Berat PO (KG)']) || 0;
+
+    // Resolve pure substance and flute
+    const parsedSub = parseSubstanceAndFlute(po.PureSubstance || po.Substance);
+    const pureSubstance = po.PureSubstance || parsedSub.substance || '-';
+    const flute = po.Flute && po.Flute !== '-' ? po.Flute : parsedSub.flute;
+
+    // Resolve dimensions P & L
+    const dims = parseDimensions(po.RawSize, po['Item Description']);
+    const sizeP = po.SizeP !== undefined && po.SizeP !== '-' ? po.SizeP : dims.p;
+    const sizeL = po.SizeL !== undefined && po.SizeL !== '-' ? po.SizeL : dims.l;
+
+    // Resolve schedules
+    const rawSchedules =
+      po.schedules && po.schedules.length > 0
+        ? po.schedules
+        : [
+            {
+              sequence: 1,
+              scheduleDate: po.scheduleDate || '-',
+              scheduleQty: po.scheduleQty || qtyPoPcs,
+            },
+          ];
+
+    const cleanNoPO = po['No PO'] || '-';
+    const poRecId = po.id || `po_rec_${poIdx + 1}`;
+
+    rawSchedules.forEach((sched, sIdx) => {
+      const isFirst = sIdx === 0;
+      flatRows.push({
+        id: `${poRecId}_sched_${sIdx + 1}`,
+        poRecordId: poRecId,
+        coNumber: po.CO || '-',
+        coStatus: po.coStatus || 'UNKNOWN',
+        noPO: isFirst ? cleanNoPO : '',
+        dateReceivePO: '',
+        substance: isFirst ? pureSubstance : '',
+        flute: isFirst ? flute : '',
+        sizeP: isFirst ? sizeP : '',
+        sizeL: isFirst ? sizeL : '',
+        artikel: isFirst ? po.Artikel || '-' : '',
+        itemName: isFirst ? po['Item Description'] || '-' : '',
+        qtyPcs: isFirst ? qtyPoPcs : '',
+        qtyKg: isFirst ? beratPoKg : '',
+        deliveryDate: sched.scheduleDate || '-',
+        qtyDelivery: sched.scheduleQty > 0 ? sched.scheduleQty : isFirst ? qtyPoPcs : 0,
+        remarks: '',
+        isFirstScheduleOfPO: isFirst,
+        scheduleSequence: sIdx + 1,
+        totalSchedulesCount: rawSchedules.length,
       });
     });
   });

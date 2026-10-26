@@ -1,7 +1,13 @@
 // BlackEYE Data Types: Standard 15-Column Schema & Detailed SJ Delivery Schema
 export type CoStatus = 'OPEN' | 'CLOSED' | 'UNKNOWN';
 
-export type ConversionMode = 'NORMAL' | 'DETAIL_SJ';
+export type ConversionMode = 'NORMAL' | 'DETAIL_SJ' | 'SALES_ORDER';
+
+export interface DeliveryScheduleRecord {
+  sequence: number; // 1, 2, 3...
+  scheduleDate: string; // e.g., "27/09/2026", or "-" if not scheduled
+  scheduleQty: number; // e.g., 1900
+}
 
 export interface DeliveryRecord {
   sequence: number; // 1, 2, 3... (0 if fallback no delivery)
@@ -26,7 +32,12 @@ export interface ExtractedRecord {
   'Item Description': string;
   'Tanggal Input PO': string;
   'No PO': string;
-  Substance: string;
+  Substance: string; // Full substance or pure substance
+  PureSubstance?: string; // e.g., "K200M100K125"
+  Flute?: string; // e.g., "C", "BC", "B", "E"
+  SizeP?: number | string; // e.g., 1060
+  SizeL?: number | string; // e.g., 540
+  RawSize?: string; // e.g., "1060 X 540 X"
   'QTY PO (pcs)': number;
   'Berat PO (KG)': number;
   'Stock (pcs)': number;
@@ -43,6 +54,9 @@ export interface ExtractedRecord {
   'Over Produksi (KG)'?: number;
   Harga: number;
   scheduleDate?: string;
+  scheduleQty?: number;
+  schedules?: DeliveryScheduleRecord[];
+  customerName?: string;
   deliveries?: DeliveryRecord[];
   _has_delivery?: boolean;
   _parentIndex?: number;
@@ -160,6 +174,31 @@ export type ExcelExportScope =
   | 'OVER_STOCK_GUDANG'
   | 'OVER_KIRIMAN'
   | 'OVER_PRODUCTION_ONLY';
+
+export interface SalesOrderRow {
+  id: string;
+  poRecordId: string;
+  coNumber: string;
+  coStatus: CoStatus;
+  noPO: string;
+  dateReceivePO: string;
+  substance: string;
+  flute: string;
+  sizeP: number | string;
+  sizeL: number | string;
+  artikel: string;
+  itemName: string;
+  qtyPcs: number | '';
+  qtyKg: number | '';
+  deliveryDate: string;
+  qtyDelivery: number | '';
+  remarks: string;
+  isFirstScheduleOfPO: boolean;
+  scheduleSequence: number;
+  totalSchedulesCount: number;
+}
+
+export type SalesOrderExportScope = 'ALL' | 'OPEN_ONLY' | 'CLOSED_ONLY';
 
 export type DetailSJExportScope =
   | 'ALL'

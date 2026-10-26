@@ -24,6 +24,7 @@ export interface TranslationSchema {
   languageSelect: string;
   modeRekapPO: string;
   modeDetailSJ: string;
+  modeSalesOrder: string;
   guideBtn: string;
   footerSubtitle: string;
   developedBy: string;

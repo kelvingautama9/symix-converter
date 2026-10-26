@@ -4,8 +4,14 @@ import {
   ExcelExportScope,
   DetailSJExportScope,
   DeliveryStatusTag,
+  SalesOrderExportScope,
+  SalesOrderRow,
 } from '../types';
-import { recalculateFIFOStock, flattenDeliveriesForDataEntry } from './parserEngine';
+import {
+  recalculateFIFOStock,
+  flattenDeliveriesForDataEntry,
+  flattenSalesOrderRows,
+} from './parserEngine';
 import {
   getDeliveryStatusTag,
   calculateOrderAgingDetails,
@@ -1404,5 +1410,331 @@ export async function shareExcelFileToWhatsApp(
     method: 'download-and-web',
     fileName: outputFileName,
     message: `File "${outputFileName}" berhasil diunduh & WhatsApp dibuka (hanya file .xlsx, tanpa ketikan). Silakan lampirkan file ke chat.`,
+  };
+}
+
+/**
+ * 13-Column Master Schema for Mode Rekap Order Sales (Matching Image 2):
+ * A: NO PO
+ * B: Date Receive PO (kosong/diabaikan)
+ * C: Substance (pure substance tanpa flute)
+ * D: Flute (BC, C, B, E)
+ * E: Size P
+ * F: Size L
+ * G: Artikel
+ * H: Item Name
+ * I: Qty (Pcs) - Qty PO
+ * J: Qty (Kg) - Berat PO
+ * K: Delivery Date - Rencana jadwal kirim
+ * L: Qty Delivery - Rencana qty kirim
+ * M: Remarks (kosong/diabaikan)
+ */
+export const SALES_ORDER_EXCEL_COLUMNS = [
+  'NO PO',
+  'Date Receive PO',
+  'Substance',
+  'Flute',
+  'P',
+  'L',
+  'Artikel',
+  'Item Name',
+  'Qty (Pcs)',
+  'Qty (Kg)',
+  'Delivery Date',
+  'Qty Delivery',
+  'Remarks',
+] as const;
+
+/**
+ * Resolves the export filename for Mode Rekap Order Sales.
+ */
+export function getSalesOrderExportFileName(
+  uploadedFileName?: string | null,
+  scope: SalesOrderExportScope = 'ALL'
+): string {
+  let baseName = 'Rekap_Order_Sales';
+  if (uploadedFileName) {
+    let clean = uploadedFileName.trim();
+    clean = clean.split(/[/\\]/).pop() || clean;
+    const stripped = clean.replace(/\.[^/.]+$/, '');
+    if (stripped) {
+      baseName = `Rekap_Order_Sales_${stripped}`;
+    }
+  }
+
+  if (scope === 'OPEN_ONLY') {
+    return `${baseName}_CO_OPEN.xlsx`;
+  }
+  if (scope === 'CLOSED_ONLY') {
+    return `${baseName}_CO_CLOSED.xlsx`;
+  }
+  return `${baseName}.xlsx`;
+}
+
+/**
+ * Builds the 13-column Rekap Order Sales worksheet with 2-tier headers matching Image 2.
+ */
+export function buildSalesOrderWorksheet(
+  data: ExtractedRecord[],
+  scope: SalesOrderExportScope = 'ALL',
+  customerTitle?: string
+): XLSX.WorkSheet {
+  const flatRows = flattenSalesOrderRows(data, scope);
+
+  // Determine Customer Name for Header A1 (e.g. RECAP ORDER PURBAYASA)
+  let displayCustomer = 'PURBAYASA';
+  if (customerTitle && customerTitle.trim()) {
+    displayCustomer = customerTitle.trim().toUpperCase();
+  } else if (data.length > 0 && data[0].customerName && data[0].customerName.trim()) {
+    displayCustomer = data[0].customerName.trim().toUpperCase();
+  }
+
+  const sheetData: any[][] = [];
+
+  // Row 1: Title (Cell A1)
+  sheetData.push([`RECAP ORDER ${displayCustomer}`]);
+
+  // Row 2: Empty
+  sheetData.push([]);
+
+  // Row 3: Table Header Row 1
+  sheetData.push([
+    'NO PO',
+    'Date Receive PO',
+    'Substance',
+    'Flute',
+    'Size',
+    '', // Merged with column E for Size
+    'Artikel',
+    'Item Name',
+    'Qty (Pcs)',
+    'Qty (Kg)',
+    'Delivery Date',
+    'Qty Delivery',
+    'Remarks',
+  ]);
+
+  // Row 4: Table Header Row 2 (Sub-columns under Size)
+  sheetData.push([
+    '',
+    '',
+    '',
+    '',
+    'P',
+    'L',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+  ]);
+
+  // Row 5+: Data rows
+  let sumQtyPcs = 0;
+  let sumQtyKg = 0;
+  let sumQtyDelivery = 0;
+
+  flatRows.forEach((r, idx) => {
+    const excelRow = idx + 5;
+    const numQtyPcs = typeof r.qtyPcs === 'number' ? r.qtyPcs : 0;
+    const numQtyKg = typeof r.qtyKg === 'number' ? r.qtyKg : 0;
+    const numQtyDelivery = typeof r.qtyDelivery === 'number' ? r.qtyDelivery : 0;
+
+    sumQtyPcs += numQtyPcs;
+    sumQtyKg += numQtyKg;
+    sumQtyDelivery += numQtyDelivery;
+
+    sheetData.push([
+      r.noPO,
+      r.dateReceivePO || '',
+      r.substance,
+      r.flute,
+      r.sizeP !== '' ? r.sizeP : '',
+      r.sizeL !== '' ? r.sizeL : '',
+      r.artikel,
+      r.itemName,
+      r.qtyPcs !== '' ? r.qtyPcs : '',
+      r.qtyKg !== '' ? r.qtyKg : '',
+      r.deliveryDate,
+      r.qtyDelivery !== '' ? r.qtyDelivery : '',
+      r.remarks || '',
+    ]);
+  });
+
+  const lastRow = flatRows.length + 4;
+
+  // Row Total Summary
+  sheetData.push([
+    'TOTAL',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`SUM(I5:I${lastRow})`, sumQtyPcs, '#,##0'),
+    fNum(`SUM(J5:J${lastRow})`, sumQtyKg, '#,##0'),
+    '',
+    fNum(`SUM(L5:L${lastRow})`, sumQtyDelivery, '#,##0'),
+    '',
+  ]);
+
+  const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
+
+  // 13 Column Widths strictly aligned
+  worksheet['!cols'] = [
+    { wch: 22 }, // NO PO
+    { wch: 16 }, // Date Receive PO
+    { wch: 18 }, // Substance
+    { wch: 10 }, // Flute
+    { wch: 10 }, // P
+    { wch: 10 }, // L
+    { wch: 20 }, // Artikel
+    { wch: 34 }, // Item Name
+    { wch: 14 }, // Qty (Pcs)
+    { wch: 14 }, // Qty (Kg)
+    { wch: 16 }, // Delivery Date
+    { wch: 16 }, // Qty Delivery
+    { wch: 18 }, // Remarks
+  ];
+
+  // Exact Merges matching Image 2
+  worksheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }, // Title A1:M1
+    { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },  // NO PO A3:A4
+    { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } },  // Date Receive PO B3:B4
+    { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } },  // Substance C3:C4
+    { s: { r: 2, c: 3 }, e: { r: 3, c: 3 } },  // Flute D3:D4
+    { s: { r: 2, c: 4 }, e: { r: 2, c: 5 } },  // Size E3:F3
+    { s: { r: 2, c: 6 }, e: { r: 3, c: 6 } },  // Artikel G3:G4
+    { s: { r: 2, c: 7 }, e: { r: 3, c: 7 } },  // Item Name H3:H4
+    { s: { r: 2, c: 8 }, e: { r: 3, c: 8 } },  // Qty (Pcs) I3:I4
+    { s: { r: 2, c: 9 }, e: { r: 3, c: 9 } },  // Qty (Kg) J3:J4
+    { s: { r: 2, c: 10 }, e: { r: 3, c: 10 } }, // Delivery Date K3:K4
+    { s: { r: 2, c: 11 }, e: { r: 3, c: 11 } }, // Qty Delivery L3:L4
+    { s: { r: 2, c: 12 }, e: { r: 3, c: 12 } }, // Remarks M3:M4
+    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 7 } }, // TOTAL label A:H
+  ];
+
+  return worksheet;
+}
+
+/**
+ * Builds the complete formatted Excel workbook, Blob, and File object in memory (Sales Order Mode)
+ */
+export function generateSalesOrderExcelBlobAndFile(
+  data: ExtractedRecord[],
+  customFileName?: string,
+  scope: SalesOrderExportScope = 'ALL'
+): GenerateExcelResult {
+  if (!data || data.length === 0) {
+    throw new Error('Tidak ada data yang dapat diekspor.');
+  }
+
+  const workbook = XLSX.utils.book_new();
+  const customerName = data[0]?.customerName || 'PURBAYASA';
+  const cleanCustName = customerName.replace(/^PT\.?\s*/i, '').trim().toUpperCase();
+  const sheetName = `RECAP ORDER ${cleanCustName || 'PURBAYASA'}`.slice(0, 31);
+  const worksheet = buildSalesOrderWorksheet(data, scope, customerName);
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+  const outputFileName = customFileName || getSalesOrderExportFileName(undefined, scope);
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([excelBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+  const file = new File([blob], outputFileName, {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    lastModified: Date.now(),
+  });
+
+  return {
+    workbook,
+    outputFileName,
+    blob,
+    file,
+    scopeTitleSuffix: scope,
+    recordCount: data.length,
+  };
+}
+
+/**
+ * Exports the Sales Order recap Excel file directly to client download (.xlsx)
+ */
+export function exportSalesOrderToExcel(
+  data: ExtractedRecord[],
+  scope: SalesOrderExportScope = 'ALL',
+  customFileName?: string
+): void {
+  const result = generateSalesOrderExcelBlobAndFile(data, customFileName, scope);
+  XLSX.writeFile(result.workbook, result.outputFileName, { compression: true });
+}
+
+/**
+ * Shares the generated Sales Order Excel file directly to WhatsApp:
+ * Strictly ONLY the .xlsx file is shared without message text.
+ */
+export async function shareSalesOrderExcelFileToWhatsApp(
+  data: ExtractedRecord[],
+  scope: SalesOrderExportScope = 'ALL',
+  customFileName?: string
+): Promise<ShareExcelResult> {
+  const { blob, file, outputFileName } = generateSalesOrderExcelBlobAndFile(
+    data,
+    customFileName,
+    scope
+  );
+
+  const canShareFiles =
+    typeof navigator !== 'undefined' &&
+    typeof navigator.canShare === 'function' &&
+    navigator.canShare({ files: [file] });
+
+  if (canShareFiles) {
+    try {
+      await navigator.share({
+        files: [file],
+      });
+      return {
+        success: true,
+        method: 'web-share',
+        fileName: outputFileName,
+        message: `File Excel Sales "${outputFileName}" berhasil dibagikan langsung!`,
+      };
+    } catch (err: any) {
+      if (err?.name === 'AbortError') {
+        return {
+          success: false,
+          method: 'cancelled',
+          fileName: outputFileName,
+          message: 'Berbagi file dibatalkan.',
+        };
+      }
+      console.warn('Web Share failed or blocked, fallback to download + WhatsApp...', err);
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = outputFileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+  const isMobile =
+    typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '');
+  const waUrl = isMobile ? 'https://wa.me/' : 'https://web.whatsapp.com/';
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+
+  return {
+    success: true,
+    method: 'download-and-web',
+    fileName: outputFileName,
+    message: `File Sales "${outputFileName}" berhasil diunduh & WhatsApp dibuka. Silakan lampirkan file ke chat.`,
   };
 }

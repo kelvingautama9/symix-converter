@@ -23,6 +23,7 @@ interface ActionToolbarProps {
   onReset: () => void;
   onToggleDoc: () => void;
   onOpenAIChat?: () => void;
+  onExportSalesOrder?: () => void;
   isCopied: boolean;
   sheets?: string[];
   activeSheet?: string;
@@ -42,6 +43,8 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
   onShareExcelWhatsApp,
   onOpenWhatsApp,
   onCopyWhatsAppText,
+  onOpenAIChat,
+  onExportSalesOrder,
   isCopied,
   sheets,
   activeSheet,
@@ -228,6 +231,36 @@ export const ActionToolbar: React.FC<ActionToolbarProps> = ({
                     {totalOverKirimanPOs}
                   </span>
                 </button>
+
+                {onExportSalesOrder && (
+                  <>
+                    <div className="border-t border-slate-200 my-1" />
+                    <button
+                      type="button"
+                      id="btn-export-sales-format"
+                      onClick={() => {
+                        setIsExportMenuOpen(false);
+                        haptic.success();
+                        confetti({
+                          particleCount: 45,
+                          spread: 60,
+                          origin: { y: 0.8 },
+                          colors: ['#4f46e5', '#10B981', '#1E2024'],
+                        });
+                        onExportSalesOrder();
+                      }}
+                      className="w-full text-left px-2.5 py-1.5 font-semibold text-indigo-700 hover:bg-indigo-50 rounded-lg flex items-center justify-between cursor-pointer transition-colors"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                        <span>Format Sales (13 Kolom)</span>
+                      </span>
+                      <span className="text-[10px] bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded font-bold">
+                        SALES
+                      </span>
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}

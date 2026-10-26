@@ -17,6 +17,9 @@ import {
   exportDetailSJToExcel,
   shareDetailSJExcelFileToWhatsApp,
   getDetailSJExportFileName,
+  exportSalesOrderToExcel,
+  shareSalesOrderExcelFileToWhatsApp,
+  getSalesOrderExportFileName,
 } from './utils/excelExporter';
 import {
   generateWhatsAppSummary,
@@ -38,6 +41,7 @@ import { DeliveryPieChart } from './components/DeliveryPieChart';
 import { ActionToolbar } from './components/ActionToolbar';
 import { DataTable } from './components/DataTable';
 import { DetailDeliveryView } from './components/DetailDeliveryView';
+import { SalesOrderView } from './components/SalesOrderView';
 import { WhatsAppModal } from './components/WhatsAppModal';
 import { ParserRulesModal } from './components/ParserRulesModal';
 import { AIChatDrawer } from './components/AIChatDrawer';
@@ -588,6 +592,21 @@ export default function App() {
                 </span>
               )}
             </button>
+            <button
+              type="button"
+              id="btn-mode-sales-order"
+              onClick={() => {
+                haptic.selection();
+                setConversionMode('SALES_ORDER');
+              }}
+              className={`px-2 sm:px-3 py-1 rounded-md text-[11px] sm:text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${
+                conversionMode === 'SALES_ORDER'
+                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>{t.modeSalesOrder || 'Rekap Sales'}</span>
+            </button>
           </div>
 
           {/* Zone 3: Guide & Language */}
@@ -625,11 +644,20 @@ export default function App() {
               files={convertedFiles}
               activeFileId={activeFile.id}
               onSelectFile={handleSelectFile}
-              onDownloadActiveExcel={() =>
-                conversionMode === 'DETAIL_SJ'
-                  ? handleDownloadDetailSJExcel('ALL')
-                  : handleDownloadExcel('ALL')
-              }
+              onDownloadActiveExcel={() => {
+                if (conversionMode === 'SALES_ORDER') {
+                  exportSalesOrderToExcel(
+                    data,
+                    'ALL',
+                    getSalesOrderExportFileName(currentFileName, 'ALL')
+                  );
+                  setStatusMessage('Berhasil mengekspor format Rekap Sales (.xlsx).');
+                } else if (conversionMode === 'DETAIL_SJ') {
+                  handleDownloadDetailSJExcel('ALL');
+                } else {
+                  handleDownloadExcel('ALL');
+                }
+              }}
               onDownloadAllZip={convertedFiles.length > 1 ? handleDownloadAllZip : undefined}
               onDownloadMasterCombined={
                 convertedFiles.length > 1 ? handleDownloadMasterCombined : undefined
@@ -653,6 +681,11 @@ export default function App() {
                   onReset={handleReset}
                   onToggleDoc={() => setIsRulesModalOpen(true)}
                   onOpenAIChat={() => setIsAIChatOpen(true)}
+                  onExportSalesOrder={() => {
+                    const outName = getSalesOrderExportFileName(currentFileName, 'ALL');
+                    exportSalesOrderToExcel(data, 'ALL', outName);
+                    setStatusMessage(`Berhasil mengekspor format Sales: ${outName}`);
+                  }}
                   isCopied={isCopied}
                   sheets={summary.sheetNames}
                   activeSheet={summary.activeSheetName}
@@ -684,6 +717,15 @@ export default function App() {
                 activeSheet={summary.activeSheetName}
                 onSelectSheet={handleSelectSheet}
                 onReset={handleReset}
+              />
+            )}
+
+            {/* MODE 3: REKAP ORDER SALES (13 KOLOM) */}
+            {conversionMode === 'SALES_ORDER' && (
+              <SalesOrderView
+                data={data}
+                fileName={currentFileName}
+                onShareStatus={(msg) => setStatusMessage(msg)}
               />
             )}
           </div>
