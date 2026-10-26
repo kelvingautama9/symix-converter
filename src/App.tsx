@@ -601,7 +601,7 @@ export default function App() {
               }}
               className={`px-2 sm:px-3 py-1 rounded-md text-[11px] sm:text-xs font-semibold transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1 ${
                 conversionMode === 'SALES_ORDER'
-                  ? 'bg-indigo-600 text-white shadow-2xs'
+                  ? 'bg-slate-900 text-white shadow-2xs'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >

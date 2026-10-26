@@ -196,37 +196,42 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Top Header Card */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white rounded-2xl p-4 sm:p-6 shadow-md border border-slate-700">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-          <div>
-            <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-white/10 text-slate-200 text-xs font-medium mb-2 backdrop-blur-xs">
-              <Building2 className="w-3.5 h-3.5 text-indigo-400" />
-              <span>FORMAT STANDAR SALES ORDER</span>
+      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 text-slate-700">
+              <FileSpreadsheet className="w-5 h-5" />
             </div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
-              RECAP ORDER {customerName}
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-300 mt-1">
-              Format 13-kolom khusus sales: Pemisahan otomatis Substance & Flute (C, B, E, BC), dimensi P & L, Qty/Berat PO, serta rencana jadwal pengiriman ter-fallback.
-            </p>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
+                RECAP ORDER {customerName}
+              </h2>
+              <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
+                <span className="font-medium text-slate-700">{filteredRows.length} baris data</span>
+                <span>•</span>
+                <span>{totals.totalPos} No. PO</span>
+                <span>•</span>
+                <span>{totals.totalArtikels} Artikel</span>
+              </div>
+            </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Download Button */}
-            <div className="relative inline-flex shadow-sm rounded-lg">
+          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {/* Split Download Button */}
+            <div className="relative inline-flex shadow-xs rounded-lg">
               <button
                 type="button"
                 onClick={() => handleExport(coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY')}
-                className="px-3.5 py-2 text-xs font-semibold rounded-l-lg bg-emerald-600 hover:bg-emerald-500 text-white inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                className="px-3.5 py-2 text-xs font-semibold rounded-l-lg bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
-                <Download className="w-4 h-4" />
+                <Download className="w-4 h-4 text-emerald-400" />
                 <span>Export Excel Sales (.xlsx)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="px-2 py-2 rounded-r-lg bg-emerald-700 hover:bg-emerald-600 text-white border-l border-emerald-800 cursor-pointer transition-colors"
+                className="px-2 py-2 rounded-r-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border-l border-slate-700 cursor-pointer transition-colors"
                 title="Pilihan Export"
               >
                 <ChevronDown className="w-3.5 h-3.5" />
@@ -240,7 +245,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleExport('ALL')}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
                   >
                     <span>Semua Baris (Open + Closed)</span>
                     <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded font-mono">ALL</span>
@@ -248,7 +253,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleExport('OPEN_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
                   >
                     <span>Khusus CO Open Saja</span>
                     <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">OPEN</span>
@@ -256,7 +261,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleExport('CLOSED_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between"
+                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
                   >
                     <span>Khusus CO Closed Saja</span>
                     <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">CLOSED</span>
@@ -265,7 +270,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleShareWA(coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-700 flex items-center gap-1.5 font-medium"
+                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-700 flex items-center gap-1.5 font-medium cursor-pointer"
                   >
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Kirim File via WhatsApp</span>
@@ -277,78 +282,88 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <button
               type="button"
               onClick={() => handleShareWA(coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY')}
-              className="px-3 py-2 text-xs font-semibold rounded-lg bg-white/10 hover:bg-white/20 text-white border border-white/20 inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+              className="px-3 py-2 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
             >
-              <Share2 className="w-3.5 h-3.5 text-emerald-400" />
+              <Share2 className="w-3.5 h-3.5 text-emerald-600" />
               <span>Share WA</span>
             </button>
           </div>
         </div>
+      </div>
 
-        {/* 5 Key Metric Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mt-5 pt-4 border-t border-white/10">
-          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <FileSpreadsheet className="w-3.5 h-3.5 text-indigo-400" />
-              <span>Total No. PO Unik</span>
+      {/* 5 Key Metric Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
+            Total No. PO
+          </span>
+          <div className="mt-1">
+            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{totals.totalPos}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PO</span>
             </div>
-            <div className="text-xl font-bold text-white mt-1">
-              {totals.totalPos} <span className="text-xs font-normal text-slate-400">PO</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5 font-mono">
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
               {totals.totalRows} baris jadwal
             </div>
           </div>
+        </div>
 
-          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Total Artikel</span>
+        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
+            Total Artikel
+          </span>
+          <div className="mt-1">
+            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{totals.totalArtikels}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-400">Item</span>
             </div>
-            <div className="text-xl font-bold text-white mt-1">
-              {totals.totalArtikels} <span className="text-xs font-normal text-slate-400">Item</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              Dimensi P & L terpisah
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500 truncate">
+              Dimensi P & L
             </div>
           </div>
+        </div>
 
-          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Package className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Total QTY PO</span>
+        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
+            Total QTY PO
+          </span>
+          <div className="mt-1">
+            <div className="text-lg sm:text-xl font-bold font-mono text-emerald-700 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{totals.sumQtyPcs.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
             </div>
-            <div className="text-xl font-bold text-emerald-300 mt-1 font-mono">
-              {totals.sumQtyPcs.toLocaleString('id-ID')} <span className="text-xs font-normal text-slate-400">PCS</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              Kolom I (Qty PO)
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
+              Kolom I
             </div>
           </div>
+        </div>
 
-          <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Weight className="w-3.5 h-3.5 text-amber-400" />
-              <span>Total Berat PO</span>
+        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
+            Total Berat PO
+          </span>
+          <div className="mt-1">
+            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{totals.sumQtyKg.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-400">KG</span>
             </div>
-            <div className="text-xl font-bold text-amber-300 mt-1 font-mono">
-              {totals.sumQtyKg.toLocaleString('id-ID')} <span className="text-xs font-normal text-slate-400">KG</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              Kolom J (Berat PO)
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
+              Kolom J
             </div>
           </div>
+        </div>
 
-          <div className="bg-white/5 rounded-xl p-3 border border-white/10 col-span-2 sm:col-span-1">
-            <div className="text-[11px] text-slate-400 flex items-center gap-1 font-medium">
-              <Calendar className="w-3.5 h-3.5 text-purple-400" />
-              <span>Total Rencana Kirim</span>
+        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
+          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
+            Total Rencana Kirim
+          </span>
+          <div className="mt-1">
+            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{totals.sumQtyDelivery.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
             </div>
-            <div className="text-xl font-bold text-purple-300 mt-1 font-mono">
-              {totals.sumQtyDelivery.toLocaleString('id-ID')} <span className="text-xs font-normal text-slate-400">PCS</span>
-            </div>
-            <div className="text-[10px] text-slate-400 mt-0.5">
-              Kolom L (Qty Delivery)
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
+              Kolom L
             </div>
           </div>
         </div>
@@ -364,7 +379,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Cari No PO, Artikel, Item Name, Substance, Flute, Tanggal..."
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-indigo-500 focus:bg-white text-slate-800 placeholder-slate-400 transition-all"
+            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white text-slate-800 placeholder-slate-400 transition-all"
           />
           {searchTerm && (
             <button
@@ -436,7 +451,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 onClick={() => setFluteFilter(f)}
                 className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors ${
                   fluteFilter === f
-                    ? 'bg-indigo-600 text-white'
+                    ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
@@ -511,13 +526,13 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 </th>
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-indigo-50 text-indigo-900 min-w-[120px]"
+                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[120px]"
                 >
                   Delivery Date
                 </th>
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-indigo-50 text-indigo-900 min-w-[100px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
                 >
                   Qty Delivery
                 </th>
@@ -627,15 +642,15 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                       </td>
 
                       {/* 11. Delivery Date (Rencana Jadwal Kirim) */}
-                      <td className="px-3 py-2 border border-slate-200 text-center font-mono font-bold text-indigo-700 bg-indigo-50/30">
-                        {r.deliveryDate}
+                      <td className="px-3 py-2 border border-slate-200 text-center font-mono font-medium text-slate-800">
+                        {r.deliveryDate || '-'}
                       </td>
 
                       {/* 12. Qty Delivery (Rencana Qty Kirim) */}
-                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-bold text-indigo-900 bg-indigo-50/30">
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-800">
                         {typeof r.qtyDelivery === 'number'
                           ? r.qtyDelivery.toLocaleString('id-ID')
-                          : r.qtyDelivery}
+                          : r.qtyDelivery || '-'}
                       </td>
 
                       {/* 13. Remarks (kosong/diabaikan) */}
@@ -666,7 +681,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 <td className="px-3 py-2.5 border border-slate-300 text-center text-slate-400">
                   -
                 </td>
-                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-indigo-900 bg-indigo-100/50">
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900 bg-slate-200/50">
                   {totals.sumQtyDelivery.toLocaleString('id-ID')}
                 </td>
                 <td className="px-2 py-2.5 border border-slate-300 text-center text-slate-400">
