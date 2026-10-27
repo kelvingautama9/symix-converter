@@ -92,7 +92,9 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
           r.substance.toLowerCase().includes(query) ||
           r.flute.toLowerCase().includes(query) ||
           r.coNumber.toLowerCase().includes(query) ||
-          r.deliveryDate.toLowerCase().includes(query);
+          r.deliveryDate.toLowerCase().includes(query) ||
+          (r.noSJ && r.noSJ.toLowerCase().includes(query)) ||
+          (r.actualDeliveryDate && r.actualDeliveryDate.toLowerCase().includes(query));
         if (!match) return false;
       }
 
@@ -105,24 +107,36 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     let sumQtyPcs = 0;
     let sumQtyKg = 0;
     let sumQtyDelivery = 0;
+    let sumKgDelivery = 0;
+    let sumActualQtyDelivery = 0;
+    let sumActualKgDelivery = 0;
     const uniquePos = new Set<string>();
     const uniqueArtikels = new Set<string>();
+    const uniqueSJs = new Set<string>();
 
     filteredRows.forEach((r) => {
       if (r.noPO && r.noPO !== '-') uniquePos.add(r.noPO);
       if (r.artikel && r.artikel !== '-') uniqueArtikels.add(r.artikel);
+      if (r.noSJ && r.noSJ !== '-') uniqueSJs.add(r.noSJ);
       if (typeof r.qtyPcs === 'number') sumQtyPcs += r.qtyPcs;
       if (typeof r.qtyKg === 'number') sumQtyKg += r.qtyKg;
       if (typeof r.qtyDelivery === 'number') sumQtyDelivery += r.qtyDelivery;
+      if (typeof r.kgDelivery === 'number') sumKgDelivery += r.kgDelivery;
+      if (typeof r.actualQtyDelivery === 'number') sumActualQtyDelivery += r.actualQtyDelivery;
+      if (typeof r.actualKgDelivery === 'number') sumActualKgDelivery += r.actualKgDelivery;
     });
 
     return {
       totalPos: uniquePos.size,
       totalArtikels: uniqueArtikels.size,
+      totalSJs: uniqueSJs.size,
       totalRows: filteredRows.length,
       sumQtyPcs,
       sumQtyKg,
       sumQtyDelivery,
+      sumKgDelivery,
+      sumActualQtyDelivery,
+      sumActualKgDelivery,
     };
   }, [filteredRows]);
 
@@ -212,6 +226,8 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 <span>{totals.totalPos} No. PO</span>
                 <span>•</span>
                 <span>{totals.totalArtikels} Artikel</span>
+                <span>•</span>
+                <span>{totals.totalSJs} No. SJ</span>
               </div>
             </div>
           </div>
@@ -332,38 +348,39 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               <span>{totals.sumQtyPcs.toLocaleString('id-ID')}</span>
               <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
             </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
-              Kolom I
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-600">
+              {totals.sumQtyKg.toLocaleString('id-ID')} KG
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
           <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
-            Total Berat PO
+            Rencana Kirim (Jadwal)
           </span>
           <div className="mt-1">
-            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
-              <span>{totals.sumQtyKg.toLocaleString('id-ID')}</span>
-              <span className="text-[10px] sm:text-xs font-normal text-slate-400">KG</span>
+            <div className="text-lg sm:text-xl font-bold font-mono text-blue-700 tracking-tight leading-none flex items-baseline gap-1">
+              <span>{totals.sumQtyDelivery.toLocaleString('id-ID')}</span>
+              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
             </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
-              Kolom J
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-600">
+              {totals.sumKgDelivery.toLocaleString('id-ID')} KG
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
           <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
-            Total Rencana Kirim
+            Realisasi Kirim (SJ)
           </span>
           <div className="mt-1">
             <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
-              <span>{totals.sumQtyDelivery.toLocaleString('id-ID')}</span>
+              <span>{totals.sumActualQtyDelivery.toLocaleString('id-ID')}</span>
               <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
             </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
-              Kolom L
+            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-600 flex justify-between">
+              <span>{totals.sumActualKgDelivery.toLocaleString('id-ID')} KG</span>
+              <span className="text-slate-400 font-sans">{totals.totalSJs} SJ</span>
             </div>
           </div>
         </div>
@@ -462,11 +479,11 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         )}
       </div>
 
-      {/* Main 13-Column Table matching Image 2 */}
+      {/* Main 18-Column Table matching Sales Order Schema */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto max-h-[70vh]">
           <table className="w-full text-xs text-left border-collapse border border-slate-300">
-            {/* 2-Tier Header strictly aligned with Image 2 */}
+            {/* 2-Tier Header strictly aligned */}
             <thead className="bg-slate-100 text-slate-800 font-bold sticky top-0 z-20 select-none shadow-xs">
               {/* Row 1 of Header */}
               <tr>
@@ -538,9 +555,39 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 </th>
                 <th
                   rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                >
+                  Kg Delivery
+                </th>
+                <th
+                  rowSpan={2}
                   className="px-2 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[100px] text-slate-400"
                 >
                   Remarks
+                </th>
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[130px]"
+                >
+                  Actual Delivery Date
+                </th>
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[120px]"
+                >
+                  No SJ
+                </th>
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                >
+                  Qty Delivery
+                </th>
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                >
+                  Kg Delivery
                 </th>
               </tr>
 
@@ -559,7 +606,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="px-4 py-12 text-center text-slate-400">
+                  <td colSpan={18} className="px-4 py-12 text-center text-slate-400">
                     Tidak ada data yang sesuai dengan pencarian atau filter.
                   </td>
                 </tr>
@@ -590,7 +637,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                           <div className="flex items-center gap-1 text-slate-400 pl-3">
                             <span className="text-slate-300 font-mono text-[10px]">└</span>
                             <span className="text-[10px] italic font-mono text-slate-400">
-                              (jadwal ke-{r.scheduleSequence})
+                              (baris ke-{r.scheduleSequence})
                             </span>
                           </div>
                         )}
@@ -643,19 +690,56 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
 
                       {/* 11. Delivery Date (Rencana Jadwal Kirim) */}
                       <td className="px-3 py-2 border border-slate-200 text-center font-mono font-medium text-slate-800">
-                        {r.deliveryDate || '-'}
+                        {r.deliveryDate || ''}
                       </td>
 
                       {/* 12. Qty Delivery (Rencana Qty Kirim) */}
                       <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-800">
                         {typeof r.qtyDelivery === 'number'
                           ? r.qtyDelivery.toLocaleString('id-ID')
-                          : r.qtyDelivery || '-'}
+                          : r.qtyDelivery || ''}
                       </td>
 
-                      {/* 13. Remarks (kosong/diabaikan) */}
+                      {/* 13. Kg Delivery (Rencana Berat Kirim) */}
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-800">
+                        {typeof r.kgDelivery === 'number'
+                          ? r.kgDelivery.toLocaleString('id-ID')
+                          : r.kgDelivery || ''}
+                      </td>
+
+                      {/* 14. Remarks (kosong/diabaikan) */}
                       <td className="px-2 py-2 border border-slate-200 text-center text-slate-300">
                         -
+                      </td>
+
+                      {/* 15. Actual Delivery Date */}
+                      <td className="px-3 py-2 border border-slate-200 text-center font-mono text-slate-800">
+                        {r.actualDeliveryDate || ''}
+                      </td>
+
+                      {/* 16. No SJ (terfallback kebawahnya) */}
+                      <td className="px-3 py-2 border border-slate-200 text-center font-mono">
+                        {r.noSJ && r.noSJ !== '-' ? (
+                          <span className="font-semibold text-slate-900">{r.noSJ}</span>
+                        ) : r.noSJ === '-' ? (
+                          <span className="text-slate-400">-</span>
+                        ) : (
+                          ''
+                        )}
+                      </td>
+
+                      {/* 17. Qty Delivery (Actual / Realisasi Kirim PCS) */}
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-900">
+                        {typeof r.actualQtyDelivery === 'number'
+                          ? r.actualQtyDelivery.toLocaleString('id-ID')
+                          : r.actualQtyDelivery || ''}
+                      </td>
+
+                      {/* 18. Kg Delivery (Actual / Realisasi Kirim KG) */}
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-900">
+                        {typeof r.actualKgDelivery === 'number'
+                          ? r.actualKgDelivery.toLocaleString('id-ID')
+                          : r.actualKgDelivery || ''}
                       </td>
                     </tr>
                   );
@@ -684,8 +768,23 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900 bg-slate-200/50">
                   {totals.sumQtyDelivery.toLocaleString('id-ID')}
                 </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900 bg-slate-200/50">
+                  {totals.sumKgDelivery.toLocaleString('id-ID')}
+                </td>
                 <td className="px-2 py-2.5 border border-slate-300 text-center text-slate-400">
                   -
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-center text-slate-400">
+                  -
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-center font-mono font-bold text-slate-700">
+                  {totals.totalSJs > 0 ? `${totals.totalSJs} SJ` : '-'}
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-50">
+                  {totals.sumActualQtyDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-50">
+                  {totals.sumActualKgDelivery.toLocaleString('id-ID')}
                 </td>
               </tr>
             </tfoot>

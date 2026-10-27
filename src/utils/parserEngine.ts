@@ -1281,11 +1281,16 @@ export function flattenDeliveriesForDataEntry(
  * Col I: Qty (Pcs) - PO Qty
  * Col J: Qty (Kg) - PO Weight
  * Col K: Delivery Date - Rencana jadwal kirim
- * Col L: Qty Delivery - Rencana qty kirim
- * Col M: Remarks (empty)
+ * Col L: Qty Delivery - Rencana qty kirim (PCS)
+ * Col M: Kg Delivery - Rencana berat kirim (KG)
+ * Col N: Remarks (empty)
+ * Col O: Actual Delivery Date - Realisasi tanggal kirim Surat Jalan
+ * Col P: No SJ (terfallback kebawahnya) - Nomor Surat Jalan
+ * Col Q: Qty Delivery - Realisasi qty kirim SJ (PCS)
+ * Col R: Kg Delivery - Realisasi berat kirim SJ (KG)
  *
- * If a PO has multiple delivery schedules, row 1 contains PO info and schedule 1,
- * and subsequent schedules are placed on row 2+ directly beneath it with columns A..J left blank (fallback kebawahnya).
+ * If a PO has multiple delivery schedules or multiple Surat Jalan, row 1 contains PO info, schedule 1, and SJ 1,
+ * and subsequent schedules / SJs are placed on row 2+ directly beneath it with columns A..J left blank (terfallback kebawahnya).
  */
 export function flattenSalesOrderRows(
   records: ExtractedRecord[],
@@ -1315,7 +1320,7 @@ export function flattenSalesOrderRows(
     const sizeP = po.SizeP !== undefined && po.SizeP !== '-' ? po.SizeP : dims.p;
     const sizeL = po.SizeL !== undefined && po.SizeL !== '-' ? po.SizeL : dims.l;
 
-    // Resolve schedules
+    // Resolve schedules (Rencana Jadwal Kirim)
     const rawSchedules =
       po.schedules && po.schedules.length > 0
         ? po.schedules
@@ -1327,13 +1332,65 @@ export function flattenSalesOrderRows(
             },
           ];
 
+    // Resolve actual deliveries (Surat Jalan riil)
+    const realDeliveries = (po.deliveries || []).filter(
+      (d) => !d.isFallbackNoDelivery && d.noSJ && d.noSJ !== '-'
+    );
+
     const cleanNoPO = po['No PO'] || '-';
     const poRecId = po.id || `po_rec_${poIdx + 1}`;
 
-    rawSchedules.forEach((sched, sIdx) => {
-      const isFirst = sIdx === 0;
+    // A PO spans enough rows to accommodate either multiple schedules or multiple SJs (fallback kebawahnya)
+    const maxRows = Math.max(rawSchedules.length, realDeliveries.length, 1);
+
+    for (let rowIdx = 0; rowIdx < maxRows; rowIdx++) {
+      const isFirst = rowIdx === 0;
+
+      // 1. Planned Delivery Schedule info
+      let deliveryDate = '';
+      let qtyDelivery: number | '' = '';
+      let kgDelivery: number | '' = '';
+
+      if (rowIdx < rawSchedules.length) {
+        const sched = rawSchedules[rowIdx];
+        deliveryDate = sched.scheduleDate || '-';
+        const sQty = sched.scheduleQty > 0 ? sched.scheduleQty : isFirst ? qtyPoPcs : 0;
+        qtyDelivery = sQty;
+        if (typeof sQty === 'number' && sQty > 0 && qtyPoPcs > 0 && beratPoKg > 0) {
+          kgDelivery = Math.round((sQty / qtyPoPcs) * beratPoKg);
+        } else if (sQty === 0) {
+          kgDelivery = 0;
+        } else {
+          kgDelivery = isFirst ? beratPoKg : 0;
+        }
+      }
+
+      // 2. Actual Delivery (Surat Jalan) info - terfallback kebawahnya
+      let actualDeliveryDate = '';
+      let noSJ = '';
+      let actualQtyDelivery: number | '' = '';
+      let actualKgDelivery: number | '' = '';
+
+      if (realDeliveries.length > 0) {
+        if (rowIdx < realDeliveries.length) {
+          const sj = realDeliveries[rowIdx];
+          actualDeliveryDate = sj.tanggalKirim || '-';
+          noSJ = sj.noSJ || '-';
+          actualQtyDelivery = sj.qtyKirimPcs;
+          actualKgDelivery = sj.beratKirimKg;
+        }
+      } else {
+        // No delivery recorded for this PO (belum kirim)
+        if (isFirst) {
+          actualDeliveryDate = '-';
+          noSJ = '-';
+          actualQtyDelivery = '';
+          actualKgDelivery = '';
+        }
+      }
+
       flatRows.push({
-        id: `${poRecId}_sched_${sIdx + 1}`,
+        id: `${poRecId}_row_${rowIdx + 1}`,
         poRecordId: poRecId,
         coNumber: po.CO || '-',
         coStatus: po.coStatus || 'UNKNOWN',
@@ -1347,14 +1404,19 @@ export function flattenSalesOrderRows(
         itemName: isFirst ? po['Item Description'] || '-' : '',
         qtyPcs: isFirst ? qtyPoPcs : '',
         qtyKg: isFirst ? beratPoKg : '',
-        deliveryDate: sched.scheduleDate || '-',
-        qtyDelivery: sched.scheduleQty > 0 ? sched.scheduleQty : isFirst ? qtyPoPcs : 0,
+        deliveryDate,
+        qtyDelivery,
+        kgDelivery,
         remarks: '',
+        actualDeliveryDate,
+        noSJ,
+        actualQtyDelivery,
+        actualKgDelivery,
         isFirstScheduleOfPO: isFirst,
-        scheduleSequence: sIdx + 1,
-        totalSchedulesCount: rawSchedules.length,
+        scheduleSequence: rowIdx + 1,
+        totalSchedulesCount: maxRows,
       });
-    });
+    }
   });
 
   return flatRows;

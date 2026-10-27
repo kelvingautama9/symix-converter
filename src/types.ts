@@ -192,7 +192,12 @@ export interface SalesOrderRow {
   qtyKg: number | '';
   deliveryDate: string;
   qtyDelivery: number | '';
+  kgDelivery: number | '';
   remarks: string;
+  actualDeliveryDate: string;
+  noSJ: string;
+  actualQtyDelivery: number | '';
+  actualKgDelivery: number | '';
   isFirstScheduleOfPO: boolean;
   scheduleSequence: number;
   totalSchedulesCount: number;

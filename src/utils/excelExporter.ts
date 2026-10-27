@@ -1511,7 +1511,12 @@ export function buildSalesOrderWorksheet(
     'Qty (Kg)',
     'Delivery Date',
     'Qty Delivery',
+    'Kg Delivery',
     'Remarks',
+    'Actual Delivery Date',
+    'No SJ',
+    'Qty Delivery',
+    'Kg Delivery',
   ]);
 
   // Row 4: Table Header Row 2 (Sub-columns under Size)
@@ -1529,22 +1534,36 @@ export function buildSalesOrderWorksheet(
     '',
     '',
     '',
+    '',
+    '',
+    '',
+    '',
+    '',
   ]);
 
   // Row 5+: Data rows
   let sumQtyPcs = 0;
   let sumQtyKg = 0;
   let sumQtyDelivery = 0;
+  let sumKgDelivery = 0;
+  let sumActualQtyDelivery = 0;
+  let sumActualKgDelivery = 0;
 
   flatRows.forEach((r, idx) => {
     const excelRow = idx + 5;
     const numQtyPcs = typeof r.qtyPcs === 'number' ? r.qtyPcs : 0;
     const numQtyKg = typeof r.qtyKg === 'number' ? r.qtyKg : 0;
     const numQtyDelivery = typeof r.qtyDelivery === 'number' ? r.qtyDelivery : 0;
+    const numKgDelivery = typeof r.kgDelivery === 'number' ? r.kgDelivery : 0;
+    const numActualQtyDelivery = typeof r.actualQtyDelivery === 'number' ? r.actualQtyDelivery : 0;
+    const numActualKgDelivery = typeof r.actualKgDelivery === 'number' ? r.actualKgDelivery : 0;
 
     sumQtyPcs += numQtyPcs;
     sumQtyKg += numQtyKg;
     sumQtyDelivery += numQtyDelivery;
+    sumKgDelivery += numKgDelivery;
+    sumActualQtyDelivery += numActualQtyDelivery;
+    sumActualKgDelivery += numActualKgDelivery;
 
     sheetData.push([
       r.noPO,
@@ -1559,7 +1578,12 @@ export function buildSalesOrderWorksheet(
       r.qtyKg !== '' ? r.qtyKg : '',
       r.deliveryDate,
       r.qtyDelivery !== '' ? r.qtyDelivery : '',
+      r.kgDelivery !== '' ? r.kgDelivery : '',
       r.remarks || '',
+      r.actualDeliveryDate || '',
+      r.noSJ || '',
+      r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
+      r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
     ]);
   });
 
@@ -1579,12 +1603,17 @@ export function buildSalesOrderWorksheet(
     fNum(`SUM(J5:J${lastRow})`, sumQtyKg, '#,##0'),
     '',
     fNum(`SUM(L5:L${lastRow})`, sumQtyDelivery, '#,##0'),
+    fNum(`SUM(M5:M${lastRow})`, sumKgDelivery, '#,##0'),
     '',
+    '',
+    '',
+    fNum(`SUM(Q5:Q${lastRow})`, sumActualQtyDelivery, '#,##0'),
+    fNum(`SUM(R5:R${lastRow})`, sumActualKgDelivery, '#,##0'),
   ]);
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
-  // 13 Column Widths strictly aligned
+  // 18 Column Widths strictly aligned
   worksheet['!cols'] = [
     { wch: 22 }, // NO PO
     { wch: 16 }, // Date Receive PO
@@ -1598,12 +1627,17 @@ export function buildSalesOrderWorksheet(
     { wch: 14 }, // Qty (Kg)
     { wch: 16 }, // Delivery Date
     { wch: 16 }, // Qty Delivery
+    { wch: 16 }, // Kg Delivery
     { wch: 18 }, // Remarks
+    { wch: 20 }, // Actual Delivery Date
+    { wch: 18 }, // No SJ
+    { wch: 16 }, // Qty Delivery
+    { wch: 16 }, // Kg Delivery
   ];
 
-  // Exact Merges matching Image 2
+  // Exact Merges for 18-Column Header & Totals
   worksheet['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } }, // Title A1:M1
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 17 } }, // Title A1:R1
     { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },  // NO PO A3:A4
     { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } },  // Date Receive PO B3:B4
     { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } },  // Substance C3:C4
@@ -1615,7 +1649,12 @@ export function buildSalesOrderWorksheet(
     { s: { r: 2, c: 9 }, e: { r: 3, c: 9 } },  // Qty (Kg) J3:J4
     { s: { r: 2, c: 10 }, e: { r: 3, c: 10 } }, // Delivery Date K3:K4
     { s: { r: 2, c: 11 }, e: { r: 3, c: 11 } }, // Qty Delivery L3:L4
-    { s: { r: 2, c: 12 }, e: { r: 3, c: 12 } }, // Remarks M3:M4
+    { s: { r: 2, c: 12 }, e: { r: 3, c: 12 } }, // Kg Delivery M3:M4
+    { s: { r: 2, c: 13 }, e: { r: 3, c: 13 } }, // Remarks N3:N4
+    { s: { r: 2, c: 14 }, e: { r: 3, c: 14 } }, // Actual Delivery Date O3:O4
+    { s: { r: 2, c: 15 }, e: { r: 3, c: 15 } }, // No SJ P3:P4
+    { s: { r: 2, c: 16 }, e: { r: 3, c: 16 } }, // Qty Delivery Q3:Q4
+    { s: { r: 2, c: 17 }, e: { r: 3, c: 17 } }, // Kg Delivery R3:R4
     { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 7 } }, // TOTAL label A:H
   ];
 
