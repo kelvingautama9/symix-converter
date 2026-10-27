@@ -1577,8 +1577,22 @@ export function buildSalesOrderWorksheet(
   let sumActualQtyDelivery = 0;
   let sumActualKgDelivery = 0;
 
+  // Singlewall (B, C, E) & Doublewall (BC) counters
+  let swQtyPcs = 0;
+  let swQtyKg = 0;
+  let swQtyDelivery = 0;
+  let swKgDelivery = 0;
+  let swActualQtyDelivery = 0;
+  let swActualKgDelivery = 0;
+
+  let dwQtyPcs = 0;
+  let dwQtyKg = 0;
+  let dwQtyDelivery = 0;
+  let dwKgDelivery = 0;
+  let dwActualQtyDelivery = 0;
+  let dwActualKgDelivery = 0;
+
   flatRows.forEach((r, idx) => {
-    const excelRow = idx + 5;
     const numQtyPcs = typeof r.qtyPcs === 'number' ? r.qtyPcs : 0;
     const numQtyKg = typeof r.qtyKg === 'number' ? r.qtyKg : 0;
     const numQtyDelivery = typeof r.qtyDelivery === 'number' ? r.qtyDelivery : 0;
@@ -1592,6 +1606,24 @@ export function buildSalesOrderWorksheet(
     sumKgDelivery += numKgDelivery;
     sumActualQtyDelivery += numActualQtyDelivery;
     sumActualKgDelivery += numActualKgDelivery;
+
+    const cleanFlute = String(r.flute || '').trim().toUpperCase();
+    if (cleanFlute === 'BC') {
+      dwQtyPcs += numQtyPcs;
+      dwQtyKg += numQtyKg;
+      dwQtyDelivery += numQtyDelivery;
+      dwKgDelivery += numKgDelivery;
+      dwActualQtyDelivery += numActualQtyDelivery;
+      dwActualKgDelivery += numActualKgDelivery;
+    } else {
+      // Singlewall: Flute B, C, E
+      swQtyPcs += numQtyPcs;
+      swQtyKg += numQtyKg;
+      swQtyDelivery += numQtyDelivery;
+      swKgDelivery += numKgDelivery;
+      swActualQtyDelivery += numActualQtyDelivery;
+      swActualKgDelivery += numActualKgDelivery;
+    }
 
     sheetData.push([
       r.noPO,
@@ -1616,10 +1648,14 @@ export function buildSalesOrderWorksheet(
   });
 
   const lastRow = flatRows.length + 4;
+  const swRow = lastRow + 1;
+  const dwRow = lastRow + 2;
+  const gtRow = lastRow + 3;
 
-  // Row Total Summary
+  // 1. Row TOTAL SINGLEWALL (FLUTE B, C, E)
+  const swRowIndex = sheetData.length;
   sheetData.push([
-    'TOTAL',
+    'TOTAL SINGLEWALL (FLUTE B, C, E)',
     '',
     '',
     '',
@@ -1627,16 +1663,155 @@ export function buildSalesOrderWorksheet(
     '',
     '',
     '',
-    fNum(`SUM(I5:I${lastRow})`, sumQtyPcs, '#,##0'),
-    fNum(`SUM(J5:J${lastRow})`, sumQtyKg, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"B",I$5:I$${lastRow})+SUMIF(D$5:D$${lastRow},"C",I$5:I$${lastRow})+SUMIF(D$5:D$${lastRow},"E",I$5:I$${lastRow})`, swQtyPcs, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"B",J$5:J$${lastRow})+SUMIF(D$5:D$${lastRow},"C",J$5:J$${lastRow})+SUMIF(D$5:D$${lastRow},"E",J$5:J$${lastRow})`, swQtyKg, '#,##0'),
     '',
-    fNum(`SUM(L5:L${lastRow})`, sumQtyDelivery, '#,##0'),
-    fNum(`SUM(M5:M${lastRow})`, sumKgDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"B",L$5:L$${lastRow})+SUMIF(D$5:D$${lastRow},"C",L$5:L$${lastRow})+SUMIF(D$5:D$${lastRow},"E",L$5:L$${lastRow})`, swQtyDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"B",M$5:M$${lastRow})+SUMIF(D$5:D$${lastRow},"C",M$5:M$${lastRow})+SUMIF(D$5:D$${lastRow},"E",M$5:M$${lastRow})`, swKgDelivery, '#,##0'),
     '',
     '',
     '',
-    fNum(`SUM(Q5:Q${lastRow})`, sumActualQtyDelivery, '#,##0'),
-    fNum(`SUM(R5:R${lastRow})`, sumActualKgDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"B",Q$5:Q$${lastRow})+SUMIF(D$5:D$${lastRow},"C",Q$5:Q$${lastRow})+SUMIF(D$5:D$${lastRow},"E",Q$5:Q$${lastRow})`, swActualQtyDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"B",R$5:R$${lastRow})+SUMIF(D$5:D$${lastRow},"C",R$5:R$${lastRow})+SUMIF(D$5:D$${lastRow},"E",R$5:R$${lastRow})`, swActualKgDelivery, '#,##0'),
+  ]);
+
+  // 2. Row TOTAL DOUBLEWALL (FLUTE BC)
+  const dwRowIndex = sheetData.length;
+  sheetData.push([
+    'TOTAL DOUBLEWALL (FLUTE BC)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`SUMIF(D$5:D$${lastRow},"BC",I$5:I$${lastRow})`, dwQtyPcs, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"BC",J$5:J$${lastRow})`, dwQtyKg, '#,##0'),
+    '',
+    fNum(`SUMIF(D$5:D$${lastRow},"BC",L$5:L$${lastRow})`, dwQtyDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"BC",M$5:M${lastRow})`, dwKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`SUMIF(D$5:D$${lastRow},"BC",Q$5:Q$${lastRow})`, dwActualQtyDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"BC",R$5:R$${lastRow})`, dwActualKgDelivery, '#,##0'),
+  ]);
+
+  // 3. Row GRAND TOTAL REKAPITULASI SALES
+  const gtRowIndex = sheetData.length;
+  sheetData.push([
+    'GRAND TOTAL (TOTAL KESELURUHAN PO)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${swRow}+I${dwRow}`, sumQtyPcs, '#,##0'),
+    fNum(`J${swRow}+J${dwRow}`, sumQtyKg, '#,##0'),
+    '',
+    fNum(`L${swRow}+L${dwRow}`, sumQtyDelivery, '#,##0'),
+    fNum(`M${swRow}+M${dwRow}`, sumKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${swRow}+Q${dwRow}`, sumActualQtyDelivery, '#,##0'),
+    fNum(`R${swRow}+R${dwRow}`, sumActualKgDelivery, '#,##0'),
+  ]);
+
+  // 4. Dedicated Summary Box by Flute
+  sheetData.push([]);
+  const kpiTitleIndex = sheetData.length;
+  sheetData.push(['REKAPITULASI TOTAL PO BERDASARKAN TIPE FLUTE (SINGLEWALL & DOUBLEWALL)']);
+
+  const kpiHeaderIndex = sheetData.length;
+  sheetData.push([
+    'KATEGORI FLUTE',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    'Qty PO (Pcs)',
+    'Qty PO (Kg)',
+    '',
+    'Qty Jadwal (Pcs)',
+    'Kg Jadwal (Kg)',
+    '',
+    '',
+    '',
+    'Qty Realisasi (Pcs)',
+    'Kg Realisasi (Kg)',
+  ]);
+
+  const kpiSwIndex = sheetData.length;
+  sheetData.push([
+    '1. SINGLEWALL (Flute B, C, E)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${swRow}`, swQtyPcs, '#,##0'),
+    fNum(`J${swRow}`, swQtyKg, '#,##0'),
+    '',
+    fNum(`L${swRow}`, swQtyDelivery, '#,##0'),
+    fNum(`M${swRow}`, swKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${swRow}`, swActualQtyDelivery, '#,##0'),
+    fNum(`R${swRow}`, swActualKgDelivery, '#,##0'),
+  ]);
+
+  const kpiDwIndex = sheetData.length;
+  sheetData.push([
+    '2. DOUBLEWALL (Flute BC)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${dwRow}`, dwQtyPcs, '#,##0'),
+    fNum(`J${dwRow}`, dwQtyKg, '#,##0'),
+    '',
+    fNum(`L${dwRow}`, dwQtyDelivery, '#,##0'),
+    fNum(`M${dwRow}`, dwKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${dwRow}`, dwActualQtyDelivery, '#,##0'),
+    fNum(`R${dwRow}`, dwActualKgDelivery, '#,##0'),
+  ]);
+
+  const kpiTotalIndex = sheetData.length;
+  sheetData.push([
+    'TOTAL KESELURUHAN (SW + DW)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${gtRow}`, sumQtyPcs, '#,##0'),
+    fNum(`J${gtRow}`, sumQtyKg, '#,##0'),
+    '',
+    fNum(`L${gtRow}`, sumQtyDelivery, '#,##0'),
+    fNum(`M${gtRow}`, sumKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${gtRow}`, sumActualQtyDelivery, '#,##0'),
+    fNum(`R${gtRow}`, sumActualKgDelivery, '#,##0'),
   ]);
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
@@ -1663,7 +1838,7 @@ export function buildSalesOrderWorksheet(
     { wch: 16 }, // Kg Delivery
   ];
 
-  // Exact Merges for 18-Column Header & Totals
+  // Exact Merges for 18-Column Header, Flute Totals, and Summary Box
   worksheet['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 17 } }, // Title A1:R1
     { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },  // NO PO A3:A4
@@ -1683,7 +1858,18 @@ export function buildSalesOrderWorksheet(
     { s: { r: 2, c: 15 }, e: { r: 3, c: 15 } }, // No SJ P3:P4
     { s: { r: 2, c: 16 }, e: { r: 3, c: 16 } }, // Qty Delivery Q3:Q4
     { s: { r: 2, c: 17 }, e: { r: 3, c: 17 } }, // Kg Delivery R3:R4
-    { s: { r: sheetData.length - 1, c: 0 }, e: { r: sheetData.length - 1, c: 7 } }, // TOTAL label A:H
+
+    // Merges for 3 Total Rows (A:H merged)
+    { s: { r: swRowIndex, c: 0 }, e: { r: swRowIndex, c: 7 } }, // TOTAL SINGLEWALL label A:H
+    { s: { r: dwRowIndex, c: 0 }, e: { r: dwRowIndex, c: 7 } }, // TOTAL DOUBLEWALL label A:H
+    { s: { r: gtRowIndex, c: 0 }, e: { r: gtRowIndex, c: 7 } }, // GRAND TOTAL label A:H
+
+    // Merges for KPI Summary Box below table
+    { s: { r: kpiTitleIndex, c: 0 }, e: { r: kpiTitleIndex, c: 17 } }, // KPI Title A:R
+    { s: { r: kpiHeaderIndex, c: 0 }, e: { r: kpiHeaderIndex, c: 7 } }, // KPI Header A:H
+    { s: { r: kpiSwIndex, c: 0 }, e: { r: kpiSwIndex, c: 7 } }, // KPI SW A:H
+    { s: { r: kpiDwIndex, c: 0 }, e: { r: kpiDwIndex, c: 7 } }, // KPI DW A:H
+    { s: { r: kpiTotalIndex, c: 0 }, e: { r: kpiTotalIndex, c: 7 } }, // KPI Total A:H
   ];
 
   return worksheet;

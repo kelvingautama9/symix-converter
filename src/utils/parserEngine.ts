@@ -1364,7 +1364,9 @@ export function flattenSalesOrderRows(
     // Resolve pure substance and flute
     const parsedSub = parseSubstanceAndFlute(po.PureSubstance || po.Substance);
     const pureSubstance = po.PureSubstance || parsedSub.substance || '-';
-    const flute = po.Flute && po.Flute !== '-' ? po.Flute : parsedSub.flute;
+    const rawFlute = po.Flute && po.Flute !== '-' ? po.Flute : parsedSub.flute || '-';
+    const flute = String(rawFlute).trim().toUpperCase();
+    const wallType: 'SINGLEWALL' | 'DOUBLEWALL' = flute === 'BC' ? 'DOUBLEWALL' : 'SINGLEWALL';
 
     // Resolve dimensions P & L
     const dims = parseDimensions(po.RawSize, po['Item Description']);
@@ -1448,7 +1450,8 @@ export function flattenSalesOrderRows(
         noPO: isFirst ? cleanNoPO : '',
         dateReceivePO: '',
         substance: isFirst ? pureSubstance : '',
-        flute: isFirst ? flute : '',
+        flute: flute,
+        wallType,
         sizeP: isFirst ? sizeP : '',
         sizeL: isFirst ? sizeL : '',
         artikel: isFirst ? po.Artikel || '-' : '',

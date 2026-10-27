@@ -117,16 +117,75 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     const uniqueArtikels = new Set<string>();
     const uniqueSJs = new Set<string>();
 
+    // Singlewall (B, C, E) & Doublewall (BC) breakdown
+    const swUniquePos = new Set<string>();
+    const swUniqueArtikels = new Set<string>();
+    const swUniqueSJs = new Set<string>();
+    let swQtyPcs = 0;
+    let swQtyKg = 0;
+    let swQtyDelivery = 0;
+    let swKgDelivery = 0;
+    let swActualQtyDelivery = 0;
+    let swActualKgDelivery = 0;
+
+    const dwUniquePos = new Set<string>();
+    const dwUniqueArtikels = new Set<string>();
+    const dwUniqueSJs = new Set<string>();
+    let dwQtyPcs = 0;
+    let dwQtyKg = 0;
+    let dwQtyDelivery = 0;
+    let dwKgDelivery = 0;
+    let dwActualQtyDelivery = 0;
+    let dwActualKgDelivery = 0;
+
     filteredRows.forEach((r) => {
-      if (r.noPO && r.noPO !== '-') uniquePos.add(r.noPO);
-      if (r.artikel && r.artikel !== '-') uniqueArtikels.add(r.artikel);
-      if (r.noSJ && r.noSJ !== '-') uniqueSJs.add(r.noSJ);
-      if (typeof r.qtyPcs === 'number') sumQtyPcs += r.qtyPcs;
-      if (typeof r.qtyKg === 'number') sumQtyKg += r.qtyKg;
-      if (typeof r.qtyDelivery === 'number') sumQtyDelivery += r.qtyDelivery;
-      if (typeof r.kgDelivery === 'number') sumKgDelivery += r.kgDelivery;
-      if (typeof r.actualQtyDelivery === 'number') sumActualQtyDelivery += r.actualQtyDelivery;
-      if (typeof r.actualKgDelivery === 'number') sumActualKgDelivery += r.actualKgDelivery;
+      const isDW = String(r.flute || '').trim().toUpperCase() === 'BC';
+
+      if (r.noPO && r.noPO !== '-') {
+        uniquePos.add(r.noPO);
+        if (isDW) dwUniquePos.add(r.noPO);
+        else swUniquePos.add(r.noPO);
+      }
+      if (r.artikel && r.artikel !== '-') {
+        uniqueArtikels.add(r.artikel);
+        if (isDW) dwUniqueArtikels.add(r.artikel);
+        else swUniqueArtikels.add(r.artikel);
+      }
+      if (r.noSJ && r.noSJ !== '-') {
+        uniqueSJs.add(r.noSJ);
+        if (isDW) dwUniqueSJs.add(r.noSJ);
+        else swUniqueSJs.add(r.noSJ);
+      }
+      if (typeof r.qtyPcs === 'number') {
+        sumQtyPcs += r.qtyPcs;
+        if (isDW) dwQtyPcs += r.qtyPcs;
+        else swQtyPcs += r.qtyPcs;
+      }
+      if (typeof r.qtyKg === 'number') {
+        sumQtyKg += r.qtyKg;
+        if (isDW) dwQtyKg += r.qtyKg;
+        else swQtyKg += r.qtyKg;
+      }
+      if (typeof r.qtyDelivery === 'number') {
+        sumQtyDelivery += r.qtyDelivery;
+        if (isDW) dwQtyDelivery += r.qtyDelivery;
+        else swQtyDelivery += r.qtyDelivery;
+      }
+      if (typeof r.kgDelivery === 'number') {
+        sumKgDelivery += r.kgDelivery;
+        if (isDW) dwKgDelivery += r.kgDelivery;
+        else swKgDelivery += r.kgDelivery;
+      }
+      if (typeof r.actualQtyDelivery === 'number') {
+        sumActualQtyDelivery += r.actualQtyDelivery;
+        if (isDW) dwActualQtyDelivery += r.actualQtyDelivery;
+        else swActualQtyDelivery += r.actualQtyDelivery;
+      }
+      if (typeof r.actualKgDelivery === 'number') {
+        sumActualKgDelivery += r.actualKgDelivery;
+        if (isDW) dwActualKgDelivery += r.actualKgDelivery;
+        else swActualKgDelivery += r.actualKgDelivery;
+      }
     });
 
     return {
@@ -140,6 +199,28 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
       sumKgDelivery,
       sumActualQtyDelivery,
       sumActualKgDelivery,
+      sw: {
+        totalPos: swUniquePos.size,
+        totalArtikels: swUniqueArtikels.size,
+        totalSJs: swUniqueSJs.size,
+        sumQtyPcs: swQtyPcs,
+        sumQtyKg: swQtyKg,
+        sumQtyDelivery: swQtyDelivery,
+        sumKgDelivery: swKgDelivery,
+        sumActualQtyDelivery: swActualQtyDelivery,
+        sumActualKgDelivery: swActualKgDelivery,
+      },
+      dw: {
+        totalPos: dwUniquePos.size,
+        totalArtikels: dwUniqueArtikels.size,
+        totalSJs: dwUniqueSJs.size,
+        sumQtyPcs: dwQtyPcs,
+        sumQtyKg: dwQtyKg,
+        sumQtyDelivery: dwQtyDelivery,
+        sumKgDelivery: dwKgDelivery,
+        sumActualQtyDelivery: dwActualQtyDelivery,
+        sumActualKgDelivery: dwActualKgDelivery,
+      },
     };
   }, [filteredRows]);
 
@@ -177,38 +258,51 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   };
 
   // Badge helper for Flute
-  const getFluteBadge = (flute: string) => {
+  const getFluteBadge = (flute: string, isFallback: boolean = false) => {
     const clean = flute.trim().toUpperCase();
+    const fallbackClass = isFallback ? 'opacity-65 font-medium scale-95' : 'font-bold';
     if (clean === 'BC') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-purple-100 text-purple-800 border border-purple-200 ${fallbackClass}`}
+          title="Doublewall (5-Ply BC Flute)"
+        >
           BC
         </span>
       );
     }
     if (clean === 'C') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-amber-100 text-amber-800 border border-amber-200 ${fallbackClass}`}
+          title="Singlewall (3-Ply C Flute)"
+        >
           C
         </span>
       );
     }
     if (clean === 'B') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-blue-100 text-blue-800 border border-blue-200 ${fallbackClass}`}
+          title="Singlewall (3-Ply B Flute)"
+        >
           B
         </span>
       );
     }
     if (clean === 'E') {
       return (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+        <span
+          className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] bg-emerald-100 text-emerald-800 border border-emerald-200 ${fallbackClass}`}
+          title="Singlewall (3-Ply E Flute)"
+        >
           E
         </span>
       );
     }
     return (
-      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700">
+      <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[11px] font-medium bg-slate-100 text-slate-700 ${fallbackClass}`}>
         {clean || '-'}
       </span>
     );
@@ -489,6 +583,127 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-600 flex justify-between">
               <span>{totals.sumActualKgDelivery.toLocaleString('id-ID')} KG</span>
               <span className="text-slate-400 font-sans">{totals.totalSJs} SJ</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Rekapitulasi Total PO Berdasarkan Tipe Flute (Singlewall & Doublewall) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {/* 1. Singlewall Card (Flute B, C, E) */}
+        <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:border-blue-200 transition-colors">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
+              <span className="text-xs font-bold text-slate-900 tracking-tight">
+                1. SINGLEWALL (SW)
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+                Flute B, C, E (3-Ply)
+              </span>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              {totals.sw.totalPos} PO • {totals.sw.totalArtikels} Item
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 pt-2.5">
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Total QTY PO
+              </span>
+              <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
+                {totals.sw.sumQtyPcs.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.sw.sumQtyKg.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Rencana Kirim
+              </span>
+              <div className="font-mono font-bold text-blue-700 text-sm mt-0.5">
+                {totals.sw.sumQtyDelivery.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.sw.sumKgDelivery.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Realisasi (SJ)
+              </span>
+              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
+                {totals.sw.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.sw.sumActualKgDelivery.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Doublewall Card (Flute BC) */}
+        <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:border-purple-200 transition-colors">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+              <span className="text-xs font-bold text-slate-900 tracking-tight">
+                2. DOUBLEWALL (DW)
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+                Flute BC (5-Ply)
+              </span>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              {totals.dw.totalPos} PO • {totals.dw.totalArtikels} Item
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 pt-2.5">
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Total QTY PO
+              </span>
+              <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
+                {totals.dw.sumQtyPcs.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.dw.sumQtyKg.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Rencana Kirim
+              </span>
+              <div className="font-mono font-bold text-purple-700 text-sm mt-0.5">
+                {totals.dw.sumQtyDelivery.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.dw.sumKgDelivery.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Realisasi (SJ)
+              </span>
+              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
+                {totals.dw.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.dw.sumActualKgDelivery.toLocaleString('id-ID')} KG
+              </div>
             </div>
           </div>
         </div>
@@ -781,7 +996,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
 
                       {/* 4. Flute */}
                       <td className="px-2 py-2 border border-slate-200 text-center">
-                        {r.flute ? getFluteBadge(r.flute) : '-'}
+                        {r.flute ? getFluteBadge(r.flute, !r.isFirstScheduleOfPO) : '-'}
                       </td>
 
                       {/* 5. Size P */}
@@ -873,14 +1088,99 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               )}
             </tbody>
 
-            {/* Total Footer Row */}
-            <tfoot className="bg-slate-100 font-bold text-slate-900 sticky bottom-0 z-10 border-t-2 border-slate-300 shadow-md">
-              <tr>
+            {/* Total Footer: 3-Tier Breakdown by Flute (Singlewall, Doublewall, Grand Total) */}
+            <tfoot className="sticky bottom-0 z-10 border-t-2 border-slate-300 shadow-md divide-y divide-slate-200">
+              {/* Row 1: Singlewall */}
+              <tr className="bg-blue-50/70 font-semibold text-slate-800 text-xs">
+                <td
+                  colSpan={8}
+                  className="px-3 py-2 border border-slate-300 text-center tracking-tight"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                    <span className="font-bold text-slate-900">
+                      TOTAL SINGLEWALL (FLUTE B, C, E)
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      ({totals.sw.totalPos} PO / {totals.sw.totalArtikels} ARTIKEL)
+                    </span>
+                  </div>
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-slate-900">
+                  {totals.sw.sumQtyPcs.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-slate-900">
+                  {totals.sw.sumQtyKg.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-blue-900 bg-blue-100/50">
+                  {totals.sw.sumQtyDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-blue-900 bg-blue-100/50">
+                  {totals.sw.sumKgDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-2 py-2 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-2 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-2 border border-slate-300 text-center font-mono text-slate-600">
+                  {totals.sw.totalSJs > 0 ? `${totals.sw.totalSJs} SJ` : '-'}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
+                  {totals.sw.sumActualQtyDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
+                  {totals.sw.sumActualKgDelivery.toLocaleString('id-ID')}
+                </td>
+              </tr>
+
+              {/* Row 2: Doublewall */}
+              <tr className="bg-purple-50/70 font-semibold text-slate-800 text-xs">
+                <td
+                  colSpan={8}
+                  className="px-3 py-2 border border-slate-300 text-center tracking-tight"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+                    <span className="font-bold text-slate-900">
+                      TOTAL DOUBLEWALL (FLUTE BC)
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      ({totals.dw.totalPos} PO / {totals.dw.totalArtikels} ARTIKEL)
+                    </span>
+                  </div>
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-slate-900">
+                  {totals.dw.sumQtyPcs.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-slate-900">
+                  {totals.dw.sumQtyKg.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-purple-900 bg-purple-100/50">
+                  {totals.dw.sumQtyDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-purple-900 bg-purple-100/50">
+                  {totals.dw.sumKgDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-2 py-2 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-2 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-2 border border-slate-300 text-center font-mono text-slate-600">
+                  {totals.dw.totalSJs > 0 ? `${totals.dw.totalSJs} SJ` : '-'}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
+                  {totals.dw.sumActualQtyDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
+                  {totals.dw.sumActualKgDelivery.toLocaleString('id-ID')}
+                </td>
+              </tr>
+
+              {/* Row 3: Grand Total */}
+              <tr className="bg-slate-100 font-bold text-slate-900 text-xs">
                 <td
                   colSpan={8}
                   className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-wider uppercase text-slate-800"
                 >
-                  TOTAL REKAPITULASI SALES ({totals.totalPos} NO PO / {totals.totalArtikels} ARTIKEL)
+                  GRAND TOTAL REKAPITULASI SALES ({totals.totalPos} NO PO / {totals.totalArtikels} ARTIKEL)
                 </td>
                 <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900">
                   {totals.sumQtyPcs.toLocaleString('id-ID')}
@@ -906,10 +1206,10 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 <td className="px-3 py-2.5 border border-slate-300 text-center font-mono font-bold text-slate-700">
                   {totals.totalSJs > 0 ? `${totals.totalSJs} SJ` : '-'}
                 </td>
-                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-50">
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-100/60">
                   {totals.sumActualQtyDelivery.toLocaleString('id-ID')}
                 </td>
-                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-50">
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-100/60">
                   {totals.sumActualKgDelivery.toLocaleString('id-ID')}
                 </td>
               </tr>

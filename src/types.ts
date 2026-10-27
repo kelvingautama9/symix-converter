@@ -184,6 +184,7 @@ export interface SalesOrderRow {
   dateReceivePO: string;
   substance: string;
   flute: string;
+  wallType?: 'SINGLEWALL' | 'DOUBLEWALL';
   sizeP: number | string;
   sizeL: number | string;
   artikel: string;
