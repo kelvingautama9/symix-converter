@@ -11,6 +11,7 @@ import {
   recalculateFIFOStock,
   flattenDeliveriesForDataEntry,
   flattenSalesOrderRows,
+  comparePoNumberAsc,
 } from './parserEngine';
 import {
   getDeliveryStatusTag,
@@ -400,7 +401,8 @@ export function buildRekapOSWorksheet(
 export function generateExcelBlobAndFile(
   data: ExtractedRecord[],
   customFileName?: string,
-  scope: ExcelExportScope = 'ALL'
+  scope: ExcelExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): GenerateExcelResult {
   if (!data || data.length === 0) {
     throw new Error('Tidak ada data yang dapat diekspor.');
@@ -456,6 +458,13 @@ export function generateExcelBlobAndFile(
     sheetName = 'Over Kiriman';
   }
 
+  // Sort by PO number ascending (abjad & angka) if requested
+  if (sortByPoAsc) {
+    filteredData = [...filteredData].sort((a, b) => comparePoNumberAsc(a['No PO'], b['No PO']));
+    scopeTitleSuffix += ' (URUT NO. PO ASC)';
+    defaultFilePrefix += '_Urut_NoPO';
+  }
+
   if (filteredData.length === 0) {
     let scopeDesc = 'kondisi filter yang dipilih';
     if (scope === 'OPEN_ONLY') scopeDesc = 'status CO "OPEN"';
@@ -499,9 +508,15 @@ export function generateExcelBlobAndFile(
 export function exportToExcel(
   data: ExtractedRecord[],
   customFileName?: string,
-  scope: ExcelExportScope = 'ALL'
+  scope: ExcelExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): void {
-  const { workbook, outputFileName } = generateExcelBlobAndFile(data, customFileName, scope);
+  const { workbook, outputFileName } = generateExcelBlobAndFile(
+    data,
+    customFileName,
+    scope,
+    sortByPoAsc
+  );
   XLSX.writeFile(workbook, outputFileName);
 }
 
@@ -515,13 +530,14 @@ export function exportToExcel(
 export function generateDetailSJExcelBlobAndFile(
   data: ExtractedRecord[],
   customFileName?: string,
-  scope: DetailSJExportScope = 'ALL'
+  scope: DetailSJExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): GenerateExcelResult {
   if (!data || data.length === 0) {
     throw new Error('Tidak ada data yang dapat diekspor.');
   }
 
-  const flatRows = flattenDeliveriesForDataEntry(data, scope);
+  const flatRows = flattenDeliveriesForDataEntry(data, scope, sortByPoAsc);
   if (flatRows.length === 0) {
     throw new Error('Tidak ada data kiriman / PO yang sesuai dengan filter yang dipilih.');
   }
@@ -535,6 +551,10 @@ export function generateDetailSJExcelBlobAndFile(
     scopeTitleSuffix = 'KHUSUS PO MULTI-KIRIMAN (2+ SURAT JALAN)';
   else if (scope === 'NO_DELIVERY_FALLBACK') scopeTitleSuffix = 'KHUSUS PO BELUM KIRIM';
   else if (scope === 'HAS_SISA_OS') scopeTitleSuffix = 'KHUSUS PO MASIH ADA SISA OS (> 0 PCS)';
+
+  if (sortByPoAsc) {
+    scopeTitleSuffix += ' (URUT NO. PO ASC)';
+  }
 
   const nowStr = new Date().toLocaleString('id-ID', {
     dateStyle: 'medium',
@@ -1274,12 +1294,14 @@ export function generateDetailSJExcelBlobAndFile(
 export function exportDetailSJToExcel(
   data: ExtractedRecord[],
   customFileName?: string,
-  scope: DetailSJExportScope = 'ALL'
+  scope: DetailSJExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): void {
   const { workbook, outputFileName } = generateDetailSJExcelBlobAndFile(
     data,
     customFileName,
-    scope
+    scope,
+    sortByPoAsc
   );
   XLSX.writeFile(workbook, outputFileName);
 }
@@ -1290,12 +1312,14 @@ export function exportDetailSJToExcel(
 export async function shareDetailSJExcelFileToWhatsApp(
   data: ExtractedRecord[],
   scope: DetailSJExportScope = 'ALL',
-  customFileName?: string
+  customFileName?: string,
+  sortByPoAsc: boolean = false
 ): Promise<ShareExcelResult> {
   const { blob, file, outputFileName } = generateDetailSJExcelBlobAndFile(
     data,
     customFileName,
-    scope
+    scope,
+    sortByPoAsc
   );
 
   const canShareFiles =
@@ -1450,7 +1474,8 @@ export const SALES_ORDER_EXCEL_COLUMNS = [
  */
 export function getSalesOrderExportFileName(
   uploadedFileName?: string | null,
-  scope: SalesOrderExportScope = 'ALL'
+  scope: SalesOrderExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): string {
   let baseName = 'Rekap_Order_Sales';
   if (uploadedFileName) {
@@ -1462,24 +1487,27 @@ export function getSalesOrderExportFileName(
     }
   }
 
+  const sortSuffix = sortByPoAsc ? '_Urut_NoPO' : '';
+
   if (scope === 'OPEN_ONLY') {
-    return `${baseName}_CO_OPEN.xlsx`;
+    return `${baseName}_CO_OPEN${sortSuffix}.xlsx`;
   }
   if (scope === 'CLOSED_ONLY') {
-    return `${baseName}_CO_CLOSED.xlsx`;
+    return `${baseName}_CO_CLOSED${sortSuffix}.xlsx`;
   }
-  return `${baseName}.xlsx`;
+  return `${baseName}${sortSuffix}.xlsx`;
 }
 
 /**
- * Builds the 13-column Rekap Order Sales worksheet with 2-tier headers matching Image 2.
+ * Builds the 18-column Rekap Order Sales worksheet with 2-tier headers.
  */
 export function buildSalesOrderWorksheet(
   data: ExtractedRecord[],
   scope: SalesOrderExportScope = 'ALL',
-  customerTitle?: string
+  customerTitle?: string,
+  sortByPoAsc: boolean = false
 ): XLSX.WorkSheet {
-  const flatRows = flattenSalesOrderRows(data, scope);
+  const flatRows = flattenSalesOrderRows(data, scope, sortByPoAsc);
 
   // Determine Customer Name for Header A1 (e.g. RECAP ORDER PURBAYASA)
   let displayCustomer = 'PURBAYASA';
@@ -1667,7 +1695,8 @@ export function buildSalesOrderWorksheet(
 export function generateSalesOrderExcelBlobAndFile(
   data: ExtractedRecord[],
   customFileName?: string,
-  scope: SalesOrderExportScope = 'ALL'
+  scope: SalesOrderExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): GenerateExcelResult {
   if (!data || data.length === 0) {
     throw new Error('Tidak ada data yang dapat diekspor.');
@@ -1677,10 +1706,11 @@ export function generateSalesOrderExcelBlobAndFile(
   const customerName = data[0]?.customerName || 'PURBAYASA';
   const cleanCustName = customerName.replace(/^PT\.?\s*/i, '').trim().toUpperCase();
   const sheetName = `RECAP ORDER ${cleanCustName || 'PURBAYASA'}`.slice(0, 31);
-  const worksheet = buildSalesOrderWorksheet(data, scope, customerName);
+  const worksheet = buildSalesOrderWorksheet(data, scope, customerName, sortByPoAsc);
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
 
-  const outputFileName = customFileName || getSalesOrderExportFileName(undefined, scope);
+  const outputFileName =
+    customFileName || getSalesOrderExportFileName(undefined, scope, sortByPoAsc);
   const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   const blob = new Blob([excelBuffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1695,7 +1725,7 @@ export function generateSalesOrderExcelBlobAndFile(
     outputFileName,
     blob,
     file,
-    scopeTitleSuffix: scope,
+    scopeTitleSuffix: `${scope}${sortByPoAsc ? ' (URUT NO. PO ASC)' : ''}`,
     recordCount: data.length,
   };
 }
@@ -1706,9 +1736,10 @@ export function generateSalesOrderExcelBlobAndFile(
 export function exportSalesOrderToExcel(
   data: ExtractedRecord[],
   scope: SalesOrderExportScope = 'ALL',
-  customFileName?: string
+  customFileName?: string,
+  sortByPoAsc: boolean = false
 ): void {
-  const result = generateSalesOrderExcelBlobAndFile(data, customFileName, scope);
+  const result = generateSalesOrderExcelBlobAndFile(data, customFileName, scope, sortByPoAsc);
   XLSX.writeFile(result.workbook, result.outputFileName, { compression: true });
 }
 
@@ -1719,12 +1750,14 @@ export function exportSalesOrderToExcel(
 export async function shareSalesOrderExcelFileToWhatsApp(
   data: ExtractedRecord[],
   scope: SalesOrderExportScope = 'ALL',
-  customFileName?: string
+  customFileName?: string,
+  sortByPoAsc: boolean = false
 ): Promise<ShareExcelResult> {
   const { blob, file, outputFileName } = generateSalesOrderExcelBlobAndFile(
     data,
     customFileName,
-    scope
+    scope,
+    sortByPoAsc
   );
 
   const canShareFiles =

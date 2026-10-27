@@ -1103,7 +1103,8 @@ export function extractDataWithPoQty(rawRows: any[][]): ExtractedRecord[] {
  */
 export function flattenDeliveriesForDataEntry(
   records: ExtractedRecord[],
-  scope: CoFilterStatus | DetailSJExportScope = 'ALL'
+  scope: CoFilterStatus | DetailSJExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): FlattenedDeliveryRow[] {
   if (!records || records.length === 0) return [];
 
@@ -1116,7 +1117,7 @@ export function flattenDeliveriesForDataEntry(
 
   const scopedRecords = recalculateFIFOStock(records, fifoScope);
 
-  const filteredPOs = scopedRecords.filter((po) => {
+  let filteredPOs = scopedRecords.filter((po) => {
     if (scope === 'OPEN_ONLY' || scope === 'OPEN') return po.coStatus === 'OPEN';
     if (scope === 'CLOSED_ONLY' || scope === 'CLOSED') return po.coStatus === 'CLOSED';
 
@@ -1135,6 +1136,17 @@ export function flattenDeliveriesForDataEntry(
     }
     return true;
   });
+
+  if (sortByPoAsc) {
+    filteredPOs = [...filteredPOs].sort((a, b) => {
+      const cmp = comparePoNumberAsc(a['No PO'], b['No PO']);
+      if (cmp !== 0) return cmp;
+      return String(a.Artikel || '').localeCompare(String(b.Artikel || ''), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+    });
+  }
 
   const flatRows: FlattenedDeliveryRow[] = [];
 
@@ -1269,11 +1281,38 @@ export function flattenDeliveriesForDataEntry(
 }
 
 /**
- * Flattens ExtractedRecord[] into SalesOrderRow[] matching the 13-column Sales Order format requested:
+ * Natural Alphanumeric Comparison for PO Numbers (ascending: abjad & angka).
+ * - Sorts letters alphabetically (A-Z)
+ * - Sorts multi-digit numbers naturally (e.g. "PO-2" comes before "PO-10")
+ * - Case-insensitive and ignores redundant whitespaces
+ * - Empty or '-' PO numbers are sorted at the bottom
+ */
+export function comparePoNumberAsc(
+  poA: string | undefined | null,
+  poB: string | undefined | null
+): number {
+  const cleanA = String(poA || '').trim();
+  const cleanB = String(poB || '').trim();
+
+  const isAEmpty = !cleanA || cleanA === '-';
+  const isBEmpty = !cleanB || cleanB === '-';
+
+  if (isAEmpty && isBEmpty) return 0;
+  if (isAEmpty) return 1;
+  if (isBEmpty) return -1;
+
+  return cleanA.localeCompare(cleanB, undefined, {
+    numeric: true,
+    sensitivity: 'base',
+  });
+}
+
+/**
+ * Flattens ExtractedRecord[] into SalesOrderRow[] for Mode Rekap Order Sales (18 Kolom).
  * Col A: NO PO
- * Col B: Date Receive PO (empty)
- * Col C: Substance (pure substance without flute)
- * Col D: Flute (BC, C, B, E)
+ * Col B: Date Receive PO
+ * Col C: Substance
+ * Col D: Flute
  * Col E: Size P
  * Col F: Size L
  * Col G: Artikel
@@ -1294,15 +1333,27 @@ export function flattenDeliveriesForDataEntry(
  */
 export function flattenSalesOrderRows(
   records: ExtractedRecord[],
-  scope: CoFilterStatus | SalesOrderExportScope = 'ALL'
+  scope: CoFilterStatus | SalesOrderExportScope = 'ALL',
+  sortByPoAsc: boolean = false
 ): SalesOrderRow[] {
   if (!records || records.length === 0) return [];
 
-  const filteredPOs = records.filter((po) => {
+  let filteredPOs = records.filter((po) => {
     if (scope === 'OPEN_ONLY' || scope === 'OPEN') return po.coStatus === 'OPEN';
     if (scope === 'CLOSED_ONLY' || scope === 'CLOSED') return po.coStatus === 'CLOSED';
     return true;
   });
+
+  if (sortByPoAsc) {
+    filteredPOs = [...filteredPOs].sort((a, b) => {
+      const cmp = comparePoNumberAsc(a['No PO'], b['No PO']);
+      if (cmp !== 0) return cmp;
+      return String(a.Artikel || '').localeCompare(String(b.Artikel || ''), undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      });
+    });
+  }
 
   const flatRows: SalesOrderRow[] = [];
 

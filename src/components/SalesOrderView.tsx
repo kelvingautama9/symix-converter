@@ -28,6 +28,8 @@ import {
   FileSpreadsheet,
   Building2,
   ChevronDown,
+  ArrowUpDown,
+  ArrowDownAZ,
 } from 'lucide-react';
 
 interface SalesOrderViewProps {
@@ -44,6 +46,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [coFilter, setCoFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const [fluteFilter, setFluteFilter] = useState<string>('ALL');
+  const [sortByPoAsc, setSortByPoAsc] = useState<boolean>(true);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   // Customer Name extracted from data
@@ -53,10 +56,10 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     return found?.customerName ? found.customerName.toUpperCase() : 'PURBAYASA';
   }, [data]);
 
-  // Flattened Sales Rows from parser engine
+  // Flattened Sales Rows from parser engine (with natural alphanumeric sorting support)
   const allSalesRows = useMemo(() => {
-    return flattenSalesOrderRows(data, 'ALL');
-  }, [data]);
+    return flattenSalesOrderRows(data, 'ALL', sortByPoAsc);
+  }, [data, sortByPoAsc]);
 
   // Available Flute types present in this dataset
   const availableFlutes = useMemo(() => {
@@ -141,7 +144,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   }, [filteredRows]);
 
   // Handle Export Excel
-  const handleExport = (scope: SalesOrderExportScope = 'ALL') => {
+  const handleExport = (scope: SalesOrderExportScope = 'ALL', explicitSort?: boolean) => {
     setIsExportMenuOpen(false);
     haptic.success();
     confetti({
@@ -151,19 +154,23 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
       colors: ['#0284c7', '#10b981', '#1e293b'],
     });
 
-    const outName = getSalesOrderExportFileName(fileName, scope);
-    exportSalesOrderToExcel(data, scope, outName);
+    const shouldSort = explicitSort !== undefined ? explicitSort : sortByPoAsc;
+    const outName = getSalesOrderExportFileName(fileName, scope, shouldSort);
+    exportSalesOrderToExcel(data, scope, outName, shouldSort);
     if (onShareStatus) {
-      onShareStatus(`Berhasil mengekspor format Sales: ${outName}`);
+      onShareStatus(
+        `Berhasil mengekspor format Sales (${shouldSort ? 'Urut No. PO A-Z & Angka' : 'Urutan Asli'}): ${outName}`
+      );
     }
   };
 
   // Handle WhatsApp Share
-  const handleShareWA = async (scope: SalesOrderExportScope = 'ALL') => {
+  const handleShareWA = async (scope: SalesOrderExportScope = 'ALL', explicitSort?: boolean) => {
     setIsExportMenuOpen(false);
     haptic.medium();
-    const outName = getSalesOrderExportFileName(fileName, scope);
-    const res = await shareSalesOrderExcelFileToWhatsApp(data, scope, outName);
+    const shouldSort = explicitSort !== undefined ? explicitSort : sortByPoAsc;
+    const outName = getSalesOrderExportFileName(fileName, scope, shouldSort);
+    const res = await shareSalesOrderExcelFileToWhatsApp(data, scope, outName, shouldSort);
     if (onShareStatus) {
       onShareStatus(res.message);
     }
@@ -234,11 +241,44 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {/* Sort Order Toggle Button */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic.selection();
+                setSortByPoAsc(!sortByPoAsc);
+              }}
+              className={`px-3 py-2 text-xs font-semibold rounded-lg border inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs ${
+                sortByPoAsc
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+              }`}
+              title="Urutkan baris berdasarkan Nomor PO secara ascending (abjad & angka)"
+            >
+              <ArrowDownAZ className={`w-3.5 h-3.5 ${sortByPoAsc ? 'text-emerald-400' : 'text-slate-500'}`} />
+              <span>Urut No. PO (A-Z)</span>
+              <span
+                className={`text-[10px] px-1 py-0.2 rounded font-mono ${
+                  sortByPoAsc ? 'bg-slate-800 text-emerald-300 font-bold' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {sortByPoAsc ? 'AKTIF' : 'OFF'}
+              </span>
+            </button>
+
             {/* Split Download Button */}
             <div className="relative inline-flex shadow-xs rounded-lg">
               <button
                 type="button"
-                onClick={() => handleExport(coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY')}
+                onClick={() =>
+                  handleExport(
+                    coFilter === 'ALL'
+                      ? 'ALL'
+                      : coFilter === 'OPEN'
+                      ? 'OPEN_ONLY'
+                      : 'CLOSED_ONLY'
+                  )
+                }
                 className="px-3.5 py-2 text-xs font-semibold rounded-l-lg bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 cursor-pointer transition-colors"
               >
                 <Download className="w-4 h-4 text-emerald-400" />
@@ -254,9 +294,61 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               </button>
 
               {isExportMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 text-xs text-slate-800">
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 text-xs text-slate-800">
                   <div className="px-3 py-1 font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-                    Opsi Download
+                    Mode Urutan Ekspor
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSortByPoAsc(true);
+                      handleExport(
+                        coFilter === 'ALL'
+                          ? 'ALL'
+                          : coFilter === 'OPEN'
+                          ? 'OPEN_ONLY'
+                          : 'CLOSED_ONLY',
+                        true
+                      );
+                    }}
+                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                      sortByPoAsc ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-700'
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <ArrowDownAZ className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Urut No. PO (A-Z & Angka)</span>
+                    </span>
+                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold">
+                      A-Z
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSortByPoAsc(false);
+                      handleExport(
+                        coFilter === 'ALL'
+                          ? 'ALL'
+                          : coFilter === 'OPEN'
+                          ? 'OPEN_ONLY'
+                          : 'CLOSED_ONLY',
+                        false
+                      );
+                    }}
+                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                      !sortByPoAsc ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
+                    }`}
+                  >
+                    <span>Sesuai Dokumen Asli</span>
+                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">
+                      ASLI
+                    </span>
+                  </button>
+
+                  <div className="border-t border-slate-100 my-1" />
+                  <div className="px-3 py-1 font-bold text-slate-400 uppercase tracking-wider text-[10px]">
+                    Filter Cakupan
                   </div>
                   <button
                     type="button"
@@ -285,7 +377,15 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   <div className="border-t border-slate-100 my-1" />
                   <button
                     type="button"
-                    onClick={() => handleShareWA(coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY')}
+                    onClick={() =>
+                      handleShareWA(
+                        coFilter === 'ALL'
+                          ? 'ALL'
+                          : coFilter === 'OPEN'
+                          ? 'OPEN_ONLY'
+                          : 'CLOSED_ONLY'
+                      )
+                    }
                     className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-700 flex items-center gap-1.5 font-medium cursor-pointer"
                   >
                     <Share2 className="w-3.5 h-3.5" />
@@ -297,7 +397,15 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
 
             <button
               type="button"
-              onClick={() => handleShareWA(coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY')}
+              onClick={() =>
+                handleShareWA(
+                  coFilter === 'ALL'
+                    ? 'ALL'
+                    : coFilter === 'OPEN'
+                    ? 'OPEN_ONLY'
+                    : 'CLOSED_ONLY'
+                )
+              }
               className="px-3 py-2 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
             >
               <Share2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -489,9 +597,27 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               <tr>
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[150px]"
+                  onClick={() => {
+                    haptic.selection();
+                    setSortByPoAsc(!sortByPoAsc);
+                  }}
+                  title="Klik untuk mengubah urutan Nomor PO (A-Z Abjad & Angka)"
+                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 hover:bg-slate-200 cursor-pointer transition-colors min-w-[160px] select-none group"
                 >
-                  NO PO
+                  <div className="flex items-center justify-center gap-1.5">
+                    <span>NO PO</span>
+                    {sortByPoAsc ? (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-bold font-mono bg-emerald-100 text-emerald-800 border border-emerald-300 shadow-2xs">
+                        <ArrowDownAZ className="w-3 h-3 text-emerald-700" />
+                        A-Z ↑
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-slate-200 text-slate-600">
+                        <ArrowUpDown className="w-2.5 h-2.5 text-slate-500" />
+                        Asli
+                      </span>
+                    )}
+                  </div>
                 </th>
                 <th
                   rowSpan={2}
