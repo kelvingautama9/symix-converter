@@ -1624,6 +1624,14 @@ export function buildSalesOrderWorksheet(
   let nonK200ActualQtyDelivery = 0;
   let nonK200ActualKgDelivery = 0;
 
+  // Dedicated E Flute accumulators
+  let eFluteQtyPcs = 0;
+  let eFluteQtyKg = 0;
+  let eFluteQtyDelivery = 0;
+  let eFluteKgDelivery = 0;
+  let eFluteActualQtyDelivery = 0;
+  let eFluteActualKgDelivery = 0;
+
   flatRows.forEach((r, idx) => {
     const numQtyPcs = typeof r.qtyPcs === 'number' ? r.qtyPcs : 0;
     const numQtyKg = typeof r.qtyKg === 'number' ? r.qtyKg : 0;
@@ -1658,6 +1666,16 @@ export function buildSalesOrderWorksheet(
       swKgDelivery += numKgDelivery;
       swActualQtyDelivery += numActualQtyDelivery;
       swActualKgDelivery += numActualKgDelivery;
+    }
+
+    // Specific E Flute tracking
+    if (cleanFlute === 'E') {
+      eFluteQtyPcs += numQtyPcs;
+      eFluteQtyKg += numQtyKg;
+      eFluteQtyDelivery += numQtyDelivery;
+      eFluteKgDelivery += numKgDelivery;
+      eFluteActualQtyDelivery += numActualQtyDelivery;
+      eFluteActualKgDelivery += numActualKgDelivery;
     }
 
     if (isK) {
@@ -1710,7 +1728,8 @@ export function buildSalesOrderWorksheet(
   const lastRow = flatRows.length + 4;
   const swRow = lastRow + 1;
   const dwRow = lastRow + 2;
-  const gtRow = lastRow + 3;
+  const eFluteRow = lastRow + 3;
+  const gtRow = lastRow + 4;
 
   // 1. Row TOTAL SINGLEWALL (FLUTE B, C, E)
   const swRowIndex = sheetData.length;
@@ -1750,7 +1769,7 @@ export function buildSalesOrderWorksheet(
     fNum(`SUMIF(D$5:D$${lastRow},"BC",J$5:J$${lastRow})`, dwQtyKg, '#,##0'),
     '',
     fNum(`SUMIF(D$5:D$${lastRow},"BC",L$5:L$${lastRow})`, dwQtyDelivery, '#,##0'),
-    fNum(`SUMIF(D$5:D$${lastRow},"BC",M$5:M${lastRow})`, dwKgDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"BC",M$5:M$${lastRow})`, dwKgDelivery, '#,##0'),
     '',
     '',
     '',
@@ -1758,7 +1777,30 @@ export function buildSalesOrderWorksheet(
     fNum(`SUMIF(D$5:D$${lastRow},"BC",R$5:R$${lastRow})`, dwActualKgDelivery, '#,##0'),
   ]);
 
-  // 3. Row GRAND TOTAL REKAPITULASI SALES
+  // 3. Row TOTAL KHUSUS E FLUTE (FLUTE E)
+  const eFluteRowIndex = sheetData.length;
+  sheetData.push([
+    'TOTAL KHUSUS E FLUTE (FLUTE E)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`SUMIF(D$5:D$${lastRow},"E",I$5:I$${lastRow})`, eFluteQtyPcs, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"E",J$5:J$${lastRow})`, eFluteQtyKg, '#,##0'),
+    '',
+    fNum(`SUMIF(D$5:D$${lastRow},"E",L$5:L$${lastRow})`, eFluteQtyDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"E",M$5:M$${lastRow})`, eFluteKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`SUMIF(D$5:D$${lastRow},"E",Q$5:Q$${lastRow})`, eFluteActualQtyDelivery, '#,##0'),
+    fNum(`SUMIF(D$5:D$${lastRow},"E",R$5:R$${lastRow})`, eFluteActualKgDelivery, '#,##0'),
+  ]);
+
+  // 4. Row GRAND TOTAL REKAPITULASI SALES
   const gtRowIndex = sheetData.length;
   sheetData.push([
     'GRAND TOTAL (TOTAL KESELURUHAN PO)',
@@ -1781,7 +1823,7 @@ export function buildSalesOrderWorksheet(
     fNum(`R${swRow}+R${dwRow}`, sumActualKgDelivery, '#,##0'),
   ]);
 
-  // 4. Dedicated Summary Box by Flute
+  // 5. Dedicated Summary Box by Flute
   sheetData.push([]);
   const kpiTitleIndex = sheetData.length;
   sheetData.push(['TOTAL PO BERDASARKAN TIPE FLUTE (SW & DW)']);
@@ -1874,7 +1916,29 @@ export function buildSalesOrderWorksheet(
     fNum(`R${gtRow}`, sumActualKgDelivery, '#,##0'),
   ]);
 
-  // 5. Special Sales Recap Box for Substance K200 (SW vs DW)
+  const kpiEFluteIndex = sheetData.length;
+  sheetData.push([
+    '3. KHUSUS E FLUTE',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${eFluteRow}`, eFluteQtyPcs, '#,##0'),
+    fNum(`J${eFluteRow}`, eFluteQtyKg, '#,##0'),
+    '',
+    fNum(`L${eFluteRow}`, eFluteQtyDelivery, '#,##0'),
+    fNum(`M${eFluteRow}`, eFluteKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${eFluteRow}`, eFluteActualQtyDelivery, '#,##0'),
+    fNum(`R${eFluteRow}`, eFluteActualKgDelivery, '#,##0'),
+  ]);
+
+  // 6. Special Sales Recap Box for Substance K200 (SW vs DW)
   sheetData.push([]);
   const k200TitleIndex = sheetData.length;
   sheetData.push([
@@ -2069,9 +2133,10 @@ export function buildSalesOrderWorksheet(
     { s: { r: 2, c: 16 }, e: { r: 3, c: 16 } }, // Qty Delivery Q3:Q4
     { s: { r: 2, c: 17 }, e: { r: 3, c: 17 } }, // Kg Delivery R3:R4
 
-    // Merges for 3 Total Rows (A:H merged)
+    // Merges for Total Rows (A:H merged)
     { s: { r: swRowIndex, c: 0 }, e: { r: swRowIndex, c: 7 } }, // TOTAL SINGLEWALL label A:H
     { s: { r: dwRowIndex, c: 0 }, e: { r: dwRowIndex, c: 7 } }, // TOTAL DOUBLEWALL label A:H
+    { s: { r: eFluteRowIndex, c: 0 }, e: { r: eFluteRowIndex, c: 7 } }, // TOTAL KHUSUS E FLUTE label A:H
     { s: { r: gtRowIndex, c: 0 }, e: { r: gtRowIndex, c: 7 } }, // GRAND TOTAL label A:H
 
     // Merges for KPI Summary Box by Flute
@@ -2080,6 +2145,7 @@ export function buildSalesOrderWorksheet(
     { s: { r: kpiSwIndex, c: 0 }, e: { r: kpiSwIndex, c: 7 } }, // KPI SW A:H
     { s: { r: kpiDwIndex, c: 0 }, e: { r: kpiDwIndex, c: 7 } }, // KPI DW A:H
     { s: { r: kpiTotalIndex, c: 0 }, e: { r: kpiTotalIndex, c: 7 } }, // KPI Total A:H
+    { s: { r: kpiEFluteIndex, c: 0 }, e: { r: kpiEFluteIndex, c: 7 } }, // KPI E Flute A:H
 
     // Merges for Special Sales Recap Box (K200)
     { s: { r: k200TitleIndex, c: 0 }, e: { r: k200TitleIndex, c: 17 } }, // K200 Title A:R

@@ -179,14 +179,28 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     let nonK200ActualQtyDelivery = 0;
     let nonK200ActualKgDelivery = 0;
 
+    // Dedicated E Flute tracking
+    const eFluteUniquePos = new Set<string>();
+    const eFluteUniqueArtikels = new Set<string>();
+    const eFluteUniqueSJs = new Set<string>();
+    let eFluteQtyPcs = 0;
+    let eFluteQtyKg = 0;
+    let eFluteQtyDelivery = 0;
+    let eFluteKgDelivery = 0;
+    let eFluteActualQtyDelivery = 0;
+    let eFluteActualKgDelivery = 0;
+
     filteredRows.forEach((r) => {
-      const isDW = String(r.flute || '').trim().toUpperCase() === 'BC';
+      const cleanFlute = String(r.flute || '').trim().toUpperCase();
+      const isDW = cleanFlute === 'BC';
+      const isE = cleanFlute === 'E';
       const isK = Boolean(r.isK200);
 
       if (r.noPO && r.noPO !== '-') {
         uniquePos.add(r.noPO);
         if (isDW) dwUniquePos.add(r.noPO);
         else swUniquePos.add(r.noPO);
+        if (isE) eFluteUniquePos.add(r.noPO);
 
         if (isK) {
           if (isDW) k200DwUniquePos.add(r.noPO);
@@ -200,6 +214,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         uniqueArtikels.add(r.artikel);
         if (isDW) dwUniqueArtikels.add(r.artikel);
         else swUniqueArtikels.add(r.artikel);
+        if (isE) eFluteUniqueArtikels.add(r.artikel);
 
         if (isK) {
           if (isDW) k200DwUniqueArtikels.add(r.artikel);
@@ -213,6 +228,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         uniqueSJs.add(r.noSJ);
         if (isDW) dwUniqueSJs.add(r.noSJ);
         else swUniqueSJs.add(r.noSJ);
+        if (isE) eFluteUniqueSJs.add(r.noSJ);
 
         if (isK) {
           if (isDW) k200DwUniqueSJs.add(r.noSJ);
@@ -226,6 +242,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         sumQtyPcs += r.qtyPcs;
         if (isDW) dwQtyPcs += r.qtyPcs;
         else swQtyPcs += r.qtyPcs;
+        if (isE) eFluteQtyPcs += r.qtyPcs;
 
         if (isK) {
           if (isDW) k200DwQtyPcs += r.qtyPcs;
@@ -239,6 +256,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         sumQtyKg += r.qtyKg;
         if (isDW) dwQtyKg += r.qtyKg;
         else swQtyKg += r.qtyKg;
+        if (isE) eFluteQtyKg += r.qtyKg;
 
         if (isK) {
           if (isDW) k200DwQtyKg += r.qtyKg;
@@ -252,6 +270,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         sumQtyDelivery += r.qtyDelivery;
         if (isDW) dwQtyDelivery += r.qtyDelivery;
         else swQtyDelivery += r.qtyDelivery;
+        if (isE) eFluteQtyDelivery += r.qtyDelivery;
 
         if (isK) {
           if (isDW) k200DwQtyDelivery += r.qtyDelivery;
@@ -265,6 +284,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         sumKgDelivery += r.kgDelivery;
         if (isDW) dwKgDelivery += r.kgDelivery;
         else swKgDelivery += r.kgDelivery;
+        if (isE) eFluteKgDelivery += r.kgDelivery;
 
         if (isK) {
           if (isDW) k200DwKgDelivery += r.kgDelivery;
@@ -278,6 +298,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         sumActualQtyDelivery += r.actualQtyDelivery;
         if (isDW) dwActualQtyDelivery += r.actualQtyDelivery;
         else swActualQtyDelivery += r.actualQtyDelivery;
+        if (isE) eFluteActualQtyDelivery += r.actualQtyDelivery;
 
         if (isK) {
           if (isDW) k200DwActualQtyDelivery += r.actualQtyDelivery;
@@ -291,6 +312,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         sumActualKgDelivery += r.actualKgDelivery;
         if (isDW) dwActualKgDelivery += r.actualKgDelivery;
         else swActualKgDelivery += r.actualKgDelivery;
+        if (isE) eFluteActualKgDelivery += r.actualKgDelivery;
 
         if (isK) {
           if (isDW) k200DwActualKgDelivery += r.actualKgDelivery;
@@ -340,6 +362,19 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         sumKgDelivery: dwKgDelivery,
         sumActualQtyDelivery: dwActualQtyDelivery,
         sumActualKgDelivery: dwActualKgDelivery,
+      },
+      eFlute: {
+        totalPos: eFluteUniquePos.size,
+        totalArtikels: eFluteUniqueArtikels.size,
+        totalSJs: eFluteUniqueSJs.size,
+        sumQtyPcs: eFluteQtyPcs,
+        sumQtyKg: eFluteQtyKg,
+        sumQtyDelivery: eFluteQtyDelivery,
+        sumKgDelivery: eFluteKgDelivery,
+        sumActualQtyDelivery: eFluteActualQtyDelivery,
+        sumActualKgDelivery: eFluteActualKgDelivery,
+        percentQtyPcs: sumQtyPcs > 0 ? (eFluteQtyPcs / sumQtyPcs) * 100 : 0,
+        percentQtyKg: sumQtyKg > 0 ? (eFluteQtyKg / sumQtyKg) * 100 : 0,
       },
       k200Sw: {
         totalPos: k200SwUniquePos.size,
@@ -851,8 +886,8 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
         </div>
       </div>
 
-      {/* Rekapitulasi Total PO Berdasarkan Tipe Flute (Singlewall & Doublewall) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+      {/* Rekapitulasi Total PO Berdasarkan Tipe Flute (Singlewall, Doublewall & E Flute) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         {/* 1. Singlewall Card (Flute B, C, E) */}
         <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:border-blue-200 transition-colors">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
@@ -966,6 +1001,65 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               </div>
               <div className="text-[10px] font-mono text-slate-500">
                 {totals.dw.sumActualKgDelivery.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* 3. Khusus E Flute Card */}
+        <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:border-emerald-200 transition-colors">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+              <span className="text-xs font-bold text-slate-900 tracking-tight">
+                3. KHUSUS E FLUTE
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Flute E (3-Ply)
+              </span>
+            </div>
+            <span className="text-[11px] font-mono text-slate-500">
+              {totals.eFlute.totalPos} PO • {totals.eFlute.totalArtikels} Item
+            </span>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 pt-2.5">
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Total QTY PO
+              </span>
+              <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
+                {totals.eFlute.sumQtyPcs.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.eFlute.sumQtyKg.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Rencana Kirim
+              </span>
+              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
+                {totals.eFlute.sumQtyDelivery.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.eFlute.sumKgDelivery.toLocaleString('id-ID')} KG
+              </div>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
+                Realisasi (SJ)
+              </span>
+              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
+                {totals.eFlute.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
+                <span className="text-[10px] font-normal text-slate-500">PCS</span>
+              </div>
+              <div className="text-[10px] font-mono text-slate-500">
+                {totals.eFlute.sumActualKgDelivery.toLocaleString('id-ID')} KG
               </div>
             </div>
           </div>
@@ -1708,6 +1802,48 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 </td>
                 <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
                   {totals.dw.sumActualKgDelivery.toLocaleString('id-ID')}
+                </td>
+              </tr>
+
+              {/* Row: Khusus E Flute */}
+              <tr className="bg-emerald-50/70 font-semibold text-slate-800 text-xs">
+                <td
+                  colSpan={8}
+                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
+                >
+                  <div className="flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-bold text-slate-900">
+                      TOTAL KHUSUS E FLUTE (FLUTE E)
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      ({totals.eFlute.totalPos} PO / {totals.eFlute.totalArtikels} ARTIKEL)
+                    </span>
+                  </div>
+                </td>
+                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
+                  {totals.eFlute.sumQtyPcs.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
+                  {totals.eFlute.sumQtyKg.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
+                  {totals.eFlute.sumQtyDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
+                  {totals.eFlute.sumKgDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
+                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-slate-600">
+                  {totals.eFlute.totalSJs > 0 ? `${totals.eFlute.totalSJs} SJ` : '-'}
+                </td>
+                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
+                  {totals.eFlute.sumActualQtyDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
+                  {totals.eFlute.sumActualKgDelivery.toLocaleString('id-ID')}
                 </td>
               </tr>
 
