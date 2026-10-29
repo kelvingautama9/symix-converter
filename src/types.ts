@@ -175,6 +175,8 @@ export type ExcelExportScope =
   | 'OVER_KIRIMAN'
   | 'OVER_PRODUCTION_ONLY';
 
+export type K200Classification = 'K200_SW' | 'K200_DW' | 'NON_K200';
+
 export interface SalesOrderRow {
   id: string;
   poRecordId: string;
@@ -183,8 +185,11 @@ export interface SalesOrderRow {
   noPO: string;
   dateReceivePO: string;
   substance: string;
+  poSubstance?: string;
   flute: string;
   wallType?: 'SINGLEWALL' | 'DOUBLEWALL';
+  isK200?: boolean;
+  k200Type?: K200Classification;
   sizeP: number | string;
   sizeL: number | string;
   artikel: string;
@@ -204,7 +209,13 @@ export interface SalesOrderRow {
   totalSchedulesCount: number;
 }
 
-export type SalesOrderExportScope = 'ALL' | 'OPEN_ONLY' | 'CLOSED_ONLY';
+export type SalesOrderExportScope =
+  | 'ALL'
+  | 'OPEN_ONLY'
+  | 'CLOSED_ONLY'
+  | 'K200_ONLY'
+  | 'K200_SW_ONLY'
+  | 'K200_DW_ONLY';
 
 export type DetailSJExportScope =
   | 'ALL'

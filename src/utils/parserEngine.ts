@@ -12,6 +12,7 @@ import {
   DeliveryScheduleRecord,
   SalesOrderRow,
   SalesOrderExportScope,
+  K200Classification,
 } from '../types';
 import {
   calculateLeadTimeDays,
@@ -1331,6 +1332,23 @@ export function comparePoNumberAsc(
  * If a PO has multiple delivery schedules or multiple Surat Jalan, row 1 contains PO info, schedule 1, and SJ 1,
  * and subsequent schedules / SJs are placed on row 2+ directly beneath it with columns A..J left blank (terfallback kebawahnya).
  */
+/**
+ * Helper: Identifies if a substance contains K200 (Kraft 200).
+ */
+export function isK200Substance(substance: string | undefined | null): boolean {
+  if (!substance) return false;
+  const clean = String(substance).toUpperCase().replace(/[\s\-_/]/g, '');
+  return clean.includes('K200');
+}
+
+/**
+ * Flattens extracted PO records into rows matching the 18-column Rekap Order Sales format.
+ * - Substance and Flute are strictly separated into their own columns.
+ * - Substance K200 is classified into K200 (SW) and K200 (DW).
+ * - Dimensions P and L are extracted.
+ * - Delivery schedules and real Surat Jalan fallback downwards on additional rows.
+ * - Optionally sorts records naturally by No. PO in ascending order.
+ */
 export function flattenSalesOrderRows(
   records: ExtractedRecord[],
   scope: CoFilterStatus | SalesOrderExportScope = 'ALL',
@@ -1341,6 +1359,14 @@ export function flattenSalesOrderRows(
   let filteredPOs = records.filter((po) => {
     if (scope === 'OPEN_ONLY' || scope === 'OPEN') return po.coStatus === 'OPEN';
     if (scope === 'CLOSED_ONLY' || scope === 'CLOSED') return po.coStatus === 'CLOSED';
+    const sub = po.PureSubstance || po.Substance || '';
+    const isK = isK200Substance(sub);
+    const parsedSub = parseSubstanceAndFlute(sub);
+    const flt = String(po.Flute && po.Flute !== '-' ? po.Flute : parsedSub.flute || '').trim().toUpperCase();
+    const isDW = flt === 'BC';
+    if (scope === 'K200_ONLY') return isK;
+    if (scope === 'K200_SW_ONLY') return isK && !isDW;
+    if (scope === 'K200_DW_ONLY') return isK && isDW;
     return true;
   });
 
@@ -1367,6 +1393,12 @@ export function flattenSalesOrderRows(
     const rawFlute = po.Flute && po.Flute !== '-' ? po.Flute : parsedSub.flute || '-';
     const flute = String(rawFlute).trim().toUpperCase();
     const wallType: 'SINGLEWALL' | 'DOUBLEWALL' = flute === 'BC' ? 'DOUBLEWALL' : 'SINGLEWALL';
+    const isK200 = isK200Substance(pureSubstance) || isK200Substance(po.Substance);
+    const k200Type: K200Classification = isK200
+      ? wallType === 'DOUBLEWALL'
+        ? 'K200_DW'
+        : 'K200_SW'
+      : 'NON_K200';
 
     // Resolve dimensions P & L
     const dims = parseDimensions(po.RawSize, po['Item Description']);
@@ -1450,8 +1482,11 @@ export function flattenSalesOrderRows(
         noPO: isFirst ? cleanNoPO : '',
         dateReceivePO: '',
         substance: isFirst ? pureSubstance : '',
+        poSubstance: pureSubstance,
         flute: flute,
         wallType,
+        isK200,
+        k200Type,
         sizeP: isFirst ? sizeP : '',
         sizeL: isFirst ? sizeL : '',
         artikel: isFirst ? po.Artikel || '-' : '',

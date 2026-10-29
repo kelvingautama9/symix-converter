@@ -12,6 +12,7 @@ import {
   flattenDeliveriesForDataEntry,
   flattenSalesOrderRows,
   comparePoNumberAsc,
+  isK200Substance,
 } from './parserEngine';
 import {
   getDeliveryStatusTag,
@@ -1495,6 +1496,15 @@ export function getSalesOrderExportFileName(
   if (scope === 'CLOSED_ONLY') {
     return `${baseName}_CO_CLOSED${sortSuffix}.xlsx`;
   }
+  if (scope === 'K200_ONLY') {
+    return `${baseName}_KHUSUS_K200${sortSuffix}.xlsx`;
+  }
+  if (scope === 'K200_SW_ONLY') {
+    return `${baseName}_KHUSUS_K200_SW${sortSuffix}.xlsx`;
+  }
+  if (scope === 'K200_DW_ONLY') {
+    return `${baseName}_KHUSUS_K200_DW${sortSuffix}.xlsx`;
+  }
   return `${baseName}${sortSuffix}.xlsx`;
 }
 
@@ -1592,6 +1602,28 @@ export function buildSalesOrderWorksheet(
   let dwActualQtyDelivery = 0;
   let dwActualKgDelivery = 0;
 
+  // Substance K200 specific counters (Sales Special Breakdown)
+  let k200SwQtyPcs = 0;
+  let k200SwQtyKg = 0;
+  let k200SwQtyDelivery = 0;
+  let k200SwKgDelivery = 0;
+  let k200SwActualQtyDelivery = 0;
+  let k200SwActualKgDelivery = 0;
+
+  let k200DwQtyPcs = 0;
+  let k200DwQtyKg = 0;
+  let k200DwQtyDelivery = 0;
+  let k200DwKgDelivery = 0;
+  let k200DwActualQtyDelivery = 0;
+  let k200DwActualKgDelivery = 0;
+
+  let nonK200QtyPcs = 0;
+  let nonK200QtyKg = 0;
+  let nonK200QtyDelivery = 0;
+  let nonK200KgDelivery = 0;
+  let nonK200ActualQtyDelivery = 0;
+  let nonK200ActualKgDelivery = 0;
+
   flatRows.forEach((r, idx) => {
     const numQtyPcs = typeof r.qtyPcs === 'number' ? r.qtyPcs : 0;
     const numQtyKg = typeof r.qtyKg === 'number' ? r.qtyKg : 0;
@@ -1608,7 +1640,10 @@ export function buildSalesOrderWorksheet(
     sumActualKgDelivery += numActualKgDelivery;
 
     const cleanFlute = String(r.flute || '').trim().toUpperCase();
-    if (cleanFlute === 'BC') {
+    const isDw = cleanFlute === 'BC';
+    const isK = Boolean(r.isK200 || isK200Substance(r.substance) || isK200Substance(r.poSubstance));
+
+    if (isDw) {
       dwQtyPcs += numQtyPcs;
       dwQtyKg += numQtyKg;
       dwQtyDelivery += numQtyDelivery;
@@ -1623,6 +1658,31 @@ export function buildSalesOrderWorksheet(
       swKgDelivery += numKgDelivery;
       swActualQtyDelivery += numActualQtyDelivery;
       swActualKgDelivery += numActualKgDelivery;
+    }
+
+    if (isK) {
+      if (isDw) {
+        k200DwQtyPcs += numQtyPcs;
+        k200DwQtyKg += numQtyKg;
+        k200DwQtyDelivery += numQtyDelivery;
+        k200DwKgDelivery += numKgDelivery;
+        k200DwActualQtyDelivery += numActualQtyDelivery;
+        k200DwActualKgDelivery += numActualKgDelivery;
+      } else {
+        k200SwQtyPcs += numQtyPcs;
+        k200SwQtyKg += numQtyKg;
+        k200SwQtyDelivery += numQtyDelivery;
+        k200SwKgDelivery += numKgDelivery;
+        k200SwActualQtyDelivery += numActualQtyDelivery;
+        k200SwActualKgDelivery += numActualKgDelivery;
+      }
+    } else {
+      nonK200QtyPcs += numQtyPcs;
+      nonK200QtyKg += numQtyKg;
+      nonK200QtyDelivery += numQtyDelivery;
+      nonK200KgDelivery += numKgDelivery;
+      nonK200ActualQtyDelivery += numActualQtyDelivery;
+      nonK200ActualKgDelivery += numActualKgDelivery;
     }
 
     sheetData.push([
@@ -1814,6 +1874,156 @@ export function buildSalesOrderWorksheet(
     fNum(`R${gtRow}`, sumActualKgDelivery, '#,##0'),
   ]);
 
+  // 5. Special Sales Recap Box for Substance K200 (SW vs DW)
+  sheetData.push([]);
+  const k200TitleIndex = sheetData.length;
+  sheetData.push([
+    'REKAPITULASI KHUSUS SALES: TOTAL ORDER SUBSTANCE K200 (SINGLEWALL VS DOUBLEWALL)',
+  ]);
+
+  const k200HeaderIndex = sheetData.length;
+  sheetData.push([
+    'KATEGORI SUBSTANCE K200',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    'Qty PO (Pcs)',
+    'Qty PO (Kg)',
+    '',
+    'Qty Jadwal (Pcs)',
+    'Kg Jadwal (Kg)',
+    '',
+    '',
+    '',
+    'Qty Realisasi (Pcs)',
+    'Kg Realisasi (Kg)',
+  ]);
+
+  const k200SwIndex = sheetData.length;
+  const k200SwExcelRow = k200SwIndex + 1;
+  sheetData.push([
+    '1. K200 SINGLEWALL / SW (Flute B, C, E — Warna Kuning)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`SUMIFS(I$5:I$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"B")+SUMIFS(I$5:I$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"C")+SUMIFS(I$5:I$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"E")`, k200SwQtyPcs, '#,##0'),
+    fNum(`SUMIFS(J$5:J$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"B")+SUMIFS(J$5:J$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"C")+SUMIFS(J$5:J$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"E")`, k200SwQtyKg, '#,##0'),
+    '',
+    fNum(`SUMIFS(L$5:L$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"B")+SUMIFS(L$5:L$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"C")+SUMIFS(L$5:L$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"E")`, k200SwQtyDelivery, '#,##0'),
+    fNum(`SUMIFS(M$5:M$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"B")+SUMIFS(M$5:M$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"C")+SUMIFS(M$5:M$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"E")`, k200SwKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`SUMIFS(Q$5:Q$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"B")+SUMIFS(Q$5:Q$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"C")+SUMIFS(Q$5:Q$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"E")`, k200SwActualQtyDelivery, '#,##0'),
+    fNum(`SUMIFS(R$5:R$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"B")+SUMIFS(R$5:R$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"C")+SUMIFS(R$5:R$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"E")`, k200SwActualKgDelivery, '#,##0'),
+  ]);
+
+  const k200DwIndex = sheetData.length;
+  const k200DwExcelRow = k200DwIndex + 1;
+  sheetData.push([
+    '2. K200 DOUBLEWALL / DW (Flute BC — Warna Biru)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`SUMIFS(I$5:I$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"BC")`, k200DwQtyPcs, '#,##0'),
+    fNum(`SUMIFS(J$5:J$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"BC")`, k200DwQtyKg, '#,##0'),
+    '',
+    fNum(`SUMIFS(L$5:L$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"BC")`, k200DwQtyDelivery, '#,##0'),
+    fNum(`SUMIFS(M$5:M$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"BC")`, k200DwKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`SUMIFS(Q$5:Q$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"BC")`, k200DwActualQtyDelivery, '#,##0'),
+    fNum(`SUMIFS(R$5:R$${lastRow},C$5:C$${lastRow},"*K200*",D$5:D$${lastRow},"BC")`, k200DwActualKgDelivery, '#,##0'),
+  ]);
+
+  const k200SubtotalIndex = sheetData.length;
+  const k200SubtotalExcelRow = k200SubtotalIndex + 1;
+  const k200TotalQtyPcs = k200SwQtyPcs + k200DwQtyPcs;
+  const k200TotalQtyKg = k200SwQtyKg + k200DwQtyKg;
+  const k200TotalQtyDelivery = k200SwQtyDelivery + k200DwQtyDelivery;
+  const k200TotalKgDelivery = k200SwKgDelivery + k200DwKgDelivery;
+  const k200TotalActualQtyDelivery = k200SwActualQtyDelivery + k200DwActualQtyDelivery;
+  const k200TotalActualKgDelivery = k200SwActualKgDelivery + k200DwActualKgDelivery;
+
+  sheetData.push([
+    'SUBTOTAL ORDER SUBSTANCE K200 (1 + 2)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${k200SwExcelRow}+I${k200DwExcelRow}`, k200TotalQtyPcs, '#,##0'),
+    fNum(`J${k200SwExcelRow}+J${k200DwExcelRow}`, k200TotalQtyKg, '#,##0'),
+    '',
+    fNum(`L${k200SwExcelRow}+L${k200DwExcelRow}`, k200TotalQtyDelivery, '#,##0'),
+    fNum(`M${k200SwExcelRow}+M${k200DwExcelRow}`, k200TotalKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${k200SwExcelRow}+Q${k200DwExcelRow}`, k200TotalActualQtyDelivery, '#,##0'),
+    fNum(`R${k200SwExcelRow}+R${k200DwExcelRow}`, k200TotalActualKgDelivery, '#,##0'),
+  ]);
+
+  const nonK200Index = sheetData.length;
+  const nonK200ExcelRow = nonK200Index + 1;
+  sheetData.push([
+    '3. SUBSTANCE NON-K200 (Substance Lainnya)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${gtRow}-I${k200SubtotalExcelRow}`, nonK200QtyPcs, '#,##0'),
+    fNum(`J${gtRow}-J${k200SubtotalExcelRow}`, nonK200QtyKg, '#,##0'),
+    '',
+    fNum(`L${gtRow}-L${k200SubtotalExcelRow}`, nonK200QtyDelivery, '#,##0'),
+    fNum(`M${gtRow}-M${k200SubtotalExcelRow}`, nonK200KgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${gtRow}-Q${k200SubtotalExcelRow}`, nonK200ActualQtyDelivery, '#,##0'),
+    fNum(`R${gtRow}-R${k200SubtotalExcelRow}`, nonK200ActualKgDelivery, '#,##0'),
+  ]);
+
+  const k200GrandTotalIndex = sheetData.length;
+  sheetData.push([
+    'TOTAL KESELURUHAN ORDER (K200 + NON-K200)',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    '',
+    fNum(`I${k200SubtotalExcelRow}+I${nonK200ExcelRow}`, sumQtyPcs, '#,##0'),
+    fNum(`J${k200SubtotalExcelRow}+J${nonK200ExcelRow}`, sumQtyKg, '#,##0'),
+    '',
+    fNum(`L${k200SubtotalExcelRow}+L${nonK200ExcelRow}`, sumQtyDelivery, '#,##0'),
+    fNum(`M${k200SubtotalExcelRow}+M${nonK200ExcelRow}`, sumKgDelivery, '#,##0'),
+    '',
+    '',
+    '',
+    fNum(`Q${k200SubtotalExcelRow}+Q${nonK200ExcelRow}`, sumActualQtyDelivery, '#,##0'),
+    fNum(`R${k200SubtotalExcelRow}+R${nonK200ExcelRow}`, sumActualKgDelivery, '#,##0'),
+  ]);
+
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
   // 18 Column Widths strictly aligned
@@ -1838,7 +2048,7 @@ export function buildSalesOrderWorksheet(
     { wch: 16 }, // Kg Delivery
   ];
 
-  // Exact Merges for 18-Column Header, Flute Totals, and Summary Box
+  // Exact Merges for 18-Column Header, Flute Totals, Summary Box, and K200 Sales Recap
   worksheet['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 17 } }, // Title A1:R1
     { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },  // NO PO A3:A4
@@ -1864,12 +2074,21 @@ export function buildSalesOrderWorksheet(
     { s: { r: dwRowIndex, c: 0 }, e: { r: dwRowIndex, c: 7 } }, // TOTAL DOUBLEWALL label A:H
     { s: { r: gtRowIndex, c: 0 }, e: { r: gtRowIndex, c: 7 } }, // GRAND TOTAL label A:H
 
-    // Merges for KPI Summary Box below table
+    // Merges for KPI Summary Box by Flute
     { s: { r: kpiTitleIndex, c: 0 }, e: { r: kpiTitleIndex, c: 17 } }, // KPI Title A:R
     { s: { r: kpiHeaderIndex, c: 0 }, e: { r: kpiHeaderIndex, c: 7 } }, // KPI Header A:H
     { s: { r: kpiSwIndex, c: 0 }, e: { r: kpiSwIndex, c: 7 } }, // KPI SW A:H
     { s: { r: kpiDwIndex, c: 0 }, e: { r: kpiDwIndex, c: 7 } }, // KPI DW A:H
     { s: { r: kpiTotalIndex, c: 0 }, e: { r: kpiTotalIndex, c: 7 } }, // KPI Total A:H
+
+    // Merges for Special Sales Recap Box (K200)
+    { s: { r: k200TitleIndex, c: 0 }, e: { r: k200TitleIndex, c: 17 } }, // K200 Title A:R
+    { s: { r: k200HeaderIndex, c: 0 }, e: { r: k200HeaderIndex, c: 7 } }, // K200 Header A:H
+    { s: { r: k200SwIndex, c: 0 }, e: { r: k200SwIndex, c: 7 } }, // K200 SW A:H
+    { s: { r: k200DwIndex, c: 0 }, e: { r: k200DwIndex, c: 7 } }, // K200 DW A:H
+    { s: { r: k200SubtotalIndex, c: 0 }, e: { r: k200SubtotalIndex, c: 7 } }, // K200 Subtotal A:H
+    { s: { r: nonK200Index, c: 0 }, e: { r: nonK200Index, c: 7 } }, // Non-K200 A:H
+    { s: { r: k200GrandTotalIndex, c: 0 }, e: { r: k200GrandTotalIndex, c: 7 } }, // Grand Total A:H
   ];
 
   return worksheet;
