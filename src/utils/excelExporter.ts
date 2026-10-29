@@ -1784,7 +1784,7 @@ export function buildSalesOrderWorksheet(
   // 4. Dedicated Summary Box by Flute
   sheetData.push([]);
   const kpiTitleIndex = sheetData.length;
-  sheetData.push(['REKAPITULASI TOTAL PO BERDASARKAN TIPE FLUTE (SINGLEWALL & DOUBLEWALL)']);
+  sheetData.push(['TOTAL PO BERDASARKAN TIPE FLUTE (SW & DW)']);
 
   const kpiHeaderIndex = sheetData.length;
   sheetData.push([
@@ -1878,7 +1878,7 @@ export function buildSalesOrderWorksheet(
   sheetData.push([]);
   const k200TitleIndex = sheetData.length;
   sheetData.push([
-    'REKAPITULASI KHUSUS SALES: TOTAL ORDER SUBSTANCE K200 (SINGLEWALL VS DOUBLEWALL)',
+    'TOTAL ORDER SUBSTANCE K200 (SW & DW)',
   ]);
 
   const k200HeaderIndex = sheetData.length;
@@ -1906,7 +1906,7 @@ export function buildSalesOrderWorksheet(
   const k200SwIndex = sheetData.length;
   const k200SwExcelRow = k200SwIndex + 1;
   sheetData.push([
-    '1. K200 SINGLEWALL / SW (Flute B, C, E — Warna Kuning)',
+    '1. K200 SW (Flute B, C, E)',
     '',
     '',
     '',
@@ -1929,7 +1929,7 @@ export function buildSalesOrderWorksheet(
   const k200DwIndex = sheetData.length;
   const k200DwExcelRow = k200DwIndex + 1;
   sheetData.push([
-    '2. K200 DOUBLEWALL / DW (Flute BC — Warna Biru)',
+    '2. K200 DW (Flute BC)',
     '',
     '',
     '',
@@ -1959,7 +1959,7 @@ export function buildSalesOrderWorksheet(
   const k200TotalActualKgDelivery = k200SwActualKgDelivery + k200DwActualKgDelivery;
 
   sheetData.push([
-    'SUBTOTAL ORDER SUBSTANCE K200 (1 + 2)',
+    'SUBTOTAL ORDER K200 (SW & DW)',
     '',
     '',
     '',

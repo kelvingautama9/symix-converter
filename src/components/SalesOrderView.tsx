@@ -981,7 +981,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               <span className="w-2.5 h-2.5 rounded-full bg-sky-400 border border-sky-600 -ml-1"></span>
             </span>
             <span className="text-xs font-bold text-slate-900 tracking-tight uppercase">
-              REKAPITULASI KHUSUS SALES: ORDER SUBSTANCE K200 (SW VS DW)
+              TOTAL ORDER SUBSTANCE K200 (SW & DW)
             </span>
           </div>
           <div className="text-[11px] text-slate-500 font-medium">
@@ -996,7 +996,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600"></span>
                 <span className="text-xs font-bold text-amber-950">
-                  1. K200 Singlewall (SW)
+                  1. K200 SW (Flute B, C, E)
                 </span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-200 text-amber-900 border border-amber-300">
                   KUNING
@@ -1047,7 +1047,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               <div className="flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full bg-sky-400 border border-sky-600"></span>
                 <span className="text-xs font-bold text-sky-950">
-                  2. K200 Doublewall (DW)
+                  2. K200 DW (Flute BC)
                 </span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-sky-200 text-sky-900 border border-sky-300">
                   BIRU
@@ -1097,7 +1097,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold text-slate-900">
-                  Subtotal Order K200 (SW + DW)
+                  SUBTOTAL ORDER K200 (SW & DW)
                 </span>
                 <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-slate-100 text-slate-800 border border-slate-300">
                   {totals.k200Total.percentQtyPcs.toFixed(1)}% Pcs
@@ -1720,7 +1720,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   <div className="flex items-center justify-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600"></span>
                     <span className="font-bold text-amber-950">
-                      1. REKAP ORDER K200 SINGLEWALL / SW (Flute B, C, E — Kuning)
+                      1. K200 SW (Flute B, C, E)
                     </span>
                     <span className="text-[10px] text-amber-900 font-mono">
                       ({totals.k200Sw.totalPos} PO / {totals.k200Sw.totalArtikels} ARTIKEL)
@@ -1762,7 +1762,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   <div className="flex items-center justify-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full bg-sky-400 border border-sky-600"></span>
                     <span className="font-bold text-sky-950">
-                      2. REKAP ORDER K200 DOUBLEWALL / DW (Flute BC — Biru)
+                      2. K200 DW (Flute BC)
                     </span>
                     <span className="text-[10px] text-sky-900 font-mono">
                       ({totals.k200Dw.totalPos} PO / {totals.k200Dw.totalArtikels} ARTIKEL)
@@ -1803,7 +1803,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 >
                   <div className="flex items-center justify-center gap-2">
                     <span className="font-extrabold text-amber-950">
-                      SUBTOTAL ORDER SUBSTANCE K200 (SW + DW)
+                      SUBTOTAL ORDER K200 (SW & DW)
                     </span>
                     <span className="text-[10px] text-amber-900 font-mono">
                       ({totals.k200Total.percentQtyPcs.toFixed(1)}% Pcs • {totals.k200Total.percentQtyKg.toFixed(1)}% Kg dari Total Order)
