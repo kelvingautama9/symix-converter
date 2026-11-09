@@ -12,6 +12,7 @@ import {
   DeliveryScheduleRecord,
   SalesOrderRow,
   SalesOrderExportScope,
+  SalesDeliveryMode,
   K200Classification,
 } from '../types';
 import {
@@ -1342,17 +1343,53 @@ export function isK200Substance(substance: string | undefined | null): boolean {
 }
 
 /**
- * Flattens extracted PO records into rows matching the 18-column Rekap Order Sales format.
+ * Formats singlewall paper substance into slash-separated layers (e.g. K275K200K275 -> K275/K200/K275, M100M100M100 -> M100/M100/M100).
+ * If the flute is 'BC' (Doublewall), returns the substance unchanged as default because raw data for BC is not printed with complete layers.
+ */
+export function formatSubstanceLayers(
+  substance: string | undefined | null,
+  flute?: string | undefined | null
+): string {
+  if (!substance) return '-';
+  const clean = String(substance).trim();
+  if (!clean || clean === '-') return '-';
+
+  // Doublewall (Flute BC): keep default raw format as requested
+  const cleanFlute = String(flute || '').trim().toUpperCase();
+  if (cleanFlute === 'BC') {
+    return clean;
+  }
+
+  // If already contains slash, keep it
+  if (clean.includes('/')) {
+    return clean;
+  }
+
+  // Parse layer codes: each layer has letter code followed by grammage digits (e.g. K275, M100, WK150)
+  const layers = clean.match(/([A-Za-z]+[0-9]+)/g);
+  if (layers && layers.length >= 2 && layers.join('') === clean.replace(/[\s\-_]/g, '')) {
+    return layers.join('/');
+  }
+
+  return clean;
+}
+
+/**
+ * Flattens extracted PO records into rows matching the 20-column Rekap Order Sales format.
  * - Substance and Flute are strictly separated into their own columns.
+ * - Singlewall substances are formatted with slashes between layers (e.g. K275/K200/K275).
+ * - Doublewall BC substances remain default.
  * - Substance K200 is classified into K200 (SW) and K200 (DW).
  * - Dimensions P and L are extracted.
  * - Delivery schedules and real Surat Jalan fallback downwards on additional rows.
+ * - Harga and Rp/Kg (Harga divided by berat/pcs) are populated on Column S and T.
  * - Optionally sorts records naturally by No. PO in ascending order.
  */
 export function flattenSalesOrderRows(
   records: ExtractedRecord[],
   scope: CoFilterStatus | SalesOrderExportScope = 'ALL',
-  sortByPoAsc: boolean = false
+  sortByPoAsc: boolean = false,
+  deliveryMode: SalesDeliveryMode = 'FALLBACK_DETAIL_SJ'
 ): SalesOrderRow[] {
   if (!records || records.length === 0) return [];
 
@@ -1382,18 +1419,23 @@ export function flattenSalesOrderRows(
   }
 
   const flatRows: SalesOrderRow[] = [];
+  const isTotalAccumulation = deliveryMode === 'TOTAL_ACCUMULATION';
 
   filteredPOs.forEach((po, poIdx) => {
     const qtyPoPcs = Number(po['QTY PO (pcs)']) || 0;
     const beratPoKg = Number(po['Berat PO (KG)']) || 0;
+    const harga = Number(po.Harga) || 0;
+    const beratPerPcs = qtyPoPcs > 0 ? beratPoKg / qtyPoPcs : 0;
+    const rpPerKg = beratPerPcs > 0 && harga > 0 ? Math.round(harga / beratPerPcs) : 0;
 
     // Resolve pure substance and flute
     const parsedSub = parseSubstanceAndFlute(po.PureSubstance || po.Substance);
-    const pureSubstance = po.PureSubstance || parsedSub.substance || '-';
+    const rawPureSubstance = po.PureSubstance || parsedSub.substance || '-';
     const rawFlute = po.Flute && po.Flute !== '-' ? po.Flute : parsedSub.flute || '-';
     const flute = String(rawFlute).trim().toUpperCase();
     const wallType: 'SINGLEWALL' | 'DOUBLEWALL' = flute === 'BC' ? 'DOUBLEWALL' : 'SINGLEWALL';
-    const isK200 = isK200Substance(pureSubstance) || isK200Substance(po.Substance);
+    const pureSubstance = formatSubstanceLayers(rawPureSubstance, flute);
+    const isK200 = isK200Substance(rawPureSubstance) || isK200Substance(po.Substance);
     const k200Type: K200Classification = isK200
       ? wallType === 'DOUBLEWALL'
         ? 'K200_DW'
@@ -1422,55 +1464,98 @@ export function flattenSalesOrderRows(
       (d) => !d.isFallbackNoDelivery && d.noSJ && d.noSJ !== '-'
     );
 
+    // Sum all deliveries for this PO (used in TOTAL_ACCUMULATION mode)
+    const totalActualQtyDelivery = realDeliveries.reduce(
+      (acc, d) => acc + (Number(d.qtyKirimPcs) || 0),
+      0
+    );
+    const totalActualKgDelivery = realDeliveries.reduce(
+      (acc, d) => acc + (Number(d.beratKirimKg) || 0),
+      0
+    );
+
     const cleanNoPO = po['No PO'] || '-';
     const poRecId = po.id || `po_rec_${poIdx + 1}`;
 
-    // A PO spans enough rows to accommodate either multiple schedules or multiple SJs (fallback kebawahnya)
-    const maxRows = Math.max(rawSchedules.length, realDeliveries.length, 1);
+    // In TOTAL_ACCUMULATION mode, both planning schedules and deliveries are completely unified into 1 overall row per PO.
+    // In FALLBACK_DETAIL_SJ mode, PO spans enough rows to accommodate either multiple schedules or multiple SJs.
+    const maxRows = isTotalAccumulation
+      ? 1
+      : Math.max(rawSchedules.length, realDeliveries.length, 1);
 
     for (let rowIdx = 0; rowIdx < maxRows; rowIdx++) {
       const isFirst = rowIdx === 0;
 
-      // 1. Planned Delivery Schedule info
       let deliveryDate = '';
       let qtyDelivery: number | '' = '';
       let kgDelivery: number | '' = '';
-
-      if (rowIdx < rawSchedules.length) {
-        const sched = rawSchedules[rowIdx];
-        deliveryDate = sched.scheduleDate || '-';
-        const sQty = sched.scheduleQty > 0 ? sched.scheduleQty : isFirst ? qtyPoPcs : 0;
-        qtyDelivery = sQty;
-        if (typeof sQty === 'number' && sQty > 0 && qtyPoPcs > 0 && beratPoKg > 0) {
-          kgDelivery = Math.round((sQty / qtyPoPcs) * beratPoKg);
-        } else if (sQty === 0) {
-          kgDelivery = 0;
-        } else {
-          kgDelivery = isFirst ? beratPoKg : 0;
-        }
-      }
-
-      // 2. Actual Delivery (Surat Jalan) info - terfallback kebawahnya
       let actualDeliveryDate = '';
       let noSJ = '';
       let actualQtyDelivery: number | '' = '';
       let actualKgDelivery: number | '' = '';
 
-      if (realDeliveries.length > 0) {
-        if (rowIdx < realDeliveries.length) {
-          const sj = realDeliveries[rowIdx];
-          actualDeliveryDate = sj.tanggalKirim || '-';
-          noSJ = sj.noSJ || '-';
-          actualQtyDelivery = sj.qtyKirimPcs;
-          actualKgDelivery = sj.beratKirimKg;
-        }
-      } else {
-        // No delivery recorded for this PO (belum kirim)
-        if (isFirst) {
-          actualDeliveryDate = '-';
-          noSJ = '-';
+      if (isTotalAccumulation) {
+        // Opsi 2: Satukan detail planning date & actual delivery jadi total keseluruhan per PO
+        const distinctPlanningDates = Array.from(
+          new Set(
+            rawSchedules
+              .map((s) => s.scheduleDate)
+              .filter((d): d is string => Boolean(d && d !== '-'))
+          )
+        );
+        deliveryDate =
+          distinctPlanningDates.length > 0
+            ? distinctPlanningDates.join(', ')
+            : po.scheduleDate || '-';
+
+        const sumScheduleQty = rawSchedules.reduce(
+          (acc, s) => acc + (Number(s.scheduleQty) || 0),
+          0
+        );
+        qtyDelivery = sumScheduleQty > 0 ? sumScheduleQty : qtyPoPcs;
+        kgDelivery = beratPoKg;
+
+        actualDeliveryDate = '-';
+        noSJ = '-';
+        if (realDeliveries.length > 0) {
+          actualQtyDelivery = totalActualQtyDelivery;
+          actualKgDelivery = totalActualKgDelivery;
+        } else {
           actualQtyDelivery = '';
           actualKgDelivery = '';
+        }
+      } else {
+        // Opsi 1: Fallback detail per Surat Jalan (SJ) & per jadwal planning
+        if (rowIdx < rawSchedules.length) {
+          const sched = rawSchedules[rowIdx];
+          deliveryDate = sched.scheduleDate || '-';
+          const sQty = sched.scheduleQty > 0 ? sched.scheduleQty : isFirst ? qtyPoPcs : 0;
+          qtyDelivery = sQty;
+          if (typeof sQty === 'number' && sQty > 0 && qtyPoPcs > 0 && beratPoKg > 0) {
+            kgDelivery = Math.round((sQty / qtyPoPcs) * beratPoKg);
+          } else if (sQty === 0) {
+            kgDelivery = 0;
+          } else {
+            kgDelivery = isFirst ? beratPoKg : 0;
+          }
+        }
+
+        if (realDeliveries.length > 0) {
+          if (rowIdx < realDeliveries.length) {
+            const sj = realDeliveries[rowIdx];
+            actualDeliveryDate = sj.tanggalKirim || '-';
+            noSJ = sj.noSJ || '-';
+            actualQtyDelivery = sj.qtyKirimPcs;
+            actualKgDelivery = sj.beratKirimKg;
+          }
+        } else {
+          // No delivery recorded for this PO (belum kirim)
+          if (isFirst) {
+            actualDeliveryDate = '-';
+            noSJ = '-';
+            actualQtyDelivery = '';
+            actualKgDelivery = '';
+          }
         }
       }
 
@@ -1501,6 +1586,8 @@ export function flattenSalesOrderRows(
         noSJ,
         actualQtyDelivery,
         actualKgDelivery,
+        harga: isFirst ? (harga > 0 ? harga : '') : '',
+        rpPerKg: isFirst ? (rpPerKg > 0 ? rpPerKg : '') : '',
         isFirstScheduleOfPO: isFirst,
         scheduleSequence: rowIdx + 1,
         totalSchedulesCount: maxRows,

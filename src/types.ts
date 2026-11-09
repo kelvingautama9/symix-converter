@@ -204,10 +204,14 @@ export interface SalesOrderRow {
   noSJ: string;
   actualQtyDelivery: number | '';
   actualKgDelivery: number | '';
+  harga: number | '';
+  rpPerKg: number | '';
   isFirstScheduleOfPO: boolean;
   scheduleSequence: number;
   totalSchedulesCount: number;
 }
+
+export type SalesDeliveryMode = 'FALLBACK_DETAIL_SJ' | 'TOTAL_ACCUMULATION';
 
 export type SalesOrderExportScope =
   | 'ALL'

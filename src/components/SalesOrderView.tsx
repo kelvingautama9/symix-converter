@@ -3,6 +3,7 @@ import {
   ExtractedRecord,
   SalesOrderRow,
   SalesOrderExportScope,
+  SalesDeliveryMode,
   CoStatus,
 } from '../types';
 import { flattenSalesOrderRows } from '../utils/parserEngine';
@@ -51,6 +52,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   >('ALL');
   const [highlightK200, setHighlightK200] = useState<boolean>(true);
   const [sortByPoAsc, setSortByPoAsc] = useState<boolean>(true);
+  const [deliveryMode, setDeliveryMode] = useState<SalesDeliveryMode>('FALLBACK_DETAIL_SJ');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
 
   // Customer Name extracted from data
@@ -60,10 +62,10 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     return found?.customerName ? found.customerName.toUpperCase() : 'PURBAYASA';
   }, [data]);
 
-  // Flattened Sales Rows from parser engine (with natural alphanumeric sorting support)
+  // Flattened Sales Rows from parser engine (with natural alphanumeric sorting and delivery mode support)
   const allSalesRows = useMemo(() => {
-    return flattenSalesOrderRows(data, 'ALL', sortByPoAsc);
-  }, [data, sortByPoAsc]);
+    return flattenSalesOrderRows(data, 'ALL', sortByPoAsc, deliveryMode);
+  }, [data, sortByPoAsc, deliveryMode]);
 
   // Available Flute types present in this dataset
   const availableFlutes = useMemo(() => {
@@ -432,7 +434,11 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   }, [filteredRows]);
 
   // Handle Export Excel
-  const handleExport = (scope: SalesOrderExportScope = 'ALL', explicitSort?: boolean) => {
+  const handleExport = (
+    scope: SalesOrderExportScope = 'ALL',
+    explicitSort?: boolean,
+    explicitDeliveryMode?: SalesDeliveryMode
+  ) => {
     setIsExportMenuOpen(false);
     haptic.success();
     confetti({
@@ -443,22 +449,28 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     });
 
     const shouldSort = explicitSort !== undefined ? explicitSort : sortByPoAsc;
-    const outName = getSalesOrderExportFileName(fileName, scope, shouldSort);
-    exportSalesOrderToExcel(data, scope, outName, shouldSort);
+    const modeToUse = explicitDeliveryMode !== undefined ? explicitDeliveryMode : deliveryMode;
+    const outName = getSalesOrderExportFileName(fileName, scope, shouldSort, modeToUse);
+    exportSalesOrderToExcel(data, scope, outName, shouldSort, modeToUse);
     if (onShareStatus) {
       onShareStatus(
-        `Berhasil mengekspor format Sales (${shouldSort ? 'Urut No. PO A-Z & Angka' : 'Urutan Asli'}): ${outName}`
+        `Berhasil mengekspor format Sales (${modeToUse === 'TOTAL_ACCUMULATION' ? 'Total Akumulasi' : 'Detail SJ'}, ${shouldSort ? 'Urut No. PO A-Z' : 'Urutan Asli'}): ${outName}`
       );
     }
   };
 
   // Handle WhatsApp Share
-  const handleShareWA = async (scope: SalesOrderExportScope = 'ALL', explicitSort?: boolean) => {
+  const handleShareWA = async (
+    scope: SalesOrderExportScope = 'ALL',
+    explicitSort?: boolean,
+    explicitDeliveryMode?: SalesDeliveryMode
+  ) => {
     setIsExportMenuOpen(false);
     haptic.medium();
     const shouldSort = explicitSort !== undefined ? explicitSort : sortByPoAsc;
-    const outName = getSalesOrderExportFileName(fileName, scope, shouldSort);
-    const res = await shareSalesOrderExcelFileToWhatsApp(data, scope, outName, shouldSort);
+    const modeToUse = explicitDeliveryMode !== undefined ? explicitDeliveryMode : deliveryMode;
+    const outName = getSalesOrderExportFileName(fileName, scope, shouldSort, modeToUse);
+    const res = await shareSalesOrderExcelFileToWhatsApp(data, scope, outName, shouldSort, modeToUse);
     if (onShareStatus) {
       onShareStatus(res.message);
     }
@@ -542,6 +554,42 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
 
           {/* Action Buttons */}
           <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+            {/* Delivery Presentation Mode Selector (Jenis 1: Fallback Detail per SJ vs Jenis 2: Total Keseluruhan) */}
+            <div className="bg-slate-100 p-0.5 rounded-lg border border-slate-200 inline-flex items-center shadow-2xs">
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.selection();
+                  setDeliveryMode('FALLBACK_DETAIL_SJ');
+                }}
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  deliveryMode === 'FALLBACK_DETAIL_SJ'
+                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Penjumlahan delivery dengan rincian baris terfallback per Surat Jalan (lengkap No SJ & Tanggal Aktual Kirim)"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                <span>Detail per SJ (Fallback)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  haptic.selection();
+                  setDeliveryMode('TOTAL_ACCUMULATION');
+                }}
+                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                  deliveryMode === 'TOTAL_ACCUMULATION'
+                    ? 'bg-slate-900 text-white shadow-2xs font-bold'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Penjumlahan total delivery secara keseluruhan per PO (tanpa detail No SJ dan Tanggal Aktual Kirim)"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+                <span>Total Keseluruhan (Tanpa Detail SJ)</span>
+              </button>
+            </div>
+
             {/* Highlight K200 Toggle Button */}
             <button
               type="button"
@@ -629,7 +677,71 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               </button>
 
               {isExportMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-72 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 text-xs text-slate-800 max-h-[85vh] overflow-y-auto">
+                <div className="absolute right-0 top-full mt-1.5 w-76 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 text-xs text-slate-800 max-h-[85vh] overflow-y-auto">
+                  {/* Mode Penjumlahan Delivery */}
+                  <div className="px-3 py-1 font-bold text-slate-400 uppercase tracking-wider text-[10px]">
+                    Mode Penjumlahan Delivery
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMode('FALLBACK_DETAIL_SJ');
+                      handleExport(
+                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
+                        undefined,
+                        'FALLBACK_DETAIL_SJ'
+                      );
+                    }}
+                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                      deliveryMode === 'FALLBACK_DETAIL_SJ' ? 'bg-blue-50/70 font-semibold text-blue-950' : 'text-slate-700'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-semibold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                        <span>Detail per SJ (Fallback)</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        Rincian baris terfallback per SJ + Tgl Aktual Kirim
+                      </div>
+                    </div>
+                    {deliveryMode === 'FALLBACK_DETAIL_SJ' && (
+                      <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-mono font-bold">
+                        AKTIF
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeliveryMode('TOTAL_ACCUMULATION');
+                      handleExport(
+                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
+                        undefined,
+                        'TOTAL_ACCUMULATION'
+                      );
+                    }}
+                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                      deliveryMode === 'TOTAL_ACCUMULATION' ? 'bg-emerald-50/70 font-semibold text-emerald-950' : 'text-slate-700'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-semibold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        <span>Total Keseluruhan PO</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500">
+                        Total delivery akumulasi tanpa detail baris SJ
+                      </div>
+                    </div>
+                    {deliveryMode === 'TOTAL_ACCUMULATION' && (
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold">
+                        AKTIF
+                      </span>
+                    )}
+                  </button>
+
+                  <div className="border-t border-slate-100 my-1" />
                   <div className="px-3 py-1 font-bold text-slate-400 uppercase tracking-wider text-[10px]">
                     Mode Urutan Ekspor
                   </div>
@@ -1482,53 +1594,81 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 >
                   Qty (Kg)
                 </th>
+                {deliveryMode !== 'TOTAL_ACCUMULATION' && (
+                  <th
+                    rowSpan={2}
+                    className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[120px]"
+                  >
+                    Planning Date
+                  </th>
+                )}
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[120px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
                 >
-                  Delivery Date
+                  Qty Planning
                 </th>
                 <th
                   rowSpan={2}
                   className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
                 >
-                  Qty Delivery
+                  Kg Planning
+                </th>
+                {deliveryMode !== 'TOTAL_ACCUMULATION' && (
+                  <>
+                    <th
+                      rowSpan={2}
+                      className="px-2 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[100px] text-slate-400"
+                    >
+                      Remarks
+                    </th>
+                    <th
+                      rowSpan={2}
+                      className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[130px]"
+                    >
+                      Actual Delivery Date
+                    </th>
+                    <th
+                      rowSpan={2}
+                      className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[120px]"
+                    >
+                      No SJ
+                    </th>
+                  </>
+                )}
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                >
+                  <div className="flex flex-col items-end">
+                    <span>Qty Delivery</span>
+                    {deliveryMode === 'TOTAL_ACCUMULATION' && (
+                      <span className="text-[9px] text-emerald-700 font-normal font-mono">(Total PO)</span>
+                    )}
+                  </div>
                 </th>
                 <th
                   rowSpan={2}
                   className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
                 >
-                  Kg Delivery
-                </th>
-                <th
-                  rowSpan={2}
-                  className="px-2 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[100px] text-slate-400"
-                >
-                  Remarks
-                </th>
-                <th
-                  rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[130px]"
-                >
-                  Actual Delivery Date
-                </th>
-                <th
-                  rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-tight bg-slate-100 min-w-[120px]"
-                >
-                  No SJ
+                  <div className="flex flex-col items-end">
+                    <span>Kg Delivery</span>
+                    {deliveryMode === 'TOTAL_ACCUMULATION' && (
+                      <span className="text-[9px] text-emerald-700 font-normal font-mono">(Total PO)</span>
+                    )}
+                  </div>
                 </th>
                 <th
                   rowSpan={2}
                   className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
                 >
-                  Qty Delivery
+                  Harga (Rp)
                 </th>
                 <th
                   rowSpan={2}
                   className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
                 >
-                  Kg Delivery
+                  Rp/Kg
                 </th>
               </tr>
 
@@ -1547,7 +1687,10 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <tbody className="divide-y divide-slate-200">
               {filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={18} className="px-4 py-12 text-center text-slate-400">
+                  <td
+                    colSpan={deliveryMode === 'TOTAL_ACCUMULATION' ? 16 : 20}
+                    className="px-4 py-12 text-center text-slate-400"
+                  >
                     Tidak ada data yang sesuai dengan pencarian atau filter.
                   </td>
                 </tr>
@@ -1660,58 +1803,74 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                         {typeof r.qtyKg === 'number' ? r.qtyKg.toLocaleString('id-ID') : ''}
                       </td>
 
-                      {/* 11. Delivery Date (Rencana Jadwal Kirim) */}
-                      <td className="px-3 py-2 border border-slate-200 text-center font-mono font-medium text-slate-800">
-                        {r.deliveryDate || ''}
-                      </td>
+                      {/* 11. Planning Date (Hanya di mode Fallback Detail SJ) */}
+                      {deliveryMode !== 'TOTAL_ACCUMULATION' && (
+                        <td className="px-3 py-2 border border-slate-200 text-center font-mono font-medium text-slate-800">
+                          {r.deliveryDate || ''}
+                        </td>
+                      )}
 
-                      {/* 12. Qty Delivery (Rencana Qty Kirim) */}
+                      {/* 12. Qty Planning (Rencana Qty Kirim) */}
                       <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-800">
                         {typeof r.qtyDelivery === 'number'
                           ? r.qtyDelivery.toLocaleString('id-ID')
                           : r.qtyDelivery || ''}
                       </td>
 
-                      {/* 13. Kg Delivery (Rencana Berat Kirim) */}
+                      {/* 13. Kg Planning (Rencana Berat Kirim) */}
                       <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-800">
                         {typeof r.kgDelivery === 'number'
                           ? r.kgDelivery.toLocaleString('id-ID')
                           : r.kgDelivery || ''}
                       </td>
 
-                      {/* 14. Remarks (kosong/diabaikan) */}
-                      <td className="px-2 py-2 border border-slate-200 text-center text-slate-300">
-                        -
-                      </td>
+                      {/* 14. Remarks, Actual Delivery Date, No SJ (Hanya di mode Fallback Detail SJ) */}
+                      {deliveryMode !== 'TOTAL_ACCUMULATION' && (
+                        <>
+                          <td className="px-2 py-2 border border-slate-200 text-center text-slate-300">
+                            -
+                          </td>
+                          <td className="px-3 py-2 border border-slate-200 text-center font-mono text-slate-800">
+                            {r.actualDeliveryDate || ''}
+                          </td>
+                          <td className="px-3 py-2 border border-slate-200 text-center font-mono">
+                            {r.noSJ && r.noSJ !== '-' ? (
+                              <span className="font-semibold text-slate-900">{r.noSJ}</span>
+                            ) : r.noSJ === '-' ? (
+                              <span className="text-slate-400">-</span>
+                            ) : (
+                              ''
+                            )}
+                          </td>
+                        </>
+                      )}
 
-                      {/* 15. Actual Delivery Date */}
-                      <td className="px-3 py-2 border border-slate-200 text-center font-mono text-slate-800">
-                        {r.actualDeliveryDate || ''}
-                      </td>
-
-                      {/* 16. No SJ (terfallback kebawahnya) */}
-                      <td className="px-3 py-2 border border-slate-200 text-center font-mono">
-                        {r.noSJ && r.noSJ !== '-' ? (
-                          <span className="font-semibold text-slate-900">{r.noSJ}</span>
-                        ) : r.noSJ === '-' ? (
-                          <span className="text-slate-400">-</span>
-                        ) : (
-                          ''
-                        )}
-                      </td>
-
-                      {/* 17. Qty Delivery (Actual / Realisasi Kirim PCS) */}
+                      {/* Qty Delivery (Actual / Realisasi Kirim PCS) */}
                       <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-900">
                         {typeof r.actualQtyDelivery === 'number'
                           ? r.actualQtyDelivery.toLocaleString('id-ID')
                           : r.actualQtyDelivery || ''}
                       </td>
 
-                      {/* 18. Kg Delivery (Actual / Realisasi Kirim KG) */}
+                      {/* Kg Delivery (Actual / Realisasi Kirim KG) */}
                       <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-900">
                         {typeof r.actualKgDelivery === 'number'
                           ? r.actualKgDelivery.toLocaleString('id-ID')
                           : r.actualKgDelivery || ''}
+                      </td>
+
+                      {/* Harga (Rp) */}
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-900">
+                        {r.harga !== '' && typeof r.harga === 'number'
+                          ? `Rp ${r.harga.toLocaleString('id-ID')}`
+                          : ''}
+                      </td>
+
+                      {/* Rp/Kg */}
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-900">
+                        {r.rpPerKg !== '' && typeof r.rpPerKg === 'number'
+                          ? `Rp ${r.rpPerKg.toLocaleString('id-ID')}`
+                          : ''}
                       </td>
                     </tr>
                   );
@@ -1719,337 +1878,56 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               )}
             </tbody>
 
-            {/* Total Footer: Breakdown by Flute & K200 Sub-totals */}
-            <tfoot className="sticky bottom-0 z-10 border-t-2 border-slate-300 shadow-md divide-y divide-slate-200">
-              {/* Row 1: Singlewall */}
-              <tr className="bg-blue-50/70 font-semibold text-slate-800 text-xs">
-                <td
-                  colSpan={8}
-                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                    <span className="font-bold text-slate-900">
-                      TOTAL FLUTE SINGLEWALL (B, C, E)
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      ({totals.sw.totalPos} PO / {totals.sw.totalArtikels} ARTIKEL)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
-                  {totals.sw.sumQtyPcs.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
-                  {totals.sw.sumQtyKg.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-blue-900 bg-blue-100/50">
-                  {totals.sw.sumQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-blue-900 bg-blue-100/50">
-                  {totals.sw.sumKgDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-slate-600">
-                  {totals.sw.totalSJs > 0 ? `${totals.sw.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
-                  {totals.sw.sumActualQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
-                  {totals.sw.sumActualKgDelivery.toLocaleString('id-ID')}
-                </td>
-              </tr>
-
-              {/* Row 2: Doublewall */}
-              <tr className="bg-purple-50/70 font-semibold text-slate-800 text-xs">
-                <td
-                  colSpan={8}
-                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                    <span className="font-bold text-slate-900">
-                      TOTAL FLUTE DOUBLEWALL (BC)
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      ({totals.dw.totalPos} PO / {totals.dw.totalArtikels} ARTIKEL)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
-                  {totals.dw.sumQtyPcs.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
-                  {totals.dw.sumQtyKg.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-purple-900 bg-purple-100/50">
-                  {totals.dw.sumQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-purple-900 bg-purple-100/50">
-                  {totals.dw.sumKgDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-slate-600">
-                  {totals.dw.totalSJs > 0 ? `${totals.dw.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
-                  {totals.dw.sumActualQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
-                  {totals.dw.sumActualKgDelivery.toLocaleString('id-ID')}
-                </td>
-              </tr>
-
-              {/* Row: Khusus E Flute */}
-              <tr className="bg-emerald-50/70 font-semibold text-slate-800 text-xs">
-                <td
-                  colSpan={8}
-                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span className="font-bold text-slate-900">
-                      TOTAL KHUSUS E FLUTE (FLUTE E)
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      ({totals.eFlute.totalPos} PO / {totals.eFlute.totalArtikels} ARTIKEL)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
-                  {totals.eFlute.sumQtyPcs.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-slate-900">
-                  {totals.eFlute.sumQtyKg.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
-                  {totals.eFlute.sumQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
-                  {totals.eFlute.sumKgDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-slate-600">
-                  {totals.eFlute.totalSJs > 0 ? `${totals.eFlute.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
-                  {totals.eFlute.sumActualQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-800 bg-emerald-50">
-                  {totals.eFlute.sumActualKgDelivery.toLocaleString('id-ID')}
-                </td>
-              </tr>
-
-              {/* Row 3: Rekap K200 SW (Kuning) */}
-              <tr className="bg-[#fff9a6]/80 font-bold text-amber-950 text-xs">
-                <td
-                  colSpan={8}
-                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600"></span>
-                    <span className="font-bold text-amber-950">
-                      1. K200 SW (Flute B, C, E)
-                    </span>
-                    <span className="text-[10px] text-amber-900 font-mono">
-                      ({totals.k200Sw.totalPos} PO / {totals.k200Sw.totalArtikels} ARTIKEL)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-amber-950">
-                  {totals.k200Sw.sumQtyPcs.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-amber-950">
-                  {totals.k200Sw.sumQtyKg.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-amber-950">
-                  {totals.k200Sw.sumQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-amber-950">
-                  {totals.k200Sw.sumKgDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-amber-900">
-                  {totals.k200Sw.totalSJs > 0 ? `${totals.k200Sw.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
-                  {totals.k200Sw.sumActualQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
-                  {totals.k200Sw.sumActualKgDelivery.toLocaleString('id-ID')}
-                </td>
-              </tr>
-
-              {/* Row 4: Rekap K200 DW (Biru) */}
-              <tr className="bg-[#d2eeff]/80 font-bold text-sky-950 text-xs">
-                <td
-                  colSpan={8}
-                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-sky-400 border border-sky-600"></span>
-                    <span className="font-bold text-sky-950">
-                      2. K200 DW (Flute BC)
-                    </span>
-                    <span className="text-[10px] text-sky-900 font-mono">
-                      ({totals.k200Dw.totalPos} PO / {totals.k200Dw.totalArtikels} ARTIKEL)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-sky-950">
-                  {totals.k200Dw.sumQtyPcs.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-sky-950">
-                  {totals.k200Dw.sumQtyKg.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-sky-950">
-                  {totals.k200Dw.sumQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-sky-950">
-                  {totals.k200Dw.sumKgDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-sky-900">
-                  {totals.k200Dw.totalSJs > 0 ? `${totals.k200Dw.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
-                  {totals.k200Dw.sumActualQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-900 bg-emerald-100/50">
-                  {totals.k200Dw.sumActualKgDelivery.toLocaleString('id-ID')}
-                </td>
-              </tr>
-
-              {/* Row 5: Subtotal K200 (SW + DW) */}
-              <tr className="bg-amber-100/60 font-bold text-amber-950 text-xs">
-                <td
-                  colSpan={8}
-                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="font-extrabold text-amber-950">
-                      SUBTOTAL ORDER K200 (SW & DW)
-                    </span>
-                    <span className="text-[10px] text-amber-900 font-mono">
-                      ({totals.k200Total.percentQtyPcs.toFixed(1)}% Pcs • {totals.k200Total.percentQtyKg.toFixed(1)}% Kg dari Total Order)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-extrabold text-amber-950">
-                  {totals.k200Total.sumQtyPcs.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-extrabold text-amber-950">
-                  {totals.k200Total.sumQtyKg.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-amber-950">
-                  {totals.k200Total.sumQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-amber-950">
-                  {totals.k200Total.sumKgDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-amber-950 font-bold">
-                  {totals.k200Total.totalSJs > 0 ? `${totals.k200Total.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-950 bg-emerald-100/70">
-                  {totals.k200Total.sumActualQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-bold text-emerald-950 bg-emerald-100/70">
-                  {totals.k200Total.sumActualKgDelivery.toLocaleString('id-ID')}
-                </td>
-              </tr>
-
-              {/* Row 6: Non-K200 */}
-              <tr className="bg-slate-50 font-medium text-slate-700 text-xs">
-                <td
-                  colSpan={8}
-                  className="px-3 py-1.5 border border-slate-300 text-center tracking-tight"
-                >
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="font-semibold text-slate-700">
-                      3. SUBSTANCE NON-K200 (Substance Lainnya)
-                    </span>
-                    <span className="text-[10px] text-slate-500 font-mono">
-                      ({totals.nonK200.totalPos} PO / {totals.nonK200.totalArtikels} ARTIKEL)
-                    </span>
-                  </div>
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-medium text-slate-800">
-                  {totals.nonK200.sumQtyPcs.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-medium text-slate-800">
-                  {totals.nonK200.sumQtyKg.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-medium text-slate-800">
-                  {totals.nonK200.sumQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-medium text-slate-800">
-                  {totals.nonK200.sumKgDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-2 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center text-slate-400">-</td>
-                <td className="px-3 py-1.5 border border-slate-300 text-center font-mono text-slate-600">
-                  {totals.nonK200.totalSJs > 0 ? `${totals.nonK200.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-medium text-emerald-800 bg-emerald-50">
-                  {totals.nonK200.sumActualQtyDelivery.toLocaleString('id-ID')}
-                </td>
-                <td className="px-3 py-1.5 border border-slate-300 text-right font-mono font-medium text-emerald-800 bg-emerald-50">
-                  {totals.nonK200.sumActualKgDelivery.toLocaleString('id-ID')}
-                </td>
-              </tr>
-
-              {/* Row 7: Grand Total */}
+            {/* Total Footer: Clean, unified Grand Total row */}
+            <tfoot className="sticky bottom-0 z-10 border-t-2 border-slate-300 shadow-md">
               <tr className="bg-slate-100 font-bold text-slate-900 text-xs">
                 <td
                   colSpan={8}
-                  className="px-3 py-2 border border-slate-300 text-center font-bold tracking-wider uppercase text-slate-800"
+                  className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-wider uppercase text-slate-800"
                 >
                   GRAND TOTAL REKAPITULASI SALES ({totals.totalPos} NO PO / {totals.totalArtikels} ARTIKEL)
                 </td>
-                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-black text-slate-900">
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900">
                   {totals.sumQtyPcs.toLocaleString('id-ID')}
                 </td>
-                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-black text-slate-900">
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900">
                   {totals.sumQtyKg.toLocaleString('id-ID')}
                 </td>
-                <td className="px-3 py-2 border border-slate-300 text-center text-slate-400">
-                  -
-                </td>
-                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-black text-slate-900 bg-slate-200/50">
+                {deliveryMode !== 'TOTAL_ACCUMULATION' && (
+                  <td className="px-3 py-2.5 border border-slate-300 text-center text-slate-400">
+                    -
+                  </td>
+                )}
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900 bg-slate-200/50">
                   {totals.sumQtyDelivery.toLocaleString('id-ID')}
                 </td>
-                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-black text-slate-900 bg-slate-200/50">
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-slate-900 bg-slate-200/50">
                   {totals.sumKgDelivery.toLocaleString('id-ID')}
                 </td>
-                <td className="px-2 py-2 border border-slate-300 text-center text-slate-400">
-                  -
-                </td>
-                <td className="px-3 py-2 border border-slate-300 text-center text-slate-400">
-                  -
-                </td>
-                <td className="px-3 py-2 border border-slate-300 text-center font-mono font-bold text-slate-700">
-                  {totals.totalSJs > 0 ? `${totals.totalSJs} SJ` : '-'}
-                </td>
-                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-100/60">
+                {deliveryMode !== 'TOTAL_ACCUMULATION' && (
+                  <>
+                    <td className="px-2 py-2.5 border border-slate-300 text-center text-slate-400">
+                      -
+                    </td>
+                    <td className="px-3 py-2.5 border border-slate-300 text-center text-slate-400">
+                      -
+                    </td>
+                    <td className="px-3 py-2.5 border border-slate-300 text-center font-mono font-bold text-slate-700">
+                      {totals.totalSJs > 0 ? `${totals.totalSJs} SJ` : '-'}
+                    </td>
+                  </>
+                )}
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-100/60">
                   {totals.sumActualQtyDelivery.toLocaleString('id-ID')}
                 </td>
-                <td className="px-3 py-2 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-100/60">
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-100/60">
                   {totals.sumActualKgDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-center text-slate-400">
+                  -
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-center text-slate-400">
+                  -
                 </td>
               </tr>
             </tfoot>
