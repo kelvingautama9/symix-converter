@@ -1519,128 +1519,222 @@ export function getSalesOrderExportFileName(
 }
 
 /**
- * Builds the 20-column Rekap Order Sales worksheet with 2-tier headers.
+ * Builds the Rekap Order Sales worksheet with 2-tier headers matching user specification.
+ * - When isCombinedMaster = true: Column A is Customers (16 cols total in Total Accumulation, 20 in Fallback).
+ * - When isCombinedMaster = false: Column A is NO PO (15 cols total in Total Accumulation, 19 in Fallback).
+ * - Row 1 has Size header merged over P & L, Row 2 has column titles, Row 3 starts data rows.
  */
 export function buildSalesOrderWorksheet(
   data: ExtractedRecord[],
   scope: SalesOrderExportScope = 'ALL',
   customerTitle?: string,
   sortByPoAsc: boolean = false,
-  deliveryMode: SalesDeliveryMode = 'FALLBACK_DETAIL_SJ'
+  deliveryMode: SalesDeliveryMode = 'FALLBACK_DETAIL_SJ',
+  isCombinedMaster: boolean = false
 ): XLSX.WorkSheet {
   const isTotalAccumulation = deliveryMode === 'TOTAL_ACCUMULATION';
   const flatRows = flattenSalesOrderRows(data, scope, sortByPoAsc, deliveryMode);
 
-  // Determine Customer Name for Header A1 (e.g. RECAP ORDER PURBAYASA or RECAP ORDER SALES)
-  let displayCustomer = 'SALES';
-  if (customerTitle && customerTitle.trim()) {
-    displayCustomer = customerTitle.trim().toUpperCase();
-  } else if (data.length > 0 && data[0].customerName && data[0].customerName.trim()) {
-    displayCustomer = data[0].customerName.trim().toUpperCase();
-  }
-
   const sheetData: any[][] = [];
 
-  // Row 1: Title (Cell A1)
-  sheetData.push([`RECAP ORDER ${displayCustomer}`]);
+  // Define dynamic column letters
+  const colSub = isCombinedMaster ? 'C' : 'B';
+  const colFlu = isCombinedMaster ? 'D' : 'C';
+  const colQtyPcs = isCombinedMaster ? 'I' : 'H';
+  const colQtyKg = isCombinedMaster ? 'J' : 'I';
 
-  // Row 2: Empty
-  sheetData.push([]);
+  const colPlanPcs = isTotalAccumulation
+    ? (isCombinedMaster ? 'K' : 'J')
+    : (isCombinedMaster ? 'L' : 'K');
+  const colPlanKg = isTotalAccumulation
+    ? (isCombinedMaster ? 'L' : 'K')
+    : (isCombinedMaster ? 'M' : 'L');
+  const colDelivPcs = isTotalAccumulation
+    ? (isCombinedMaster ? 'M' : 'L')
+    : (isCombinedMaster ? 'Q' : 'P');
+  const colDelivKg = isTotalAccumulation
+    ? (isCombinedMaster ? 'N' : 'M')
+    : (isCombinedMaster ? 'R' : 'Q');
+  const colHarga = isTotalAccumulation
+    ? (isCombinedMaster ? 'O' : 'N')
+    : (isCombinedMaster ? 'S' : 'R');
 
-  // Row 3 & 4: Table Header Rows
+  const totalCols = isTotalAccumulation
+    ? (isCombinedMaster ? 16 : 15)
+    : (isCombinedMaster ? 20 : 19);
+
+  // Row 1 & Row 2: 2-Tier Table Header Rows
+  // In Excel vertical merge (Row 1:Row 2), Excel displays the value of the top cell (Row 1).
+  // Therefore, all column titles are placed in Row 1, with 'Size' spanning P & L.
+  // Row 2 only contains 'P' and 'L' under the Size column, while other cells are blank for the vertical merge.
   if (isTotalAccumulation) {
-    // Mode Total Keseluruhan PO (17 kolom: A s/d Q, dengan Kolom Customers di Kolom A)
-    sheetData.push([
-      'Customers',
-      'NO PO',
-      'Date Receive PO',
-      'Substance',
-      'Flute',
-      'Size',
-      '', // Merged with column F for Size
-      'Artikel',
-      'Item Name',
-      'Qty (Pcs)',
-      'Qty (Kg)',
-      'Qty Planning',
-      'Kg Planning',
-      'Qty Delivery',
-      'Kg Delivery',
-      'Harga',
-      'Rp/Kg',
-    ]);
-
-    sheetData.push([
-      '',
-      '',
-      '',
-      '',
-      '',
-      'P',
-      'L',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-    ]);
+    if (isCombinedMaster) {
+      sheetData.push([
+        'Customers',
+        'NO PO',
+        'Substance',
+        'Flute',
+        'Size',
+        '', // Merged with E for Size
+        'Artikel',
+        'Item Name',
+        'Qty (Pcs)',
+        'Qty (Kg)',
+        'Qty Planning',
+        'Kg Planning',
+        'Qty Delivery',
+        'Kg Delivery',
+        'Harga',
+        'Rp/Kg',
+      ]);
+      sheetData.push([
+        '',
+        '',
+        '',
+        '',
+        'P',
+        'L',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+    } else {
+      sheetData.push([
+        'NO PO',
+        'Substance',
+        'Flute',
+        'Size',
+        '', // Merged with D for Size
+        'Artikel',
+        'Item Name',
+        'Qty (Pcs)',
+        'Qty (Kg)',
+        'Qty Planning',
+        'Kg Planning',
+        'Qty Delivery',
+        'Kg Delivery',
+        'Harga',
+        'Rp/Kg',
+      ]);
+      sheetData.push([
+        '',
+        '',
+        '',
+        'P',
+        'L',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+    }
   } else {
-    // Mode Detail per SJ / Fallback (21 kolom: A s/d U lengkap, dengan Kolom Customers di Kolom A)
-    sheetData.push([
-      'Customers',
-      'NO PO',
-      'Date Receive PO',
-      'Substance',
-      'Flute',
-      'Size',
-      '', // Merged with column F for Size
-      'Artikel',
-      'Item Name',
-      'Qty (Pcs)',
-      'Qty (Kg)',
-      'Planning Date',
-      'Qty Planning',
-      'Kg Planning',
-      'Remarks',
-      'Actual Delivery Date',
-      'No SJ',
-      'Qty Delivery',
-      'Kg Delivery',
-      'Harga',
-      'Rp/Kg',
-    ]);
-
-    sheetData.push([
-      '',
-      '',
-      '',
-      '',
-      '',
-      'P',
-      'L',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-    ]);
+    // Mode Detail per SJ (Fallback)
+    if (isCombinedMaster) {
+      sheetData.push([
+        'Customers',
+        'NO PO',
+        'Substance',
+        'Flute',
+        'Size',
+        '', // Merged with E for Size
+        'Artikel',
+        'Item Name',
+        'Qty (Pcs)',
+        'Qty (Kg)',
+        'Planning Date',
+        'Qty Planning',
+        'Kg Planning',
+        'Remarks',
+        'Actual Delivery Date',
+        'No SJ',
+        'Qty Delivery',
+        'Kg Delivery',
+        'Harga',
+        'Rp/Kg',
+      ]);
+      sheetData.push([
+        '',
+        '',
+        '',
+        '',
+        'P',
+        'L',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+    } else {
+      sheetData.push([
+        'NO PO',
+        'Substance',
+        'Flute',
+        'Size',
+        '', // Merged with D for Size
+        'Artikel',
+        'Item Name',
+        'Qty (Pcs)',
+        'Qty (Kg)',
+        'Planning Date',
+        'Qty Planning',
+        'Kg Planning',
+        'Remarks',
+        'Actual Delivery Date',
+        'No SJ',
+        'Qty Delivery',
+        'Kg Delivery',
+        'Harga',
+        'Rp/Kg',
+      ]);
+      sheetData.push([
+        '',
+        '',
+        '',
+        'P',
+        'L',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+    }
   }
 
-  // Row 5+: Data rows
+  // Row 3+: Data rows
   let sumQtyPcs = 0;
   let sumQtyKg = 0;
   let sumQtyDelivery = 0;
@@ -1663,7 +1757,7 @@ export function buildSalesOrderWorksheet(
   let dwActualQtyDelivery = 0;
   let dwActualKgDelivery = 0;
 
-  // Substance K200 specific counters (Sales Special Breakdown)
+  // Substance K200 specific counters
   let k200SwQtyPcs = 0;
   let k200SwQtyKg = 0;
   let k200SwQtyDelivery = 0;
@@ -1685,7 +1779,6 @@ export function buildSalesOrderWorksheet(
   let nonK200ActualQtyDelivery = 0;
   let nonK200ActualKgDelivery = 0;
 
-  // Dedicated E Flute accumulators
   let eFluteQtyPcs = 0;
   let eFluteQtyKg = 0;
   let eFluteQtyDelivery = 0;
@@ -1720,7 +1813,6 @@ export function buildSalesOrderWorksheet(
       dwActualQtyDelivery += numActualQtyDelivery;
       dwActualKgDelivery += numActualKgDelivery;
     } else {
-      // Singlewall: Flute B, C, E
       swQtyPcs += numQtyPcs;
       swQtyKg += numQtyKg;
       swQtyDelivery += numQtyDelivery;
@@ -1729,7 +1821,6 @@ export function buildSalesOrderWorksheet(
       swActualKgDelivery += numActualKgDelivery;
     }
 
-    // Specific E Flute tracking
     if (cleanFlute === 'E') {
       eFluteQtyPcs += numQtyPcs;
       eFluteQtyKg += numQtyKg;
@@ -1764,475 +1855,231 @@ export function buildSalesOrderWorksheet(
       nonK200ActualKgDelivery += numActualKgDelivery;
     }
 
-    const excelRow = idx + 5;
+    const excelRow = idx + 3;
     const hargaCell =
       typeof r.harga === 'number' && r.harga > 0
         ? fNum(String(r.harga), r.harga, '#,##0')
         : '';
 
+    const rpPerKgCell =
+      typeof r.rpPerKg === 'number' && r.rpPerKg > 0
+        ? fNum(
+            `IF(AND(${colQtyPcs}${excelRow}>0,${colQtyKg}${excelRow}>0,ISNUMBER(${colHarga}${excelRow}),${colHarga}${excelRow}>0),${colHarga}${excelRow}/(${colQtyKg}${excelRow}/${colQtyPcs}${excelRow}),"")`,
+            r.rpPerKg,
+            '#,##0'
+          )
+        : '';
+
     if (isTotalAccumulation) {
-      // 17 Kolom: Customers (A), NO PO (B), Date Receive (C), Substance (D), Flute (E), P (F), L (G), Artikel (H), Item Name (I),
-      // Qty Pcs (J), Qty Kg (K), Qty Planning (L), Kg Planning (M), Qty Delivery (N), Kg Delivery (O), Harga (P), Rp/Kg (Q)
-      const rpPerKgCell =
-        typeof r.rpPerKg === 'number' && r.rpPerKg > 0
-          ? fNum(
-              `IF(AND(J${excelRow}>0,K${excelRow}>0,ISNUMBER(P${excelRow}),P${excelRow}>0),P${excelRow}/(K${excelRow}/J${excelRow}),"")`,
-              r.rpPerKg,
-              '#,##0'
-            )
-          : '';
-
-      sheetData.push([
-        r.customerName || '',
-        r.noPO,
-        r.dateReceivePO || '',
-        r.substance,
-        r.flute,
-        r.sizeP !== '' ? r.sizeP : '',
-        r.sizeL !== '' ? r.sizeL : '',
-        r.artikel,
-        r.itemName,
-        r.qtyPcs !== '' ? r.qtyPcs : '',
-        r.qtyKg !== '' ? r.qtyKg : '',
-        r.qtyDelivery !== '' ? r.qtyDelivery : '',
-        r.kgDelivery !== '' ? r.kgDelivery : '',
-        r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
-        r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
-        hargaCell,
-        rpPerKgCell,
-      ]);
+      if (isCombinedMaster) {
+        sheetData.push([
+          r.customerName || '',
+          r.noPO,
+          r.substance,
+          r.flute,
+          r.sizeP !== '' ? r.sizeP : '',
+          r.sizeL !== '' ? r.sizeL : '',
+          r.artikel,
+          r.itemName,
+          r.qtyPcs !== '' ? r.qtyPcs : '',
+          r.qtyKg !== '' ? r.qtyKg : '',
+          r.qtyDelivery !== '' ? r.qtyDelivery : '',
+          r.kgDelivery !== '' ? r.kgDelivery : '',
+          r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
+          r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          hargaCell,
+          rpPerKgCell,
+        ]);
+      } else {
+        sheetData.push([
+          r.noPO,
+          r.substance,
+          r.flute,
+          r.sizeP !== '' ? r.sizeP : '',
+          r.sizeL !== '' ? r.sizeL : '',
+          r.artikel,
+          r.itemName,
+          r.qtyPcs !== '' ? r.qtyPcs : '',
+          r.qtyKg !== '' ? r.qtyKg : '',
+          r.qtyDelivery !== '' ? r.qtyDelivery : '',
+          r.kgDelivery !== '' ? r.kgDelivery : '',
+          r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
+          r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          hargaCell,
+          rpPerKgCell,
+        ]);
+      }
     } else {
-      // 21 Kolom: Customers (A), NO PO (B), Date Receive (C), Substance (D), Flute (E), P (F), L (G), Artikel (H), Item Name (I),
-      // Qty Pcs (J), Qty Kg (K), Planning Date (L), Qty Planning (M), Kg Planning (N), Remarks (O), Actual Date (P), No SJ (Q),
-      // Qty Delivery (R), Kg Delivery (S), Harga (T), Rp/Kg (U)
-      const rpPerKgCell =
-        typeof r.rpPerKg === 'number' && r.rpPerKg > 0
-          ? fNum(
-              `IF(AND(J${excelRow}>0,K${excelRow}>0,ISNUMBER(T${excelRow}),T${excelRow}>0),T${excelRow}/(K${excelRow}/J${excelRow}),"")`,
-              r.rpPerKg,
-              '#,##0'
-            )
-          : '';
-
-      sheetData.push([
-        r.customerName || '',
-        r.noPO,
-        r.dateReceivePO || '',
-        r.substance,
-        r.flute,
-        r.sizeP !== '' ? r.sizeP : '',
-        r.sizeL !== '' ? r.sizeL : '',
-        r.artikel,
-        r.itemName,
-        r.qtyPcs !== '' ? r.qtyPcs : '',
-        r.qtyKg !== '' ? r.qtyKg : '',
-        r.deliveryDate,
-        r.qtyDelivery !== '' ? r.qtyDelivery : '',
-        r.kgDelivery !== '' ? r.kgDelivery : '',
-        r.remarks || '',
-        r.actualDeliveryDate || '',
-        r.noSJ || '',
-        r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
-        r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
-        hargaCell,
-        rpPerKgCell,
-      ]);
+      // FALLBACK_DETAIL_SJ
+      if (isCombinedMaster) {
+        sheetData.push([
+          r.customerName || '',
+          r.noPO,
+          r.substance,
+          r.flute,
+          r.sizeP !== '' ? r.sizeP : '',
+          r.sizeL !== '' ? r.sizeL : '',
+          r.artikel,
+          r.itemName,
+          r.qtyPcs !== '' ? r.qtyPcs : '',
+          r.qtyKg !== '' ? r.qtyKg : '',
+          r.deliveryDate,
+          r.qtyDelivery !== '' ? r.qtyDelivery : '',
+          r.kgDelivery !== '' ? r.kgDelivery : '',
+          r.remarks || '',
+          r.actualDeliveryDate || '',
+          r.noSJ || '',
+          r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
+          r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          hargaCell,
+          rpPerKgCell,
+        ]);
+      } else {
+        sheetData.push([
+          r.noPO,
+          r.substance,
+          r.flute,
+          r.sizeP !== '' ? r.sizeP : '',
+          r.sizeL !== '' ? r.sizeL : '',
+          r.artikel,
+          r.itemName,
+          r.qtyPcs !== '' ? r.qtyPcs : '',
+          r.qtyKg !== '' ? r.qtyKg : '',
+          r.deliveryDate,
+          r.qtyDelivery !== '' ? r.qtyDelivery : '',
+          r.kgDelivery !== '' ? r.kgDelivery : '',
+          r.remarks || '',
+          r.actualDeliveryDate || '',
+          r.noSJ || '',
+          r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
+          r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          hargaCell,
+          rpPerKgCell,
+        ]);
+      }
     }
   });
 
-  const lastRow = flatRows.length + 4;
+  const lastRow = Math.max(3, flatRows.length + 2);
 
-  // Single, clean, prominent GRAND TOTAL ROW directly under the data table
+  // Grand Total Row
   const gtRowIndex = sheetData.length;
   const gtRow = gtRowIndex + 1;
+  const labelColSpan = isCombinedMaster ? 8 : 7; // Columns before Qty (Pcs)
 
-  if (isTotalAccumulation) {
-    sheetData.push([
-      'GRAND TOTAL ORDER & PENGIRIMAN',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUM(J$5:J$${lastRow})`, sumQtyPcs, '#,##0'),
-      fNum(`SUM(K$5:K$${lastRow})`, sumQtyKg, '#,##0'),
-      fNum(`SUM(L$5:L$${lastRow})`, sumQtyDelivery, '#,##0'),
-      fNum(`SUM(M$5:M$${lastRow})`, sumKgDelivery, '#,##0'),
-      fNum(`SUM(N$5:N$${lastRow})`, sumActualQtyDelivery, '#,##0'),
-      fNum(`SUM(O$5:O$${lastRow})`, sumActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      'GRAND TOTAL ORDER & PENGIRIMAN',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUM(J$5:J$${lastRow})`, sumQtyPcs, '#,##0'),
-      fNum(`SUM(K$5:K$${lastRow})`, sumQtyKg, '#,##0'),
-      '',
-      fNum(`SUM(M$5:M$${lastRow})`, sumQtyDelivery, '#,##0'),
-      fNum(`SUM(N$5:N$${lastRow})`, sumKgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`SUM(R$5:R$${lastRow})`, sumActualQtyDelivery, '#,##0'),
-      fNum(`SUM(S$5:S$${lastRow})`, sumActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const gtRowData: any[] = Array(totalCols).fill('');
+  gtRowData[0] = 'GRAND TOTAL ORDER & PENGIRIMAN';
+
+  const getColIdx = (letter: string) => letter.charCodeAt(0) - 'A'.charCodeAt(0);
+
+  gtRowData[getColIdx(colQtyPcs)] = fNum(`SUM(${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, sumQtyPcs, '#,##0');
+  gtRowData[getColIdx(colQtyKg)] = fNum(`SUM(${colQtyKg}$3:${colQtyKg}$${lastRow})`, sumQtyKg, '#,##0');
+  gtRowData[getColIdx(colPlanPcs)] = fNum(`SUM(${colPlanPcs}$3:${colPlanPcs}$${lastRow})`, sumQtyDelivery, '#,##0');
+  gtRowData[getColIdx(colPlanKg)] = fNum(`SUM(${colPlanKg}$3:${colPlanKg}$${lastRow})`, sumKgDelivery, '#,##0');
+  gtRowData[getColIdx(colDelivPcs)] = fNum(`SUM(${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, sumActualQtyDelivery, '#,##0');
+  gtRowData[getColIdx(colDelivKg)] = fNum(`SUM(${colDelivKg}$3:${colDelivKg}$${lastRow})`, sumActualKgDelivery, '#,##0');
+
+  sheetData.push(gtRowData);
 
   // Section 1: Dedicated Summary Box by Flute (SW, DW, Khusus E Flute)
   sheetData.push([]);
   const kpiTitleIndex = sheetData.length;
-  sheetData.push(['TOTAL PO BERDASARKAN TIPE FLUTE (SW & DW)']);
+  const kpiTitleRowData: any[] = Array(totalCols).fill('');
+  kpiTitleRowData[0] = 'TOTAL PO BERDASARKAN TIPE FLUTE (SW & DW)';
+  sheetData.push(kpiTitleRowData);
 
   const kpiHeaderIndex = sheetData.length;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      'KATEGORI FLUTE',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      'Qty PO (Pcs)',
-      'Qty PO (Kg)',
-      'Qty Planning (Pcs)',
-      'Kg Planning (Kg)',
-      'Qty Realisasi (Pcs)',
-      'Kg Realisasi (Kg)',
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      'KATEGORI FLUTE',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      'Qty PO (Pcs)',
-      'Qty PO (Kg)',
-      '',
-      'Qty Planning (Pcs)',
-      'Kg Planning (Kg)',
-      '',
-      '',
-      '',
-      'Qty Realisasi (Pcs)',
-      'Kg Realisasi (Kg)',
-      '',
-      '',
-    ]);
-  }
+  const kpiHeaderRowData: any[] = Array(totalCols).fill('');
+  kpiHeaderRowData[0] = 'KATEGORI FLUTE';
+  kpiHeaderRowData[getColIdx(colQtyPcs)] = 'Qty PO (Pcs)';
+  kpiHeaderRowData[getColIdx(colQtyKg)] = 'Qty PO (Kg)';
+  kpiHeaderRowData[getColIdx(colPlanPcs)] = 'Qty Planning (Pcs)';
+  kpiHeaderRowData[getColIdx(colPlanKg)] = 'Kg Planning (Kg)';
+  kpiHeaderRowData[getColIdx(colDelivPcs)] = 'Qty Realisasi (Pcs)';
+  kpiHeaderRowData[getColIdx(colDelivKg)] = 'Kg Realisasi (Kg)';
+  sheetData.push(kpiHeaderRowData);
 
+  // SW Row
   const kpiSwIndex = sheetData.length;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      '1. SINGLEWALL (Flute B, C, E)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"B",J$5:J$${lastRow})+SUMIF(E$5:E$${lastRow},"C",J$5:J$${lastRow})+SUMIF(E$5:E$${lastRow},"E",J$5:J$${lastRow})`, swQtyPcs, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",K$5:K$${lastRow})+SUMIF(E$5:E$${lastRow},"C",K$5:K$${lastRow})+SUMIF(E$5:E$${lastRow},"E",K$5:K$${lastRow})`, swQtyKg, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",L$5:L$${lastRow})+SUMIF(E$5:E$${lastRow},"C",L$5:L$${lastRow})+SUMIF(E$5:E$${lastRow},"E",L$5:L$${lastRow})`, swQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",M$5:M$${lastRow})+SUMIF(E$5:E$${lastRow},"C",M$5:M$${lastRow})+SUMIF(E$5:E$${lastRow},"E",M$5:M$${lastRow})`, swKgDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",N$5:N$${lastRow})+SUMIF(E$5:E$${lastRow},"C",N$5:N$${lastRow})+SUMIF(E$5:E$${lastRow},"E",N$5:N$${lastRow})`, swActualQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",O$5:O$${lastRow})+SUMIF(E$5:E$${lastRow},"C",O$5:O$${lastRow})+SUMIF(E$5:E$${lastRow},"E",O$5:O$${lastRow})`, swActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      '1. SINGLEWALL (Flute B, C, E)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"B",J$5:J$${lastRow})+SUMIF(E$5:E$${lastRow},"C",J$5:J$${lastRow})+SUMIF(E$5:E$${lastRow},"E",J$5:J$${lastRow})`, swQtyPcs, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",K$5:K$${lastRow})+SUMIF(E$5:E$${lastRow},"C",K$5:K$${lastRow})+SUMIF(E$5:E$${lastRow},"E",K$5:K$${lastRow})`, swQtyKg, '#,##0'),
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"B",M$5:M$${lastRow})+SUMIF(E$5:E$${lastRow},"C",M$5:M$${lastRow})+SUMIF(E$5:E$${lastRow},"E",M$5:M$${lastRow})`, swQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",N$5:N$${lastRow})+SUMIF(E$5:E$${lastRow},"C",N$5:N$${lastRow})+SUMIF(E$5:E$${lastRow},"E",N$5:N$${lastRow})`, swKgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"B",R$5:R$${lastRow})+SUMIF(E$5:E$${lastRow},"C",R$5:R$${lastRow})+SUMIF(E$5:E$${lastRow},"E",R$5:R$${lastRow})`, swActualQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"B",S$5:S$${lastRow})+SUMIF(E$5:E$${lastRow},"C",S$5:S$${lastRow})+SUMIF(E$5:E$${lastRow},"E",S$5:S$${lastRow})`, swActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const kpiSwRowData: any[] = Array(totalCols).fill('');
+  kpiSwRowData[0] = '1. SINGLEWALL (Flute B, C, E)';
+  kpiSwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colQtyPcs}$3:${colQtyPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colQtyPcs}$3:${colQtyPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, swQtyPcs, '#,##0');
+  kpiSwRowData[getColIdx(colQtyKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colQtyKg}$3:${colQtyKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colQtyKg}$3:${colQtyKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyKg}$3:${colQtyKg}$${lastRow})`, swQtyKg, '#,##0');
+  kpiSwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colPlanPcs}$3:${colPlanPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colPlanPcs}$3:${colPlanPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanPcs}$3:${colPlanPcs}$${lastRow})`, swQtyDelivery, '#,##0');
+  kpiSwRowData[getColIdx(colPlanKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colPlanKg}$3:${colPlanKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colPlanKg}$3:${colPlanKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanKg}$3:${colPlanKg}$${lastRow})`, swKgDelivery, '#,##0');
+  kpiSwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colDelivPcs}$3:${colDelivPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colDelivPcs}$3:${colDelivPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, swActualQtyDelivery, '#,##0');
+  kpiSwRowData[getColIdx(colDelivKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colDelivKg}$3:${colDelivKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colDelivKg}$3:${colDelivKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivKg}$3:${colDelivKg}$${lastRow})`, swActualKgDelivery, '#,##0');
+  sheetData.push(kpiSwRowData);
 
+  // DW Row
   const kpiDwIndex = sheetData.length;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      '2. DOUBLEWALL (Flute BC)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",J$5:J$${lastRow})`, dwQtyPcs, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",K$5:K$${lastRow})`, dwQtyKg, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",L$5:L$${lastRow})`, dwQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",M$5:M$${lastRow})`, dwKgDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",N$5:N$${lastRow})`, dwActualQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",O$5:O$${lastRow})`, dwActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      '2. DOUBLEWALL (Flute BC)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",J$5:J$${lastRow})`, dwQtyPcs, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",K$5:K$${lastRow})`, dwQtyKg, '#,##0'),
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",M$5:M$${lastRow})`, dwQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",N$5:N$${lastRow})`, dwKgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",R$5:R$${lastRow})`, dwActualQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"BC",S$5:S$${lastRow})`, dwActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const kpiDwRowData: any[] = Array(totalCols).fill('');
+  kpiDwRowData[0] = '2. DOUBLEWALL (Flute BC)';
+  kpiDwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, dwQtyPcs, '#,##0');
+  kpiDwRowData[getColIdx(colQtyKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colQtyKg}$3:${colQtyKg}$${lastRow})`, dwQtyKg, '#,##0');
+  kpiDwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colPlanPcs}$3:${colPlanPcs}$${lastRow})`, dwQtyDelivery, '#,##0');
+  kpiDwRowData[getColIdx(colPlanKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colPlanKg}$3:${colPlanKg}$${lastRow})`, dwKgDelivery, '#,##0');
+  kpiDwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, dwActualQtyDelivery, '#,##0');
+  kpiDwRowData[getColIdx(colDelivKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colDelivKg}$3:${colDelivKg}$${lastRow})`, dwActualKgDelivery, '#,##0');
+  sheetData.push(kpiDwRowData);
 
+  // Khusus E Flute Row
   const kpiEFluteIndex = sheetData.length;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      '3. KHUSUS E FLUTE',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"E",J$5:J$${lastRow})`, eFluteQtyPcs, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",K$5:K$${lastRow})`, eFluteQtyKg, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",L$5:L$${lastRow})`, eFluteQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",M$5:M$${lastRow})`, eFluteKgDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",N$5:N$${lastRow})`, eFluteActualQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",O$5:O$${lastRow})`, eFluteActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      '3. KHUSUS E FLUTE',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"E",J$5:J$${lastRow})`, eFluteQtyPcs, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",K$5:K$${lastRow})`, eFluteQtyKg, '#,##0'),
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"E",M$5:M$${lastRow})`, eFluteQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",N$5:N$${lastRow})`, eFluteKgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`SUMIF(E$5:E$${lastRow},"E",R$5:R$${lastRow})`, eFluteActualQtyDelivery, '#,##0'),
-      fNum(`SUMIF(E$5:E$${lastRow},"E",S$5:S$${lastRow})`, eFluteActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const kpiEFluteRowData: any[] = Array(totalCols).fill('');
+  kpiEFluteRowData[0] = '3. KHUSUS E FLUTE';
+  kpiEFluteRowData[getColIdx(colQtyPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, eFluteQtyPcs, '#,##0');
+  kpiEFluteRowData[getColIdx(colQtyKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyKg}$3:${colQtyKg}$${lastRow})`, eFluteQtyKg, '#,##0');
+  kpiEFluteRowData[getColIdx(colPlanPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanPcs}$3:${colPlanPcs}$${lastRow})`, eFluteQtyDelivery, '#,##0');
+  kpiEFluteRowData[getColIdx(colPlanKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanKg}$3:${colPlanKg}$${lastRow})`, eFluteKgDelivery, '#,##0');
+  kpiEFluteRowData[getColIdx(colDelivPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, eFluteActualQtyDelivery, '#,##0');
+  kpiEFluteRowData[getColIdx(colDelivKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivKg}$3:${colDelivKg}$${lastRow})`, eFluteActualKgDelivery, '#,##0');
+  sheetData.push(kpiEFluteRowData);
 
   // Section 2: Special Sales Recap Box for Substance K200 (SW & DW)
   sheetData.push([]);
   const k200TitleIndex = sheetData.length;
-  sheetData.push(['TOTAL ORDER SUBSTANCE K200 (SW & DW)']);
+  const k200TitleRowData: any[] = Array(totalCols).fill('');
+  k200TitleRowData[0] = 'TOTAL ORDER SUBSTANCE K200 (SW & DW)';
+  sheetData.push(k200TitleRowData);
 
   const k200HeaderIndex = sheetData.length;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      'KATEGORI SUBSTANCE K200',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      'Qty PO (Pcs)',
-      'Qty PO (Kg)',
-      'Qty Planning (Pcs)',
-      'Kg Planning (Kg)',
-      'Qty Realisasi (Pcs)',
-      'Kg Realisasi (Kg)',
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      'KATEGORI SUBSTANCE K200',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      'Qty PO (Pcs)',
-      'Qty PO (Kg)',
-      '',
-      'Qty Planning (Pcs)',
-      'Kg Planning (Kg)',
-      '',
-      '',
-      '',
-      'Qty Realisasi (Pcs)',
-      'Kg Realisasi (Kg)',
-      '',
-      '',
-    ]);
-  }
+  const k200HeaderRowData: any[] = Array(totalCols).fill('');
+  k200HeaderRowData[0] = 'KATEGORI SUBSTANCE K200';
+  k200HeaderRowData[getColIdx(colQtyPcs)] = 'Qty PO (Pcs)';
+  k200HeaderRowData[getColIdx(colQtyKg)] = 'Qty PO (Kg)';
+  k200HeaderRowData[getColIdx(colPlanPcs)] = 'Qty Planning (Pcs)';
+  k200HeaderRowData[getColIdx(colPlanKg)] = 'Kg Planning (Kg)';
+  k200HeaderRowData[getColIdx(colDelivPcs)] = 'Qty Realisasi (Pcs)';
+  k200HeaderRowData[getColIdx(colDelivKg)] = 'Kg Realisasi (Kg)';
+  sheetData.push(k200HeaderRowData);
 
+  // K200 SW Row
   const k200SwIndex = sheetData.length;
   const k200SwExcelRow = k200SwIndex + 1;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      '1. K200 SW (Flute B, C, E)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwQtyPcs, '#,##0'),
-      fNum(`SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwQtyKg, '#,##0'),
-      fNum(`SUMIFS(L$5:L$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(L$5:L$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(L$5:L$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwKgDelivery, '#,##0'),
-      fNum(`SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwActualQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(O$5:O$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(O$5:O$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(O$5:O$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      '1. K200 SW (Flute B, C, E)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwQtyPcs, '#,##0'),
-      fNum(`SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwQtyKg, '#,##0'),
-      '',
-      fNum(`SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwKgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`SUMIFS(R$5:R$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(R$5:R$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(R$5:R$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwActualQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(S$5:S$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"B")+SUMIFS(S$5:S$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"C")+SUMIFS(S$5:S$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"E")`, k200SwActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const k200SwRowData: any[] = Array(totalCols).fill('');
+  k200SwRowData[0] = '1. K200 SW (Flute B, C, E)';
+  k200SwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwQtyPcs, '#,##0');
+  k200SwRowData[getColIdx(colQtyKg)] = fNum(`SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwQtyKg, '#,##0');
+  k200SwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwQtyDelivery, '#,##0');
+  k200SwRowData[getColIdx(colPlanKg)] = fNum(`SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwKgDelivery, '#,##0');
+  k200SwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwActualQtyDelivery, '#,##0');
+  k200SwRowData[getColIdx(colDelivKg)] = fNum(`SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwActualKgDelivery, '#,##0');
+  sheetData.push(k200SwRowData);
 
+  // K200 DW Row
   const k200DwIndex = sheetData.length;
   const k200DwExcelRow = k200DwIndex + 1;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      '2. K200 DW (Flute BC)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwQtyPcs, '#,##0'),
-      fNum(`SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwQtyKg, '#,##0'),
-      fNum(`SUMIFS(L$5:L$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwKgDelivery, '#,##0'),
-      fNum(`SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwActualQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(O$5:O$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      '2. K200 DW (Flute BC)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`SUMIFS(J$5:J$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwQtyPcs, '#,##0'),
-      fNum(`SUMIFS(K$5:K$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwQtyKg, '#,##0'),
-      '',
-      fNum(`SUMIFS(M$5:M$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(N$5:N$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwKgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`SUMIFS(R$5:R$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwActualQtyDelivery, '#,##0'),
-      fNum(`SUMIFS(S$5:S$${lastRow},D$5:D$${lastRow},"*K200*",E$5:E$${lastRow},"BC")`, k200DwActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const k200DwRowData: any[] = Array(totalCols).fill('');
+  k200DwRowData[0] = '2. K200 DW (Flute BC)';
+  k200DwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwQtyPcs, '#,##0');
+  k200DwRowData[getColIdx(colQtyKg)] = fNum(`SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwQtyKg, '#,##0');
+  k200DwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwQtyDelivery, '#,##0');
+  k200DwRowData[getColIdx(colPlanKg)] = fNum(`SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwKgDelivery, '#,##0');
+  k200DwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwActualQtyDelivery, '#,##0');
+  k200DwRowData[getColIdx(colDelivKg)] = fNum(`SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwActualKgDelivery, '#,##0');
+  sheetData.push(k200DwRowData);
 
+  // K200 Subtotal Row
   const k200SubtotalIndex = sheetData.length;
   const k200SubtotalExcelRow = k200SubtotalIndex + 1;
   const k200TotalQtyPcs = k200SwQtyPcs + k200DwQtyPcs;
@@ -2242,230 +2089,162 @@ export function buildSalesOrderWorksheet(
   const k200TotalActualQtyDelivery = k200SwActualQtyDelivery + k200DwActualQtyDelivery;
   const k200TotalActualKgDelivery = k200SwActualKgDelivery + k200DwActualKgDelivery;
 
-  if (isTotalAccumulation) {
-    sheetData.push([
-      'SUBTOTAL ORDER K200 (SW & DW)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`J${k200SwExcelRow}+J${k200DwExcelRow}`, k200TotalQtyPcs, '#,##0'),
-      fNum(`K${k200SwExcelRow}+K${k200DwExcelRow}`, k200TotalQtyKg, '#,##0'),
-      fNum(`L${k200SwExcelRow}+L${k200DwExcelRow}`, k200TotalQtyDelivery, '#,##0'),
-      fNum(`M${k200SwExcelRow}+M${k200DwExcelRow}`, k200TotalKgDelivery, '#,##0'),
-      fNum(`N${k200SwExcelRow}+N${k200DwExcelRow}`, k200TotalActualQtyDelivery, '#,##0'),
-      fNum(`O${k200SwExcelRow}+O${k200DwExcelRow}`, k200TotalActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      'SUBTOTAL ORDER K200 (SW & DW)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`J${k200SwExcelRow}+J${k200DwExcelRow}`, k200TotalQtyPcs, '#,##0'),
-      fNum(`K${k200SwExcelRow}+K${k200DwExcelRow}`, k200TotalQtyKg, '#,##0'),
-      '',
-      fNum(`M${k200SwExcelRow}+M${k200DwExcelRow}`, k200TotalQtyDelivery, '#,##0'),
-      fNum(`N${k200SwExcelRow}+N${k200DwExcelRow}`, k200TotalKgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`R${k200SwExcelRow}+R${k200DwExcelRow}`, k200TotalActualQtyDelivery, '#,##0'),
-      fNum(`S${k200SwExcelRow}+S${k200DwExcelRow}`, k200TotalActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const k200SubtotalRowData: any[] = Array(totalCols).fill('');
+  k200SubtotalRowData[0] = 'SUBTOTAL ORDER K200 (SW & DW)';
+  k200SubtotalRowData[getColIdx(colQtyPcs)] = fNum(`${colQtyPcs}${k200SwExcelRow}+${colQtyPcs}${k200DwExcelRow}`, k200TotalQtyPcs, '#,##0');
+  k200SubtotalRowData[getColIdx(colQtyKg)] = fNum(`${colQtyKg}${k200SwExcelRow}+${colQtyKg}${k200DwExcelRow}`, k200TotalQtyKg, '#,##0');
+  k200SubtotalRowData[getColIdx(colPlanPcs)] = fNum(`${colPlanPcs}${k200SwExcelRow}+${colPlanPcs}${k200DwExcelRow}`, k200TotalQtyDelivery, '#,##0');
+  k200SubtotalRowData[getColIdx(colPlanKg)] = fNum(`${colPlanKg}${k200SwExcelRow}+${colPlanKg}${k200DwExcelRow}`, k200TotalKgDelivery, '#,##0');
+  k200SubtotalRowData[getColIdx(colDelivPcs)] = fNum(`${colDelivPcs}${k200SwExcelRow}+${colDelivPcs}${k200DwExcelRow}`, k200TotalActualQtyDelivery, '#,##0');
+  k200SubtotalRowData[getColIdx(colDelivKg)] = fNum(`${colDelivKg}${k200SwExcelRow}+${colDelivKg}${k200DwExcelRow}`, k200TotalActualKgDelivery, '#,##0');
+  sheetData.push(k200SubtotalRowData);
 
+  // Non-K200 Row
   const nonK200Index = sheetData.length;
-  if (isTotalAccumulation) {
-    sheetData.push([
-      '3. SUBSTANCE NON-K200 (Substance Lainnya)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`J${gtRow}-J${k200SubtotalExcelRow}`, nonK200QtyPcs, '#,##0'),
-      fNum(`K${gtRow}-K${k200SubtotalExcelRow}`, nonK200QtyKg, '#,##0'),
-      fNum(`L${gtRow}-L${k200SubtotalExcelRow}`, nonK200QtyDelivery, '#,##0'),
-      fNum(`M${gtRow}-M${k200SubtotalExcelRow}`, nonK200KgDelivery, '#,##0'),
-      fNum(`N${gtRow}-N${k200SubtotalExcelRow}`, nonK200ActualQtyDelivery, '#,##0'),
-      fNum(`O${gtRow}-O${k200SubtotalExcelRow}`, nonK200ActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  } else {
-    sheetData.push([
-      '3. SUBSTANCE NON-K200 (Substance Lainnya)',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      '',
-      fNum(`J${gtRow}-J${k200SubtotalExcelRow}`, nonK200QtyPcs, '#,##0'),
-      fNum(`K${gtRow}-K${k200SubtotalExcelRow}`, nonK200QtyKg, '#,##0'),
-      '',
-      fNum(`M${gtRow}-M${k200SubtotalExcelRow}`, nonK200QtyDelivery, '#,##0'),
-      fNum(`N${gtRow}-N${k200SubtotalExcelRow}`, nonK200KgDelivery, '#,##0'),
-      '',
-      '',
-      '',
-      fNum(`R${gtRow}-R${k200SubtotalExcelRow}`, nonK200ActualQtyDelivery, '#,##0'),
-      fNum(`S${gtRow}-S${k200SubtotalExcelRow}`, nonK200ActualKgDelivery, '#,##0'),
-      '',
-      '',
-    ]);
-  }
+  const nonK200RowData: any[] = Array(totalCols).fill('');
+  nonK200RowData[0] = '3. SUBSTANCE NON-K200 (Substance Lainnya)';
+  nonK200RowData[getColIdx(colQtyPcs)] = fNum(`${colQtyPcs}${gtRow}-${colQtyPcs}${k200SubtotalExcelRow}`, nonK200QtyPcs, '#,##0');
+  nonK200RowData[getColIdx(colQtyKg)] = fNum(`${colQtyKg}${gtRow}-${colQtyKg}${k200SubtotalExcelRow}`, nonK200QtyKg, '#,##0');
+  nonK200RowData[getColIdx(colPlanPcs)] = fNum(`${colPlanPcs}${gtRow}-${colPlanPcs}${k200SubtotalExcelRow}`, nonK200QtyDelivery, '#,##0');
+  nonK200RowData[getColIdx(colPlanKg)] = fNum(`${colPlanKg}${gtRow}-${colPlanKg}${k200SubtotalExcelRow}`, nonK200KgDelivery, '#,##0');
+  nonK200RowData[getColIdx(colDelivPcs)] = fNum(`${colDelivPcs}${gtRow}-${colDelivPcs}${k200SubtotalExcelRow}`, nonK200ActualQtyDelivery, '#,##0');
+  nonK200RowData[getColIdx(colDelivKg)] = fNum(`${colDelivKg}${gtRow}-${colDelivKg}${k200SubtotalExcelRow}`, nonK200ActualKgDelivery, '#,##0');
+  sheetData.push(nonK200RowData);
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
-  if (isTotalAccumulation) {
-    // 17 Column Widths strictly aligned for Mode Total Keseluruhan PO
-    worksheet['!cols'] = [
-      { wch: 24 }, // A: Customers
-      { wch: 22 }, // B: NO PO
-      { wch: 16 }, // C: Date Receive PO
-      { wch: 20 }, // D: Substance
-      { wch: 10 }, // E: Flute
-      { wch: 10 }, // F: P
-      { wch: 10 }, // G: L
-      { wch: 20 }, // H: Artikel
-      { wch: 34 }, // I: Item Name
-      { wch: 14 }, // J: Qty (Pcs)
-      { wch: 14 }, // K: Qty (Kg)
-      { wch: 16 }, // L: Qty Planning
-      { wch: 16 }, // M: Kg Planning
-      { wch: 16 }, // N: Qty Delivery
-      { wch: 16 }, // O: Kg Delivery
-      { wch: 14 }, // P: Harga
-      { wch: 14 }, // Q: Rp/Kg
-    ];
-
-    // Merges for 17-Column Total Accumulation Layout
-    worksheet['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 16 } }, // Title A1:Q1
-      { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },  // Customers A3:A4
-      { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } },  // NO PO B3:B4
-      { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } },  // Date Receive PO C3:C4
-      { s: { r: 2, c: 3 }, e: { r: 3, c: 3 } },  // Substance D3:D4
-      { s: { r: 2, c: 4 }, e: { r: 3, c: 4 } },  // Flute E3:E4
-      { s: { r: 2, c: 5 }, e: { r: 2, c: 6 } },  // Size F3:G3
-      { s: { r: 2, c: 7 }, e: { r: 3, c: 7 } },  // Artikel H3:H4
-      { s: { r: 2, c: 8 }, e: { r: 3, c: 8 } },  // Item Name I3:I4
-      { s: { r: 2, c: 9 }, e: { r: 3, c: 9 } },  // Qty (Pcs) J3:J4
-      { s: { r: 2, c: 10 }, e: { r: 3, c: 10 } }, // Qty (Kg) K3:K4
-      { s: { r: 2, c: 11 }, e: { r: 3, c: 11 } }, // Qty Planning L3:L4
-      { s: { r: 2, c: 12 }, e: { r: 3, c: 12 } }, // Kg Planning M3:M4
-      { s: { r: 2, c: 13 }, e: { r: 3, c: 13 } }, // Qty Delivery N3:N4
-      { s: { r: 2, c: 14 }, e: { r: 3, c: 14 } }, // Kg Delivery O3:O4
-      { s: { r: 2, c: 15 }, e: { r: 3, c: 15 } }, // Harga P3:P4
-      { s: { r: 2, c: 16 }, e: { r: 3, c: 16 } }, // Rp/Kg Q3:Q4
-
-      // Merges for Main Grand Total Row (A:I merged)
-      { s: { r: gtRowIndex, c: 0 }, e: { r: gtRowIndex, c: 8 } }, // GRAND TOTAL label A:I
-
-      // Merges for KPI Summary Box by Flute
-      { s: { r: kpiTitleIndex, c: 0 }, e: { r: kpiTitleIndex, c: 16 } }, // KPI Title A:Q
-      { s: { r: kpiHeaderIndex, c: 0 }, e: { r: kpiHeaderIndex, c: 8 } }, // KPI Header A:I
-      { s: { r: kpiSwIndex, c: 0 }, e: { r: kpiSwIndex, c: 8 } }, // KPI SW A:I
-      { s: { r: kpiDwIndex, c: 0 }, e: { r: kpiDwIndex, c: 8 } }, // KPI DW A:I
-      { s: { r: kpiEFluteIndex, c: 0 }, e: { r: kpiEFluteIndex, c: 8 } }, // KPI E Flute A:I
-
-      // Merges for Special Sales Recap Box (K200)
-      { s: { r: k200TitleIndex, c: 0 }, e: { r: k200TitleIndex, c: 16 } }, // K200 Title A:Q
-      { s: { r: k200HeaderIndex, c: 0 }, e: { r: k200HeaderIndex, c: 8 } }, // K200 Header A:I
-      { s: { r: k200SwIndex, c: 0 }, e: { r: k200SwIndex, c: 8 } }, // K200 SW A:I
-      { s: { r: k200DwIndex, c: 0 }, e: { r: k200DwIndex, c: 8 } }, // K200 DW A:I
-      { s: { r: k200SubtotalIndex, c: 0 }, e: { r: k200SubtotalIndex, c: 8 } }, // K200 Subtotal A:I
-      { s: { r: nonK200Index, c: 0 }, e: { r: nonK200Index, c: 8 } }, // Non-K200 A:I
-    ];
+  // Column Widths
+  if (isCombinedMaster) {
+    if (isTotalAccumulation) {
+      worksheet['!cols'] = [
+        { wch: 24 }, // A: Customers
+        { wch: 22 }, // B: NO PO
+        { wch: 20 }, // C: Substance
+        { wch: 10 }, // D: Flute
+        { wch: 10 }, // E: P
+        { wch: 10 }, // F: L
+        { wch: 20 }, // G: Artikel
+        { wch: 34 }, // H: Item Name
+        { wch: 14 }, // I: Qty (Pcs)
+        { wch: 14 }, // J: Qty (Kg)
+        { wch: 16 }, // K: Qty Planning
+        { wch: 16 }, // L: Kg Planning
+        { wch: 16 }, // M: Qty Delivery
+        { wch: 16 }, // N: Kg Delivery
+        { wch: 14 }, // O: Harga
+        { wch: 14 }, // P: Rp/Kg
+      ];
+    } else {
+      worksheet['!cols'] = [
+        { wch: 24 }, // A: Customers
+        { wch: 22 }, // B: NO PO
+        { wch: 20 }, // C: Substance
+        { wch: 10 }, // D: Flute
+        { wch: 10 }, // E: P
+        { wch: 10 }, // F: L
+        { wch: 20 }, // G: Artikel
+        { wch: 34 }, // H: Item Name
+        { wch: 14 }, // I: Qty (Pcs)
+        { wch: 14 }, // J: Qty (Kg)
+        { wch: 16 }, // K: Planning Date
+        { wch: 16 }, // L: Qty Planning
+        { wch: 16 }, // M: Kg Planning
+        { wch: 18 }, // N: Remarks
+        { wch: 20 }, // O: Actual Delivery Date
+        { wch: 18 }, // P: No SJ
+        { wch: 16 }, // Q: Qty Delivery
+        { wch: 16 }, // R: Kg Delivery
+        { wch: 14 }, // S: Harga
+        { wch: 14 }, // T: Rp/Kg
+      ];
+    }
   } else {
-    // 21 Column Widths strictly aligned for Mode Detail per SJ
-    worksheet['!cols'] = [
-      { wch: 24 }, // A: Customers
-      { wch: 22 }, // B: NO PO
-      { wch: 16 }, // C: Date Receive PO
-      { wch: 20 }, // D: Substance
-      { wch: 10 }, // E: Flute
-      { wch: 10 }, // F: P
-      { wch: 10 }, // G: L
-      { wch: 20 }, // H: Artikel
-      { wch: 34 }, // I: Item Name
-      { wch: 14 }, // J: Qty (Pcs)
-      { wch: 14 }, // K: Qty (Kg)
-      { wch: 16 }, // L: Planning Date
-      { wch: 16 }, // M: Qty Planning
-      { wch: 16 }, // N: Kg Planning
-      { wch: 18 }, // O: Remarks
-      { wch: 20 }, // P: Actual Delivery Date
-      { wch: 18 }, // Q: No SJ
-      { wch: 16 }, // R: Qty Delivery
-      { wch: 16 }, // S: Kg Delivery
-      { wch: 14 }, // T: Harga
-      { wch: 14 }, // U: Rp/Kg
-    ];
-
-    // Merges for 21-Column Header, Grand Total, and Summary Sections
-    worksheet['!merges'] = [
-      { s: { r: 0, c: 0 }, e: { r: 0, c: 20 } }, // Title A1:U1
-      { s: { r: 2, c: 0 }, e: { r: 3, c: 0 } },  // Customers A3:A4
-      { s: { r: 2, c: 1 }, e: { r: 3, c: 1 } },  // NO PO B3:B4
-      { s: { r: 2, c: 2 }, e: { r: 3, c: 2 } },  // Date Receive PO C3:C4
-      { s: { r: 2, c: 3 }, e: { r: 3, c: 3 } },  // Substance D3:D4
-      { s: { r: 2, c: 4 }, e: { r: 3, c: 4 } },  // Flute E3:E4
-      { s: { r: 2, c: 5 }, e: { r: 2, c: 6 } },  // Size F3:G3
-      { s: { r: 2, c: 7 }, e: { r: 3, c: 7 } },  // Artikel H3:H4
-      { s: { r: 2, c: 8 }, e: { r: 3, c: 8 } },  // Item Name I3:I4
-      { s: { r: 2, c: 9 }, e: { r: 3, c: 9 } },  // Qty (Pcs) J3:J4
-      { s: { r: 2, c: 10 }, e: { r: 3, c: 10 } }, // Qty (Kg) K3:K4
-      { s: { r: 2, c: 11 }, e: { r: 3, c: 11 } }, // Planning Date L3:L4
-      { s: { r: 2, c: 12 }, e: { r: 3, c: 12 } }, // Qty Planning M3:M4
-      { s: { r: 2, c: 13 }, e: { r: 3, c: 13 } }, // Kg Planning N3:N4
-      { s: { r: 2, c: 14 }, e: { r: 3, c: 14 } }, // Remarks O3:O4
-      { s: { r: 2, c: 15 }, e: { r: 3, c: 15 } }, // Actual Delivery Date P3:P4
-      { s: { r: 2, c: 16 }, e: { r: 3, c: 16 } }, // No SJ Q3:Q4
-      { s: { r: 2, c: 17 }, e: { r: 3, c: 17 } }, // Qty Delivery R3:R4
-      { s: { r: 2, c: 18 }, e: { r: 3, c: 18 } }, // Kg Delivery S3:S4
-      { s: { r: 2, c: 19 }, e: { r: 3, c: 19 } }, // Harga T3:T4
-      { s: { r: 2, c: 20 }, e: { r: 3, c: 20 } }, // Rp/Kg U3:U4
-
-      // Merges for Main Grand Total Row (A:I merged)
-      { s: { r: gtRowIndex, c: 0 }, e: { r: gtRowIndex, c: 8 } }, // GRAND TOTAL label A:I
-
-      // Merges for KPI Summary Box by Flute
-      { s: { r: kpiTitleIndex, c: 0 }, e: { r: kpiTitleIndex, c: 20 } }, // KPI Title A:U
-      { s: { r: kpiHeaderIndex, c: 0 }, e: { r: kpiHeaderIndex, c: 8 } }, // KPI Header A:I
-      { s: { r: kpiSwIndex, c: 0 }, e: { r: kpiSwIndex, c: 8 } }, // KPI SW A:I
-      { s: { r: kpiDwIndex, c: 0 }, e: { r: kpiDwIndex, c: 8 } }, // KPI DW A:I
-      { s: { r: kpiEFluteIndex, c: 0 }, e: { r: kpiEFluteIndex, c: 8 } }, // KPI E Flute A:I
-
-      // Merges for Special Sales Recap Box (K200)
-      { s: { r: k200TitleIndex, c: 0 }, e: { r: k200TitleIndex, c: 20 } }, // K200 Title A:U
-      { s: { r: k200HeaderIndex, c: 0 }, e: { r: k200HeaderIndex, c: 8 } }, // K200 Header A:I
-      { s: { r: k200SwIndex, c: 0 }, e: { r: k200SwIndex, c: 8 } }, // K200 SW A:I
-      { s: { r: k200DwIndex, c: 0 }, e: { r: k200DwIndex, c: 8 } }, // K200 DW A:I
-      { s: { r: k200SubtotalIndex, c: 0 }, e: { r: k200SubtotalIndex, c: 8 } }, // K200 Subtotal A:I
-      { s: { r: nonK200Index, c: 0 }, e: { r: nonK200Index, c: 8 } }, // Non-K200 A:I
-    ];
+    // Individual Customer sheet (NO Customers column)
+    if (isTotalAccumulation) {
+      worksheet['!cols'] = [
+        { wch: 22 }, // A: NO PO
+        { wch: 20 }, // B: Substance
+        { wch: 10 }, // C: Flute
+        { wch: 10 }, // D: P
+        { wch: 10 }, // E: L
+        { wch: 20 }, // F: Artikel
+        { wch: 34 }, // G: Item Name
+        { wch: 14 }, // H: Qty (Pcs)
+        { wch: 14 }, // I: Qty (Kg)
+        { wch: 16 }, // J: Qty Planning
+        { wch: 16 }, // K: Kg Planning
+        { wch: 16 }, // L: Qty Delivery
+        { wch: 16 }, // M: Kg Delivery
+        { wch: 14 }, // N: Harga
+        { wch: 14 }, // O: Rp/Kg
+      ];
+    } else {
+      worksheet['!cols'] = [
+        { wch: 22 }, // A: NO PO
+        { wch: 20 }, // B: Substance
+        { wch: 10 }, // C: Flute
+        { wch: 10 }, // D: P
+        { wch: 10 }, // E: L
+        { wch: 20 }, // F: Artikel
+        { wch: 34 }, // G: Item Name
+        { wch: 14 }, // H: Qty (Pcs)
+        { wch: 14 }, // I: Qty (Kg)
+        { wch: 16 }, // J: Planning Date
+        { wch: 16 }, // K: Qty Planning
+        { wch: 16 }, // L: Kg Planning
+        { wch: 18 }, // M: Remarks
+        { wch: 20 }, // N: Actual Delivery Date
+        { wch: 18 }, // O: No SJ
+        { wch: 16 }, // P: Qty Delivery
+        { wch: 16 }, // Q: Kg Delivery
+        { wch: 14 }, // R: Harga
+        { wch: 14 }, // S: Rp/Kg
+      ];
+    }
   }
+
+  // Merges
+  const merges: XLSX.Range[] = [];
+  const lastColIdx = totalCols - 1;
+  const labelMergeEnd = labelColSpan - 1;
+
+  if (isCombinedMaster) {
+    // Size is cols 4 & 5 (E1:F1)
+    merges.push({ s: { r: 0, c: 4 }, e: { r: 0, c: 5 } });
+    for (let c = 0; c < totalCols; c++) {
+      if (c !== 4 && c !== 5) {
+        merges.push({ s: { r: 0, c }, e: { r: 1, c } });
+      }
+    }
+  } else {
+    // Size is cols 3 & 4 (D1:E1)
+    merges.push({ s: { r: 0, c: 3 }, e: { r: 0, c: 4 } });
+    for (let c = 0; c < totalCols; c++) {
+      if (c !== 3 && c !== 4) {
+        merges.push({ s: { r: 0, c }, e: { r: 1, c } });
+      }
+    }
+  }
+
+  // Grand Total label merge
+  merges.push({ s: { r: gtRowIndex, c: 0 }, e: { r: gtRowIndex, c: labelMergeEnd } });
+
+  // KPI Flute merges
+  merges.push({ s: { r: kpiTitleIndex, c: 0 }, e: { r: kpiTitleIndex, c: lastColIdx } });
+  merges.push({ s: { r: kpiHeaderIndex, c: 0 }, e: { r: kpiHeaderIndex, c: labelMergeEnd } });
+  merges.push({ s: { r: kpiSwIndex, c: 0 }, e: { r: kpiSwIndex, c: labelMergeEnd } });
+  merges.push({ s: { r: kpiDwIndex, c: 0 }, e: { r: kpiDwIndex, c: labelMergeEnd } });
+  merges.push({ s: { r: kpiEFluteIndex, c: 0 }, e: { r: kpiEFluteIndex, c: labelMergeEnd } });
+
+  // KPI K200 merges
+  merges.push({ s: { r: k200TitleIndex, c: 0 }, e: { r: k200TitleIndex, c: lastColIdx } });
+  merges.push({ s: { r: k200HeaderIndex, c: 0 }, e: { r: k200HeaderIndex, c: labelMergeEnd } });
+  merges.push({ s: { r: k200SwIndex, c: 0 }, e: { r: k200SwIndex, c: labelMergeEnd } });
+  merges.push({ s: { r: k200DwIndex, c: 0 }, e: { r: k200DwIndex, c: labelMergeEnd } });
+  merges.push({ s: { r: k200SubtotalIndex, c: 0 }, e: { r: k200SubtotalIndex, c: labelMergeEnd } });
+  merges.push({ s: { r: nonK200Index, c: 0 }, e: { r: nonK200Index, c: labelMergeEnd } });
+
+  worksheet['!merges'] = merges;
 
   return worksheet;
 }

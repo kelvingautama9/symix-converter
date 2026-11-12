@@ -1212,7 +1212,8 @@ export function exportCombinedSalesOrderMasterWorkbook(
     scope,
     'GABUNGAN SEMUA CUSTOMER',
     sortByPoAsc,
-    deliveryMode
+    deliveryMode,
+    true // isCombinedMaster = true (Includes Customers column in Column A)
   );
   XLSX.utils.book_append_sheet(workbook, masterWs, 'MASTER_GABUNGAN_SALES');
 
@@ -1231,7 +1232,14 @@ export function exportCombinedSalesOrderMasterWorkbook(
     usedSheetNames.add(sheetName.toUpperCase());
 
     const fileCustName = item.data[0]?.customerName || cleanSource;
-    const fileWs = buildSalesOrderWorksheet(item.data, scope, fileCustName, sortByPoAsc, deliveryMode);
+    const fileWs = buildSalesOrderWorksheet(
+      item.data,
+      scope,
+      fileCustName,
+      sortByPoAsc,
+      deliveryMode,
+      false // isCombinedMaster = false (No Customers column in Column A)
+    );
     XLSX.utils.book_append_sheet(workbook, fileWs, sheetName);
   });
 

@@ -45,6 +45,8 @@ interface SalesOrderViewProps {
   onShareStatus?: (msg: string) => void;
   deliveryMode?: SalesDeliveryMode;
   onDeliveryModeChange?: (mode: SalesDeliveryMode) => void;
+  onDownloadMasterCombined?: () => void;
+  totalFilesCount?: number;
 }
 
 export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
@@ -53,6 +55,8 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   onShareStatus,
   deliveryMode: propDeliveryMode,
   onDeliveryModeChange,
+  onDownloadMasterCombined,
+  totalFilesCount = 1,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [coFilter, setCoFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
@@ -983,6 +987,37 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Kirim File via WhatsApp</span>
                   </button>
+
+                  {onDownloadMasterCombined && totalFilesCount > 1 && (
+                    <>
+                      <div className="border-t border-slate-100 my-1" />
+                      <div className="px-3 py-1 font-bold text-emerald-700 uppercase tracking-wider text-[10px] flex items-center gap-1">
+                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
+                        <span>Ekspor Multi File Gabungan</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportMenuOpen(false);
+                          onDownloadMasterCombined();
+                        }}
+                        className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-800 flex items-center justify-between cursor-pointer font-medium"
+                      >
+                        <div>
+                          <div className="font-semibold flex items-center gap-1.5 text-emerald-950">
+                            <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Gabung Master ({totalFilesCount} File)</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500">
+                            Format Rekap Sales ({deliveryMode === 'TOTAL_ACCUMULATION' ? 'Total Akumulasi' : 'Detail SJ'}) + Sheet Summary
+                          </div>
+                        </div>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded font-mono">
+                          MASTER
+                        </span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>

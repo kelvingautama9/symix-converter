@@ -743,6 +743,8 @@ export default function App() {
                 onShareStatus={(msg) => setStatusMessage(msg)}
                 deliveryMode={salesDeliveryMode}
                 onDeliveryModeChange={setSalesDeliveryMode}
+                onDownloadMasterCombined={convertedFiles.length > 1 ? handleDownloadMasterCombined : undefined}
+                totalFilesCount={convertedFiles.length}
               />
             )}
           </div>
