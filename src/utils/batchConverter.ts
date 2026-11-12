@@ -5,10 +5,17 @@ import {
   BatchAggregateStats,
   ExcelExportScope,
   DetailSJExportScope,
+  SalesOrderExportScope,
+  SalesDeliveryMode,
   ExtractedRecord,
   ParseSummary,
 } from '../types';
-import { parseExcelBuffer, recalculateFIFOStock, flattenDeliveriesForDataEntry } from './parserEngine';
+import {
+  parseExcelBuffer,
+  recalculateFIFOStock,
+  flattenDeliveriesForDataEntry,
+  flattenSalesOrderRows,
+} from './parserEngine';
 import {
   generateExcelBlobAndFile,
   getExportFileName,
@@ -16,6 +23,9 @@ import {
   generateDetailSJExcelBlobAndFile,
   getDetailSJExportFileName,
   DETAIL_SJ_EXCEL_COLUMNS,
+  buildSalesOrderWorksheet,
+  generateSalesOrderExcelBlobAndFile,
+  getSalesOrderExportFileName,
 } from './excelExporter';
 
 /**
@@ -49,7 +59,6 @@ export async function convertSingleRawFile(
 }> {
   const start = performance.now();
   const rawBuffer = await file.arrayBuffer();
-
   const { data: parsedData, summary: parsedSummary, workbook } = parseExcelBuffer(
     rawBuffer,
     file.name
@@ -59,10 +68,7 @@ export async function convertSingleRawFile(
     throw new Error('Tidak ditemukan data PO valid (SH-/ST-/BX-/DC- dan DAP/PO).');
   }
 
-  // Generate standardized converted Excel file
-  const outputFileName = getExportFileName(file.name, scope);
-  const { blob } = generateExcelBlobAndFile(parsedData, file.name, scope);
-
+  const { blob, outputFileName } = generateExcelBlobAndFile(parsedData, file.name, scope);
   const durationMs = Math.round(performance.now() - start);
 
   return {
@@ -77,11 +83,11 @@ export async function convertSingleRawFile(
 }
 
 /**
- * Compiles all successful batch converted Excel files into a single ZIP archive and downloads it immediately (Normal Mode).
+ * Compiles all successful batch converted Excel files into a single ZIP archive (Rekap PO Mode).
  */
 export async function downloadAllAsZip(
   items: BatchFileItem[],
-  zipBaseName: string = 'BLACKEYE_CONVERTED_BATCH'
+  zipBaseName: string = 'BLACKEYE_REKAP_PO_BATCH'
 ): Promise<{ success: boolean; zipFileName: string; count: number }> {
   const validItems = items.filter(
     (item) => item.status === 'success' && item.excelBlob && item.outputFileName
@@ -137,7 +143,7 @@ export async function downloadAllAsZip(
 }
 
 /**
- * Compiles all converted files into a single ZIP archive using the Detail Kiriman SJ format.
+ * Compiles all converted files into a single ZIP archive (Detail Kiriman SJ Mode).
  */
 export async function downloadAllDetailSJAsZip(
   items: BatchFileItem[],
@@ -198,14 +204,84 @@ export async function downloadAllDetailSJAsZip(
 }
 
 /**
- * Consolidates all converted files into one Master Consolidated Excel Workbook (Normal Mode):
- * - Sheet 1: Master Rekapitulasi (Combined all files, tagged with Source File/Customer)
- * - Subsequent Sheets: Individual Customer sheets (named cleanly)
+ * Compiles all converted files into a single ZIP archive (Rekap Sales Mode).
+ */
+export async function downloadAllSalesOrderAsZip(
+  items: BatchFileItem[],
+  scope: SalesOrderExportScope = 'ALL',
+  sortByPoAsc: boolean = true,
+  deliveryMode: SalesDeliveryMode = 'FALLBACK_DETAIL_SJ',
+  zipBaseName: string = 'BLACKEYE_REKAP_SALES_BATCH'
+): Promise<{ success: boolean; zipFileName: string; count: number }> {
+  const validItems = items.filter(
+    (item) => item.status === 'success' && item.data && item.data.length > 0
+  );
+
+  if (validItems.length === 0) {
+    throw new Error('Tidak ada file hasil konversi yang valid untuk diunduh.');
+  }
+
+  const zip = new JSZip();
+  const usedNames = new Set<string>();
+
+  for (const item of validItems) {
+    if (!item.data) continue;
+    const { blob } = generateSalesOrderExcelBlobAndFile(
+      item.data,
+      undefined,
+      scope,
+      sortByPoAsc,
+      deliveryMode
+    );
+    let targetName = getSalesOrderExportFileName(item.rawFileName, scope, sortByPoAsc, deliveryMode);
+
+    if (usedNames.has(targetName)) {
+      const dotIdx = targetName.lastIndexOf('.');
+      const base = dotIdx !== -1 ? targetName.substring(0, dotIdx) : targetName;
+      const ext = dotIdx !== -1 ? targetName.substring(dotIdx) : '.xlsx';
+      let counter = 2;
+      while (usedNames.has(`${base}_(${counter})${ext}`)) {
+        counter++;
+      }
+      targetName = `${base}_(${counter})${ext}`;
+    }
+    usedNames.add(targetName);
+    zip.file(targetName, blob);
+  }
+
+  const now = new Date();
+  const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+    now.getDate()
+  ).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(
+    now.getMinutes()
+  ).padStart(2, '0')}`;
+  const zipFileName = `${zipBaseName}_${dateTag}.zip`;
+
+  const zipBlob = await zip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 6 },
+  });
+
+  downloadBlob(zipBlob, zipFileName);
+
+  return {
+    success: true,
+    zipFileName,
+    count: validItems.length,
+  };
+}
+
+/**
+ * Consolidates all converted files into one Master Consolidated Excel Workbook (Rekap PO Mode):
+ * - Sheet 1: SUMMARY_REKAP_FILE (Summary table across all files + Grand Total SUM row)
+ * - Sheet 2: MASTER_GABUNGAN (Combined data tagged with File Asal / Customer)
+ * - Subsequent Sheets: Individual Customer sheets
  */
 export function exportCombinedMasterWorkbook(
   items: BatchFileItem[],
   scope: ExcelExportScope = 'ALL',
-  masterBaseName: string = 'BLACKEYE_MASTER_GABUNGAN'
+  masterBaseName: string = 'BLACKEYE_MASTER_GABUNGAN_REKAP_PO'
 ): string {
   const validItems = items.filter(
     (item) => item.status === 'success' && item.data && item.data.length > 0
@@ -217,11 +293,148 @@ export function exportCombinedMasterWorkbook(
 
   const workbook = XLSX.utils.book_new();
 
-  // 1. Build Consolidated Master Sheet
+  // 1. Build Sheet 1: SUMMARY_REKAP_FILE
+  const summaryHeaders = [
+    'No',
+    'Nama File',
+    'Total Baris PO',
+    'Total Qty PO (pcs)',
+    'Total Berat PO (kg)',
+    'Total Stock (pcs)',
+    'Total Stock (kg)',
+    'Total Terkirim (pcs)',
+    'Total Sisa OS (pcs)',
+    'Total Sisa OS (kg)',
+    'Total Over Stock (pcs)',
+    'Total Over Kiriman (pcs)',
+  ];
+
+  const summaryRows: any[][] = [];
+  summaryRows.push(['RINGKASAN REKAPITULASI PO PER FILE']);
+  summaryRows.push([
+    `Tanggal Generate: ${new Date().toLocaleString('id-ID')} | Total File: ${validItems.length} File | Filter Scope: ${scope}`,
+  ]);
+  summaryRows.push([]);
+  summaryRows.push(summaryHeaders);
+
+  let sumAllPOs = 0;
+  let sumAllQtyPcs = 0;
+  let sumAllBeratKg = 0;
+  let sumAllStockPcs = 0;
+  let sumAllStockKg = 0;
+  let sumAllTerkirimPcs = 0;
+  let sumAllSisaPcs = 0;
+  let sumAllSisaKg = 0;
+  let sumAllOverStockPcs = 0;
+  let sumAllOverKirimanPcs = 0;
+
+  validItems.forEach((item, fIdx) => {
+    if (!item.data) return;
+    const scoped = recalculateFIFOStock(item.data, scope);
+    let fQtyPcs = 0;
+    let fBeratKg = 0;
+    let fStockPcs = 0;
+    let fStockKg = 0;
+    let fTerkirimPcs = 0;
+    let fSisaPcs = 0;
+    let fSisaKg = 0;
+    let fOverStockPcs = 0;
+    let fOverKirimanPcs = 0;
+
+    scoped.forEach((r) => {
+      const q = Number(r['QTY PO (pcs)']) || 0;
+      const b = Number(r['Berat PO (KG)']) || 0;
+      const stPcs = Number(r['Stock (pcs)']) || 0;
+      const stKg = Number(r['Stock (kg)']) || 0;
+      const sPcs = Number(r['Sisa OS (pcs)']) || 0;
+      const sKg = Number(r['Sisa OS (kg)']) || 0;
+      const tPcs = r['Terkirim (PCS)'] !== undefined ? Number(r['Terkirim (PCS)']) : Math.max(0, q - sPcs);
+      const ovStPcs = Number(r['Over Stock Gudang (PCS)'] || r['Over Produksi (PCS)']) || 0;
+      const ovKrPcs = Number(r['Over Kiriman (PCS)']) || 0;
+
+      fQtyPcs += q;
+      fBeratKg += b;
+      fStockPcs += stPcs;
+      fStockKg += stKg;
+      fTerkirimPcs += tPcs;
+      fSisaPcs += sPcs;
+      fSisaKg += sKg;
+      fOverStockPcs += ovStPcs;
+      fOverKirimanPcs += ovKrPcs;
+    });
+
+    sumAllPOs += scoped.length;
+    sumAllQtyPcs += fQtyPcs;
+    sumAllBeratKg += fBeratKg;
+    sumAllStockPcs += fStockPcs;
+    sumAllStockKg += fStockKg;
+    sumAllTerkirimPcs += fTerkirimPcs;
+    sumAllSisaPcs += fSisaPcs;
+    sumAllSisaKg += fSisaKg;
+    sumAllOverStockPcs += fOverStockPcs;
+    sumAllOverKirimanPcs += fOverKirimanPcs;
+
+    const cleanSource = item.rawFileName.replace(/\.[^/.]+$/, '');
+    summaryRows.push([
+      fIdx + 1,
+      cleanSource,
+      scoped.length,
+      { t: 'n', v: fQtyPcs, z: '#,##0' },
+      { t: 'n', v: fBeratKg, z: '#,##0' },
+      { t: 'n', v: fStockPcs, z: '#,##0' },
+      { t: 'n', v: fStockKg, z: '#,##0' },
+      { t: 'n', v: fTerkirimPcs, z: '#,##0' },
+      { t: 'n', v: fSisaPcs, z: '#,##0' },
+      { t: 'n', v: fSisaKg, z: '#,##0' },
+      { t: 'n', v: fOverStockPcs, z: '#,##0' },
+      { t: 'n', v: fOverKirimanPcs, z: '#,##0' },
+    ]);
+  });
+
+  const firstDataRow = 5;
+  const lastDataRow = 4 + validItems.length;
+  summaryRows.push([
+    'GRAND TOTAL KESELURUHAN (ALL FILES)',
+    '',
+    { t: 'n', f: `SUM(C${firstDataRow}:C${lastDataRow})`, v: sumAllPOs, z: '#,##0' },
+    { t: 'n', f: `SUM(D${firstDataRow}:D${lastDataRow})`, v: sumAllQtyPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(E${firstDataRow}:E${lastDataRow})`, v: sumAllBeratKg, z: '#,##0' },
+    { t: 'n', f: `SUM(F${firstDataRow}:F${lastDataRow})`, v: sumAllStockPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(G${firstDataRow}:G${lastDataRow})`, v: sumAllStockKg, z: '#,##0' },
+    { t: 'n', f: `SUM(H${firstDataRow}:H${lastDataRow})`, v: sumAllTerkirimPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(I${firstDataRow}:I${lastDataRow})`, v: sumAllSisaPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(J${firstDataRow}:J${lastDataRow})`, v: sumAllSisaKg, z: '#,##0' },
+    { t: 'n', f: `SUM(K${firstDataRow}:K${lastDataRow})`, v: sumAllOverStockPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(L${firstDataRow}:L${lastDataRow})`, v: sumAllOverKirimanPcs, z: '#,##0' },
+  ]);
+
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+  summarySheet['!cols'] = [
+    { wch: 6 },
+    { wch: 36 },
+    { wch: 15 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 20 },
+  ];
+  summarySheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+    { s: { r: summaryRows.length - 1, c: 0 }, e: { r: summaryRows.length - 1, c: 1 } },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'SUMMARY_REKAP_FILE');
+
+  // 2. Build Consolidated Master Sheet
   const masterHeaders = ['File Asal / Customer', ...EXCEL_COLUMNS];
   const masterRows: any[][] = [];
 
-  // Title
   masterRows.push(['MASTER REKAPITULASI STOCK & SISA ORDER STATUS (OS) - GABUNGAN SEMUA CUSTOMER']);
   masterRows.push([
     `Tanggal Generate: ${new Date().toLocaleString('id-ID')} | Total File: ${validItems.length} Customer | Filter Scope: ${scope}`,
@@ -246,7 +459,6 @@ export function exportCombinedMasterWorkbook(
     if (!item.data) continue;
     const scopedData = recalculateFIFOStock(item.data, scope);
 
-    // Filter based on scope
     let filtered = scopedData;
     if (scope === 'OPEN_ONLY') {
       filtered = scopedData.filter((d) => d.coStatus === 'OPEN');
@@ -309,12 +521,12 @@ export function exportCombinedMasterWorkbook(
 
       masterRows.push([
         cleanSource,
-        row.CO || '',
-        row.Artikel || '',
-        row['Item Description'] || '',
-        row['Tanggal Input PO'] || '-',
-        row['No PO'] || '',
-        row.Substance || '',
+        row.CO,
+        row.Artikel,
+        row['Item Description'],
+        row['Tanggal Input PO'],
+        row['No PO'],
+        row.Substance,
         qtyPcs,
         beratKg,
         stockPcs,
@@ -327,57 +539,59 @@ export function exportCombinedMasterWorkbook(
         overStockKg,
         overKirimanPcs,
         overKirimanKg,
-        Number(row.Harga) || 0,
+        row.Harga,
       ]);
     }
   }
 
-  // Grand Total Row
+  const lastMasterRow = masterRows.length;
+  const totMasterRow = lastMasterRow + 1;
+
   masterRows.push([
-    'GRAND TOTAL REKAPITULASI',
+    'TOTAL KESELURUHAN (GABUNGAN SEMUA CUSTOMER)',
     '',
     '',
     '',
     '',
     '',
     '',
-    grandQtyPcs,
-    grandBeratKg,
-    grandStockPcs,
-    grandStockKg,
-    grandSisaPcs,
-    grandSisaKg,
-    grandTerkirimPcs,
-    grandTerkirimKg,
-    grandOverStockPcs,
-    grandOverStockKg,
-    grandOverKirimanPcs,
-    grandOverKirimanKg,
+    { t: 'n', f: `SUM(H5:H${lastMasterRow})`, v: grandQtyPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(I5:I${lastMasterRow})`, v: grandBeratKg, z: '#,##0' },
+    { t: 'n', f: `SUM(J5:J${lastMasterRow})`, v: grandStockPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(K5:K${lastMasterRow})`, v: grandStockKg, z: '#,##0' },
+    { t: 'n', f: `SUM(L5:L${lastMasterRow})`, v: grandSisaPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(M5:M${lastMasterRow})`, v: grandSisaKg, z: '#,##0' },
+    { t: 'n', f: `SUM(N5:N${lastMasterRow})`, v: grandTerkirimPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(O5:O${lastMasterRow})`, v: grandTerkirimKg, z: '#,##0' },
+    { t: 'n', f: `SUM(P5:P${lastMasterRow})`, v: grandOverStockPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(Q5:Q${lastMasterRow})`, v: grandOverStockKg, z: '#,##0' },
+    { t: 'n', f: `SUM(R5:R${lastMasterRow})`, v: grandOverKirimanPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(S5:S${lastMasterRow})`, v: grandOverKirimanKg, z: '#,##0' },
     '',
   ]);
 
   const masterSheet = XLSX.utils.aoa_to_sheet(masterRows);
   masterSheet['!cols'] = [
-    { wch: 22 }, // Source File
-    { wch: 18 }, // CO
-    { wch: 18 }, // Artikel
-    { wch: 36 }, // Item Description
-    { wch: 18 }, // Tanggal Input PO
-    { wch: 26 }, // No PO
-    { wch: 16 }, // Substance
-    { wch: 15 }, // QTY PO (pcs)
-    { wch: 16 }, // Berat PO (KG)
-    { wch: 14 }, // Stock (pcs)
-    { wch: 14 }, // Stock (kg)
-    { wch: 15 }, // Sisa OS (pcs)
-    { wch: 15 }, // Sisa OS (kg)
-    { wch: 16 }, // Terkirim (PCS)
-    { wch: 16 }, // Terkirim (KG)
-    { wch: 22 }, // Over Stock Gudang (PCS)
-    { wch: 22 }, // Over Stock Gudang (KG)
-    { wch: 18 }, // Over Kiriman (PCS)
-    { wch: 18 }, // Over Kiriman (KG)
-    { wch: 14 }, // Harga
+    { wch: 22 },
+    { wch: 14 },
+    { wch: 20 },
+    { wch: 34 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 16 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 16 },
+    { wch: 16 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
   ];
 
   masterSheet['!merges'] = [
@@ -388,8 +602,8 @@ export function exportCombinedMasterWorkbook(
 
   XLSX.utils.book_append_sheet(workbook, masterSheet, 'MASTER_GABUNGAN');
 
-  // 2. Build Individual Sheet for each file
-  const usedSheetNames = new Set<string>(['MASTER_GABUNGAN']);
+  // 3. Build Individual Sheet for each file
+  const usedSheetNames = new Set<string>(['SUMMARY_REKAP_FILE', 'MASTER_GABUNGAN']);
 
   for (const item of validItems) {
     if (!item.data) continue;
@@ -439,7 +653,8 @@ export function exportCombinedMasterWorkbook(
 
 /**
  * Consolidates all converted files into one Master Consolidated Excel Workbook for Mode Detail Kiriman SJ:
- * - Sheet 1: Master Detail Kiriman SJ (Combined all files with Source File / Customer column)
+ * - Sheet 1: SUMMARY_REKAP_FILE (Summary of each file's key SJ metrics + Grand Total SUM row)
+ * - Sheet 2: MASTER_DETAIL_SJ (Combined all files with Source File / Customer column)
  * - Subsequent Sheets: Individual Customer Detail Kiriman SJ sheets
  */
 export function exportCombinedDetailSJMasterWorkbook(
@@ -456,6 +671,144 @@ export function exportCombinedDetailSJMasterWorkbook(
   }
 
   const workbook = XLSX.utils.book_new();
+
+  // 1. Build Sheet 1: SUMMARY_REKAP_FILE
+  const summaryHeaders = [
+    'No',
+    'Nama File',
+    'Total No PO',
+    'Total Kiriman SJ',
+    'Total Qty PO (pcs)',
+    'Total Berat PO (kg)',
+    'Total Qty Kirim SJ (pcs)',
+    'Total Berat Kirim SJ (kg)',
+    'Total Terkirim PO (pcs)',
+    'Total Terkirim PO (kg)',
+    'Total Sisa OS (pcs)',
+    'Total Sisa OS (kg)',
+  ];
+
+  const summaryRows: any[][] = [];
+  summaryRows.push(['RINGKASAN DETAIL KIRIMAN SJ PER FILE']);
+  summaryRows.push([
+    `Tanggal Generate: ${new Date().toLocaleString('id-ID')} | Total File: ${validItems.length} File | Filter Scope: ${scope}`,
+  ]);
+  summaryRows.push([]);
+  summaryRows.push(summaryHeaders);
+
+  let sumAllPOs = 0;
+  let sumAllSJs = 0;
+  let sumAllQtyPoPcs = 0;
+  let sumAllBeratPoKg = 0;
+  let sumAllQtyKirimPcs = 0;
+  let sumAllBeratKirimKg = 0;
+  let sumAllTerkirimPcs = 0;
+  let sumAllTerkirimKg = 0;
+  let sumAllSisaPcs = 0;
+  let sumAllSisaKg = 0;
+
+  validItems.forEach((item, fIdx) => {
+    if (!item.data) return;
+    const flatRows = flattenDeliveriesForDataEntry(item.data, scope);
+    let fPOs = 0;
+    let fSJs = 0;
+    let fQtyPo = 0;
+    let fBeratPo = 0;
+    let fQtyKirim = 0;
+    let fBeratKirim = 0;
+    let fTerkirimPcs = 0;
+    let fTerkirimKg = 0;
+    let fSisaPcs = 0;
+    let fSisaKg = 0;
+
+    flatRows.forEach((r) => {
+      if (r.isFirstRowOfPO) {
+        fPOs++;
+        fQtyPo += r['QTY PO (pcs)'];
+        fBeratPo += r['Berat PO (KG)'];
+      }
+      if (!r.isFallbackNoDelivery) {
+        fSJs++;
+        fQtyKirim += r['QTY Kirim SJ (pcs)'];
+        fBeratKirim += r['Berat Kirim SJ (KG)'];
+      }
+      if (r.isLastRowOfPO) {
+        fTerkirimPcs += r['Total Terkirim PO (pcs)'];
+        fTerkirimKg += r['Total Terkirim PO (KG)'];
+        fSisaPcs += r['Sisa OS Akhir PO (pcs)'];
+        fSisaKg += r['Sisa OS Akhir PO (KG)'];
+      }
+    });
+
+    sumAllPOs += fPOs;
+    sumAllSJs += fSJs;
+    sumAllQtyPoPcs += fQtyPo;
+    sumAllBeratPoKg += fBeratPo;
+    sumAllQtyKirimPcs += fQtyKirim;
+    sumAllBeratKirimKg += fBeratKirim;
+    sumAllTerkirimPcs += fTerkirimPcs;
+    sumAllTerkirimKg += fTerkirimKg;
+    sumAllSisaPcs += fSisaPcs;
+    sumAllSisaKg += fSisaKg;
+
+    const cleanSource = item.rawFileName.replace(/\.[^/.]+$/, '');
+    summaryRows.push([
+      fIdx + 1,
+      cleanSource,
+      fPOs,
+      fSJs,
+      { t: 'n', v: fQtyPo, z: '#,##0' },
+      { t: 'n', v: fBeratPo, z: '#,##0' },
+      { t: 'n', v: fQtyKirim, z: '#,##0' },
+      { t: 'n', v: fBeratKirim, z: '#,##0' },
+      { t: 'n', v: fTerkirimPcs, z: '#,##0' },
+      { t: 'n', v: fTerkirimKg, z: '#,##0' },
+      { t: 'n', v: fSisaPcs, z: '#,##0' },
+      { t: 'n', v: fSisaKg, z: '#,##0' },
+    ]);
+  });
+
+  const firstDataRow = 5;
+  const lastDataRow = 4 + validItems.length;
+  summaryRows.push([
+    'GRAND TOTAL KESELURUHAN (ALL FILES)',
+    '',
+    { t: 'n', f: `SUM(C${firstDataRow}:C${lastDataRow})`, v: sumAllPOs, z: '#,##0' },
+    { t: 'n', f: `SUM(D${firstDataRow}:D${lastDataRow})`, v: sumAllSJs, z: '#,##0' },
+    { t: 'n', f: `SUM(E${firstDataRow}:E${lastDataRow})`, v: sumAllQtyPoPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(F${firstDataRow}:F${lastDataRow})`, v: sumAllBeratPoKg, z: '#,##0' },
+    { t: 'n', f: `SUM(G${firstDataRow}:G${lastDataRow})`, v: sumAllQtyKirimPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(H${firstDataRow}:H${lastDataRow})`, v: sumAllBeratKirimKg, z: '#,##0' },
+    { t: 'n', f: `SUM(I${firstDataRow}:I${lastDataRow})`, v: sumAllTerkirimPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(J${firstDataRow}:J${lastDataRow})`, v: sumAllTerkirimKg, z: '#,##0' },
+    { t: 'n', f: `SUM(K${firstDataRow}:K${lastDataRow})`, v: sumAllSisaPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(L${firstDataRow}:L${lastDataRow})`, v: sumAllSisaKg, z: '#,##0' },
+  ]);
+
+  const summarySheet = XLSX.utils.aoa_to_sheet(summaryRows);
+  summarySheet['!cols'] = [
+    { wch: 6 },
+    { wch: 36 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 22 },
+    { wch: 20 },
+    { wch: 20 },
+  ];
+  summarySheet['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+    { s: { r: summaryRows.length - 1, c: 0 }, e: { r: summaryRows.length - 1, c: 1 } },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, summarySheet, 'SUMMARY_REKAP_FILE');
+
+  // 2. Build Consolidated Master Sheet
   const masterHeaders = ['File Asal / Customer', ...DETAIL_SJ_EXCEL_COLUMNS];
   const masterRows: any[][] = [];
 
@@ -548,23 +901,22 @@ export function exportCombinedDetailSJMasterWorkbook(
 
   const lastMasterRow = masterRows.length;
   const totMasterRow = lastMasterRow + 1;
-  const masterFulfillment = grandQtyPoPcs > 0 ? grandTotalTerkirimPcs / grandQtyPoPcs : 0;
 
   masterRows.push([
-    'GRAND TOTAL REKAPITULASI',
+    'TOTAL KESELURUHAN (GABUNGAN SEMUA CUSTOMER)',
     '',
     '',
     '',
     '',
     '',
-    `${grandTotalPOs} PO`,
-    `${grandTotalSJs} SJ`,
+    '',
+    '',
     { t: 'n', f: `SUM(I5:I${lastMasterRow})`, v: grandQtyPoPcs, z: '#,##0' },
     { t: 'n', f: `SUM(J5:J${lastMasterRow})`, v: grandBeratPoKg, z: '#,##0' },
     '',
     '',
     '',
-    { t: 'n', f: `IFERROR(AVERAGE(N5:N${lastMasterRow}),0)`, v: 0, z: '0.0' },
+    '',
     { t: 'n', f: `SUM(O5:O${lastMasterRow})`, v: grandQtyKirimSJPcs, z: '#,##0' },
     { t: 'n', f: `SUM(P5:P${lastMasterRow})`, v: grandBeratKirimSJKg, z: '#,##0' },
     '',
@@ -576,7 +928,7 @@ export function exportCombinedDetailSJMasterWorkbook(
     {
       t: 'n',
       f: `IF(I${totMasterRow}>0,S${totMasterRow}/I${totMasterRow},0)`,
-      v: masterFulfillment,
+      v: grandQtyPoPcs > 0 ? grandTotalTerkirimPcs / grandQtyPoPcs : 0,
       z: '0.0%',
     },
     '',
@@ -589,46 +941,47 @@ export function exportCombinedDetailSJMasterWorkbook(
 
   const masterSheet = XLSX.utils.aoa_to_sheet(masterRows);
   masterSheet['!cols'] = [
-    { wch: 22 }, // Source File
-    { wch: 16 }, // CO
-    { wch: 12 }, // Status CO
-    { wch: 18 }, // Artikel
-    { wch: 34 }, // Item Description
-    { wch: 16 }, // Tanggal Input PO
-    { wch: 26 }, // No PO
-    { wch: 16 }, // Substance
-    { wch: 15 }, // QTY PO (pcs)
-    { wch: 15 }, // Berat PO (KG)
-    { wch: 24 }, // Urutan Kirim
-    { wch: 20 }, // No Surat Jalan (SJ)
-    { wch: 18 }, // Tanggal Kirim (SJ)
-    { wch: 19 }, // Lead Time SJ (Hari)
-    { wch: 18 }, // QTY Kirim SJ (pcs)
-    { wch: 18 }, // Berat Kirim SJ (KG)
-    { wch: 20 }, // Sisa OS Berjalan (pcs)
-    { wch: 20 }, // Sisa OS Berjalan (KG)
-    { wch: 21 }, // Total Terkirim PO (pcs)
-    { wch: 21 }, // Total Terkirim PO (KG)
-    { wch: 20 }, // Sisa OS Akhir PO (pcs)
-    { wch: 20 }, // Sisa OS Akhir PO (KG)
-    { wch: 16 }, // % Pemenuhan PO
-    { wch: 24 }, // Status Pengiriman
-    { wch: 20 }, // Umur PO / Aging (Hari)
-    { wch: 22 }, // Kategori Aging OS
-    { wch: 18 }, // Stock Gudang (pcs)
-    { wch: 18 }, // Stock Gudang (KG)
-    { wch: 14 }, // Harga
+    { wch: 22 },
+    { wch: 14 },
+    { wch: 12 },
+    { wch: 20 },
+    { wch: 34 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 16 },
+    { wch: 15 },
+    { wch: 15 },
+    { wch: 24 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 19 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 21 },
+    { wch: 21 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 16 },
+    { wch: 24 },
+    { wch: 20 },
+    { wch: 22 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 14 },
   ];
 
   masterSheet['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 28 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 28 } },
-    { s: { r: masterRows.length - 1, c: 0 }, e: { r: masterRows.length - 1, c: 5 } },
+    { s: { r: masterRows.length - 1, c: 0 }, e: { r: masterRows.length - 1, c: 7 } },
   ];
 
   XLSX.utils.book_append_sheet(workbook, masterSheet, 'MASTER_DETAIL_SJ');
 
-  const usedSheetNames = new Set<string>(['MASTER_DETAIL_SJ']);
+  // 3. Build Individual Sheet for each file
+  const usedSheetNames = new Set<string>(['SUMMARY_REKAP_FILE', 'MASTER_DETAIL_SJ']);
 
   for (const item of validItems) {
     if (!item.data) continue;
@@ -677,6 +1030,228 @@ export function exportCombinedDetailSJMasterWorkbook(
 }
 
 /**
+ * Consolidates all converted files into a Master Consolidated Excel Workbook for Rekap Sales:
+ * - Sheet 1: SUMMARY_REKAP_FILE (Summary of each file's key totals + Grand Total SUM row)
+ * - Sheet 2: MASTER_GABUNGAN_SALES (All rows combined into 1 consolidated Rekap Sales worksheet)
+ * - Subsequent Sheets: Individual customer/file sheets with full Rekap Sales layout & formulas
+ */
+export function exportCombinedSalesOrderMasterWorkbook(
+  items: BatchFileItem[],
+  scope: SalesOrderExportScope = 'ALL',
+  sortByPoAsc: boolean = true,
+  deliveryMode: SalesDeliveryMode = 'FALLBACK_DETAIL_SJ',
+  masterBaseName: string = 'Rekap_Sales_Master_Gabungan'
+): string {
+  const validItems = items.filter(
+    (item) => item.status === 'success' && item.data && item.data.length > 0
+  );
+
+  if (validItems.length === 0) {
+    throw new Error('Tidak ada data hasil konversi untuk digabungkan.');
+  }
+
+  const workbook = XLSX.utils.book_new();
+
+  // 1. Build Sheet 1: SUMMARY_REKAP_FILE
+  const summaryHeaders = [
+    'No',
+    'Nama File',
+    'Total No PO',
+    'Total Artikel',
+    'Total Qty PO (Pcs)',
+    'Total Berat PO (Kg)',
+    'Total Qty Planning (Pcs)',
+    'Total Kg Planning (Kg)',
+    'Total Qty Realisasi Kirim (Pcs)',
+    'Total Kg Realisasi Kirim (Kg)',
+    'Total Nilai Order (Rp)',
+    'K200 SW (Pcs)',
+    'K200 DW (Pcs)',
+  ];
+
+  const summaryRows: any[][] = [];
+  summaryRows.push(['RINGKASAN REKAPITULASI SALES PER FILE']);
+  summaryRows.push([
+    `Tanggal Generate: ${new Date().toLocaleString('id-ID')} | Total File: ${validItems.length} File | Mode: ${
+      deliveryMode === 'TOTAL_ACCUMULATION' ? 'Total Keseluruhan (Akumulasi)' : 'Detail per SJ (Fallback)'
+    }`,
+  ]);
+  summaryRows.push([]);
+  summaryRows.push(summaryHeaders);
+
+  let grandTotalPOs = 0;
+  let grandTotalArtikels = 0;
+  let grandQtyPcs = 0;
+  let grandBeratKg = 0;
+  let grandQtyPlanning = 0;
+  let grandKgPlanning = 0;
+  let grandQtyDelivery = 0;
+  let grandKgDelivery = 0;
+  let grandNilaiOrderRp = 0;
+  let grandK200SwPcs = 0;
+  let grandK200DwPcs = 0;
+
+  const allCombinedData: ExtractedRecord[] = [];
+
+  validItems.forEach((item, fIdx) => {
+    if (!item.data) return;
+    allCombinedData.push(...item.data);
+
+    const rows = flattenSalesOrderRows(item.data, scope, sortByPoAsc, deliveryMode);
+    const uniquePos = new Set<string>();
+    const uniqueArtikels = new Set<string>();
+    let fileQtyPcs = 0;
+    let fileBeratKg = 0;
+    let fileQtyPlanning = 0;
+    let fileKgPlanning = 0;
+    let fileQtyDelivery = 0;
+    let fileKgDelivery = 0;
+    let fileNilaiOrder = 0;
+    let fileK200SwPcs = 0;
+    let fileK200DwPcs = 0;
+
+    rows.forEach((r) => {
+      if (r.noPO && r.noPO !== '-') uniquePos.add(r.noPO);
+      if (r.artikel && r.artikel !== '-') uniqueArtikels.add(r.artikel);
+
+      if (typeof r.qtyPcs === 'number') fileQtyPcs += r.qtyPcs;
+      if (typeof r.qtyKg === 'number') fileBeratKg += r.qtyKg;
+      if (typeof r.qtyDelivery === 'number') fileQtyPlanning += r.qtyDelivery;
+      if (typeof r.kgDelivery === 'number') fileKgPlanning += r.kgDelivery;
+      if (typeof r.actualQtyDelivery === 'number') fileQtyDelivery += r.actualQtyDelivery;
+      if (typeof r.actualKgDelivery === 'number') fileKgDelivery += r.actualKgDelivery;
+      if (typeof r.harga === 'number' && typeof r.qtyPcs === 'number' && r.qtyPcs > 0) {
+        fileNilaiOrder += r.harga * r.qtyPcs;
+      }
+
+      if (r.k200Type === 'K200_SW' && typeof r.qtyPcs === 'number') {
+        fileK200SwPcs += r.qtyPcs;
+      }
+      if (r.k200Type === 'K200_DW' && typeof r.qtyPcs === 'number') {
+        fileK200DwPcs += r.qtyPcs;
+      }
+    });
+
+    grandTotalPOs += uniquePos.size;
+    grandTotalArtikels += uniqueArtikels.size;
+    grandQtyPcs += fileQtyPcs;
+    grandBeratKg += fileBeratKg;
+    grandQtyPlanning += fileQtyPlanning;
+    grandKgPlanning += fileKgPlanning;
+    grandQtyDelivery += fileQtyDelivery;
+    grandKgDelivery += fileKgDelivery;
+    grandNilaiOrderRp += fileNilaiOrder;
+    grandK200SwPcs += fileK200SwPcs;
+    grandK200DwPcs += fileK200DwPcs;
+
+    const cleanName = item.rawFileName.replace(/\.[^/.]+$/, '');
+
+    summaryRows.push([
+      fIdx + 1,
+      cleanName,
+      uniquePos.size,
+      uniqueArtikels.size,
+      { t: 'n', v: fileQtyPcs, z: '#,##0' },
+      { t: 'n', v: fileBeratKg, z: '#,##0' },
+      { t: 'n', v: fileQtyPlanning, z: '#,##0' },
+      { t: 'n', v: fileKgPlanning, z: '#,##0' },
+      { t: 'n', v: fileQtyDelivery, z: '#,##0' },
+      { t: 'n', v: fileKgDelivery, z: '#,##0' },
+      { t: 'n', v: fileNilaiOrder, z: '#,##0' },
+      { t: 'n', v: fileK200SwPcs, z: '#,##0' },
+      { t: 'n', v: fileK200DwPcs, z: '#,##0' },
+    ]);
+  });
+
+  const firstDataRow = 5;
+  const lastDataRow = 4 + validItems.length;
+  summaryRows.push([
+    'GRAND TOTAL KESELURUHAN (ALL FILES)',
+    '',
+    { t: 'n', f: `SUM(C${firstDataRow}:C${lastDataRow})`, v: grandTotalPOs, z: '#,##0' },
+    { t: 'n', f: `SUM(D${firstDataRow}:D${lastDataRow})`, v: grandTotalArtikels, z: '#,##0' },
+    { t: 'n', f: `SUM(E${firstDataRow}:E${lastDataRow})`, v: grandQtyPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(F${firstDataRow}:F${lastDataRow})`, v: grandBeratKg, z: '#,##0' },
+    { t: 'n', f: `SUM(G${firstDataRow}:G${lastDataRow})`, v: grandQtyPlanning, z: '#,##0' },
+    { t: 'n', f: `SUM(H${firstDataRow}:H${lastDataRow})`, v: grandKgPlanning, z: '#,##0' },
+    { t: 'n', f: `SUM(I${firstDataRow}:I${lastDataRow})`, v: grandQtyDelivery, z: '#,##0' },
+    { t: 'n', f: `SUM(J${firstDataRow}:J${lastDataRow})`, v: grandKgDelivery, z: '#,##0' },
+    { t: 'n', f: `SUM(K${firstDataRow}:K${lastDataRow})`, v: grandNilaiOrderRp, z: '#,##0' },
+    { t: 'n', f: `SUM(L${firstDataRow}:L${lastDataRow})`, v: grandK200SwPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(M${firstDataRow}:M${lastDataRow})`, v: grandK200DwPcs, z: '#,##0' },
+  ]);
+
+  const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows);
+  summaryWs['!cols'] = [
+    { wch: 6 },
+    { wch: 38 },
+    { wch: 14 },
+    { wch: 14 },
+    { wch: 18 },
+    { wch: 18 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 24 },
+    { wch: 24 },
+    { wch: 20 },
+    { wch: 16 },
+    { wch: 16 },
+  ];
+
+  summaryWs['!merges'] = [
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } },
+    { s: { r: summaryRows.length - 1, c: 0 }, e: { r: summaryRows.length - 1, c: 1 } },
+  ];
+
+  XLSX.utils.book_append_sheet(workbook, summaryWs, 'SUMMARY_REKAP_FILE');
+
+  // 2. Build Sheet 2: MASTER_GABUNGAN_SALES
+  const masterWs = buildSalesOrderWorksheet(
+    allCombinedData,
+    scope,
+    'GABUNGAN SEMUA CUSTOMER',
+    sortByPoAsc,
+    deliveryMode
+  );
+  XLSX.utils.book_append_sheet(workbook, masterWs, 'MASTER_GABUNGAN_SALES');
+
+  // 3. Subsequent Sheets: Individual Customer sheets
+  const usedSheetNames = new Set<string>(['SUMMARY_REKAP_FILE', 'MASTER_GABUNGAN_SALES']);
+  validItems.forEach((item) => {
+    if (!item.data) return;
+    const cleanSource = item.rawFileName.replace(/\.[^/.]+$/, '').trim();
+    let baseSheet = cleanSource.slice(0, 25);
+    let sheetName = baseSheet;
+    let counter = 2;
+    while (usedSheetNames.has(sheetName.toUpperCase())) {
+      sheetName = `${baseSheet}_${counter}`.slice(0, 31);
+      counter++;
+    }
+    usedSheetNames.add(sheetName.toUpperCase());
+
+    const fileCustName = item.data[0]?.customerName || cleanSource;
+    const fileWs = buildSalesOrderWorksheet(item.data, scope, fileCustName, sortByPoAsc, deliveryMode);
+    XLSX.utils.book_append_sheet(workbook, fileWs, sheetName);
+  });
+
+  const now = new Date();
+  const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
+    now.getDate()
+  ).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(
+    now.getMinutes()
+  ).padStart(2, '0')}`;
+  const outFileName = `${masterBaseName}_${deliveryMode === 'TOTAL_ACCUMULATION' ? 'Total_Akumulasi' : 'Detail_SJ'}_${dateTag}.xlsx`;
+
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+  const blob = new Blob([excelBuffer], { type: mimeType });
+  downloadBlob(blob, outFileName);
+
+  return outFileName;
+}
+
+/**
  * Calculates aggregate summary metrics across all items in the batch
  */
 export function computeBatchStats(items: BatchFileItem[]): BatchAggregateStats {
@@ -720,4 +1295,3 @@ export function computeBatchStats(items: BatchFileItem[]): BatchAggregateStats {
     totalCOClosed,
   };
 }
-

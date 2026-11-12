@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { haptic } from '../utils/haptics';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ConversionMode } from '../types';
 
 export interface ConvertedFileItem {
   id: string;
@@ -33,6 +34,7 @@ interface FileSwitcherBarProps {
   onReset: () => void;
   isZipping?: boolean;
   isMerging?: boolean;
+  conversionMode?: ConversionMode;
 }
 
 export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
@@ -45,6 +47,7 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
   onReset,
   isZipping = false,
   isMerging = false,
+  conversionMode = 'NORMAL',
 }) => {
   const { t } = useLanguage();
   const addFileInputRef = useRef<HTMLInputElement>(null);
@@ -130,10 +133,24 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               onClick={onDownloadAllZip}
               disabled={isZipping}
               className="liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
-              title={t.downloadZipBtn}
+              title={
+                conversionMode === 'SALES_ORDER'
+                  ? 'Download semua file Rekap Sales dalam format ZIP'
+                  : conversionMode === 'DETAIL_SJ'
+                  ? 'Download semua file Detail SJ dalam format ZIP'
+                  : t.downloadZipBtn
+              }
             >
               <FolderArchive className="w-3.5 h-3.5 text-slate-600" />
-              <span>{isZipping ? t.processingMsg : t.zipAllBtn}</span>
+              <span>
+                {isZipping
+                  ? t.processingMsg
+                  : conversionMode === 'SALES_ORDER'
+                  ? 'ZIP Semua (Sales)'
+                  : conversionMode === 'DETAIL_SJ'
+                  ? 'ZIP Semua (SJ)'
+                  : t.zipAllBtn}
+              </span>
             </button>
           )}
 
@@ -144,10 +161,24 @@ export const FileSwitcherBar: React.FC<FileSwitcherBarProps> = ({
               onClick={onDownloadMasterCombined}
               disabled={isMerging}
               className="liquid-glass-clear inline-flex items-center gap-1.5 px-3 py-1.5 text-xs cursor-pointer disabled:opacity-50 whitespace-nowrap"
-              title={t.mergeMasterBtn}
+              title={
+                conversionMode === 'SALES_ORDER'
+                  ? 'Gabung semua file ke 1 Excel Rekap Sales (Dilengkapi Tab Summary Ringkasan File & Master)'
+                  : conversionMode === 'DETAIL_SJ'
+                  ? 'Gabung semua file ke 1 Excel Detail SJ (Dilengkapi Tab Summary Ringkasan File)'
+                  : t.mergeMasterBtn
+              }
             >
               <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
-              <span>{isMerging ? t.processingMsg : t.mergeMasterShortBtn}</span>
+              <span>
+                {isMerging
+                  ? t.processingMsg
+                  : conversionMode === 'SALES_ORDER'
+                  ? 'Gabung Master (Sales)'
+                  : conversionMode === 'DETAIL_SJ'
+                  ? 'Gabung Master (SJ)'
+                  : t.mergeMasterShortBtn}
+              </span>
             </button>
           )}
 

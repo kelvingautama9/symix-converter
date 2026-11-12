@@ -43,12 +43,16 @@ interface SalesOrderViewProps {
   data: ExtractedRecord[];
   fileName?: string | null;
   onShareStatus?: (msg: string) => void;
+  deliveryMode?: SalesDeliveryMode;
+  onDeliveryModeChange?: (mode: SalesDeliveryMode) => void;
 }
 
 export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   data,
   fileName,
   onShareStatus,
+  deliveryMode: propDeliveryMode,
+  onDeliveryModeChange,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [coFilter, setCoFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
@@ -59,7 +63,12 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   >('ALL');
   const [highlightK200, setHighlightK200] = useState<boolean>(true);
   const [sortByPoAsc, setSortByPoAsc] = useState<boolean>(true);
-  const [deliveryMode, setDeliveryMode] = useState<SalesDeliveryMode>('FALLBACK_DETAIL_SJ');
+  const [internalDeliveryMode, setInternalDeliveryMode] = useState<SalesDeliveryMode>('FALLBACK_DETAIL_SJ');
+  const deliveryMode = propDeliveryMode !== undefined ? propDeliveryMode : internalDeliveryMode;
+  const setDeliveryMode = (mode: SalesDeliveryMode) => {
+    setInternalDeliveryMode(mode);
+    onDeliveryModeChange?.(mode);
+  };
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [customerDataVersion, setCustomerDataVersion] = useState(0);

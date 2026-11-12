@@ -8,6 +8,7 @@ import {
   BatchFileItem,
   ConversionMode,
   DetailSJExportScope,
+  SalesDeliveryMode,
 } from './types';
 import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
 import {
@@ -32,6 +33,8 @@ import {
   exportCombinedMasterWorkbook,
   downloadAllDetailSJAsZip,
   exportCombinedDetailSJMasterWorkbook,
+  downloadAllSalesOrderAsZip,
+  exportCombinedSalesOrderMasterWorkbook,
 } from './utils/batchConverter';
 import { haptic } from './utils/haptics';
 import { UploadDualContainer } from './components/UploadDualContainer';
@@ -64,8 +67,9 @@ import confetti from 'canvas-confetti';
 
 export default function App() {
   const { t } = useLanguage();
-  // Active Conversion Mode ('NORMAL' = Mode 1 Rekap Total per PO, 'DETAIL_SJ' = Mode 2 Rekap Detail Kiriman per Surat Jalan)
+  // Active Conversion Mode ('NORMAL' = Mode 1 Rekap Total per PO, 'DETAIL_SJ' = Mode 2 Rekap Detail Kiriman per Surat Jalan, 'SALES_ORDER' = Mode 3 Rekap Sales)
   const [conversionMode, setConversionMode] = useState<ConversionMode>('NORMAL');
+  const [salesDeliveryMode, setSalesDeliveryMode] = useState<SalesDeliveryMode>('FALLBACK_DETAIL_SJ');
 
   // All converted files state
   const [convertedFiles, setConvertedFiles] = useState<ConvertedFileItem[]>([]);
@@ -354,7 +358,9 @@ export default function App() {
         excelBlob: f.excelBlob,
         outputFileName: f.outputFileName,
       }));
-      if (conversionMode === 'DETAIL_SJ') {
+      if (conversionMode === 'SALES_ORDER') {
+        await downloadAllSalesOrderAsZip(items, 'ALL', true, salesDeliveryMode);
+      } else if (conversionMode === 'DETAIL_SJ') {
         await downloadAllDetailSJAsZip(items, 'ALL');
       } else {
         await downloadAllAsZip(items);
@@ -367,9 +373,11 @@ export default function App() {
         colors: ['#25D366', '#FF6B35', '#141414'],
       });
       setStatusMessage(
-        conversionMode === 'DETAIL_SJ'
+        conversionMode === 'SALES_ORDER'
+          ? `Berhasil mengunduh ZIP Rekap Sales (.xlsx) untuk ${convertedFiles.length} file.`
+          : conversionMode === 'DETAIL_SJ'
           ? `Berhasil mengunduh ZIP Rekap Detail SJ untuk ${convertedFiles.length} file.`
-          : `Berhasil mengunduh zip untuk ${convertedFiles.length} file.`
+          : `Berhasil mengunduh ZIP Rekap PO untuk ${convertedFiles.length} file.`
       );
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
@@ -397,7 +405,9 @@ export default function App() {
         excelBlob: f.excelBlob,
         outputFileName: f.outputFileName,
       }));
-      if (conversionMode === 'DETAIL_SJ') {
+      if (conversionMode === 'SALES_ORDER') {
+        exportCombinedSalesOrderMasterWorkbook(items, 'ALL', true, salesDeliveryMode);
+      } else if (conversionMode === 'DETAIL_SJ') {
         exportCombinedDetailSJMasterWorkbook(items, 'ALL');
       } else {
         exportCombinedMasterWorkbook(items);
@@ -410,9 +420,11 @@ export default function App() {
         colors: ['#10b981', '#FF6B35', '#141414'],
       });
       setStatusMessage(
-        conversionMode === 'DETAIL_SJ'
-          ? 'Berhasil membuat Master Excel Gabungan Detail Kiriman SJ.'
-          : 'Berhasil membuat Master Excel Gabungan.'
+        conversionMode === 'SALES_ORDER'
+          ? 'Berhasil membuat Master Excel Gabungan Rekap Sales beserta Tab Sheet Summary.'
+          : conversionMode === 'DETAIL_SJ'
+          ? 'Berhasil membuat Master Excel Gabungan Detail Kiriman SJ beserta Tab Sheet Summary.'
+          : 'Berhasil membuat Master Excel Gabungan Rekap PO beserta Tab Sheet Summary.'
       );
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
@@ -649,7 +661,9 @@ export default function App() {
                   exportSalesOrderToExcel(
                     data,
                     'ALL',
-                    getSalesOrderExportFileName(currentFileName, 'ALL')
+                    getSalesOrderExportFileName(currentFileName, 'ALL', true, salesDeliveryMode),
+                    true,
+                    salesDeliveryMode
                   );
                   setStatusMessage('Berhasil mengekspor format Rekap Sales (.xlsx).');
                 } else if (conversionMode === 'DETAIL_SJ') {
@@ -666,6 +680,7 @@ export default function App() {
               onReset={handleReset}
               isZipping={isZipping}
               isMerging={isMerging}
+              conversionMode={conversionMode}
             />
 
             {/* MODE 1: REKAP PO (NORMAL) */}
@@ -726,6 +741,8 @@ export default function App() {
                 data={data}
                 fileName={currentFileName}
                 onShareStatus={(msg) => setStatusMessage(msg)}
+                deliveryMode={salesDeliveryMode}
+                onDeliveryModeChange={setSalesDeliveryMode}
               />
             )}
           </div>
