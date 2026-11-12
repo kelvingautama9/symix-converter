@@ -20,6 +20,7 @@ import {
   getDeliveryStatusTag,
   calculateOrderAgingDetails,
 } from './agingUtils';
+import { resolveCustomerInfo } from './customerManager';
 
 /**
  * Detect CO Status from CO string (e.g., "18H6941 5 C" -> CLOSED, "18H8550 1 O" -> OPEN)
@@ -1483,6 +1484,9 @@ export function flattenSalesOrderRows(
       ? 1
       : Math.max(rawSchedules.length, realDeliveries.length, 1);
 
+    // Resolve Customer Name and Code from Artikel
+    const custInfo = resolveCustomerInfo(po.Artikel || '', po.customerName);
+
     for (let rowIdx = 0; rowIdx < maxRows; rowIdx++) {
       const isFirst = rowIdx === 0;
 
@@ -1562,6 +1566,8 @@ export function flattenSalesOrderRows(
       flatRows.push({
         id: `${poRecId}_row_${rowIdx + 1}`,
         poRecordId: poRecId,
+        customerName: isFirst ? custInfo.customerName : '',
+        customerCode: custInfo.customerCode,
         coNumber: po.CO || '-',
         coStatus: po.coStatus || 'UNKNOWN',
         noPO: isFirst ? cleanNoPO : '',

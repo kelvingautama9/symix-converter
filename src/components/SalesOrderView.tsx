@@ -31,7 +31,13 @@ import {
   ChevronDown,
   ArrowUpDown,
   ArrowDownAZ,
+  Users,
 } from 'lucide-react';
+import { CustomerDataModal } from './CustomerDataModal';
+import {
+  getCustomerMappings,
+  extractCustomerCodeFromArtikel,
+} from '../utils/customerManager';
 
 interface SalesOrderViewProps {
   data: ExtractedRecord[];
@@ -47,6 +53,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [coFilter, setCoFilter] = useState<'ALL' | 'OPEN' | 'CLOSED'>('ALL');
   const [fluteFilter, setFluteFilter] = useState<string>('ALL');
+  const [customerFilter, setCustomerFilter] = useState<string>('ALL');
   const [substanceK200Filter, setSubstanceK200Filter] = useState<
     'ALL' | 'K200_ALL' | 'K200_SW' | 'K200_DW' | 'NON_K200'
   >('ALL');
@@ -54,6 +61,17 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   const [sortByPoAsc, setSortByPoAsc] = useState<boolean>(true);
   const [deliveryMode, setDeliveryMode] = useState<SalesDeliveryMode>('FALLBACK_DETAIL_SJ');
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  const [customerDataVersion, setCustomerDataVersion] = useState(0);
+
+  // Listen to customer data updates from modal / localStorage
+  React.useEffect(() => {
+    const handleUpdate = () => {
+      setCustomerDataVersion((v) => v + 1);
+    };
+    window.addEventListener('customer-data-updated', handleUpdate);
+    return () => window.removeEventListener('customer-data-updated', handleUpdate);
+  }, []);
 
   // Customer Name extracted from data
   const customerName = useMemo(() => {
@@ -62,10 +80,38 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     return found?.customerName ? found.customerName.toUpperCase() : 'PURBAYASA';
   }, [data]);
 
-  // Flattened Sales Rows from parser engine (with natural alphanumeric sorting and delivery mode support)
+  // Flattened Sales Rows from parser engine (with natural alphanumeric sorting, delivery mode, and customer version support)
   const allSalesRows = useMemo(() => {
+    // Note: customerDataVersion is used in deps to re-flatten with newest customer names
     return flattenSalesOrderRows(data, 'ALL', sortByPoAsc, deliveryMode);
-  }, [data, sortByPoAsc, deliveryMode]);
+  }, [data, sortByPoAsc, deliveryMode, customerDataVersion]);
+
+  // List of unique Customers found in current dataset
+  const availableCustomers = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; count: number }>();
+    allSalesRows.forEach((r) => {
+      const name = r.customerName || 'CUSTOMER';
+      const code = r.customerCode || '-';
+      if (!map.has(name)) {
+        map.set(name, { code, name, count: 0 });
+      }
+      map.get(name)!.count += 1;
+    });
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [allSalesRows, customerDataVersion]);
+
+  // Detected customer codes from articles that are not yet in Data Customer
+  const unregisteredCustomerCodes = useMemo(() => {
+    const mappings = getCustomerMappings();
+    const knownCodes = new Set(mappings.map((m) => m.code.toUpperCase()));
+    const unknown = new Set<string>();
+    allSalesRows.forEach((r) => {
+      if (r.customerCode && r.customerCode !== '-' && !knownCodes.has(r.customerCode.toUpperCase())) {
+        unknown.add(r.customerCode.toUpperCase());
+      }
+    });
+    return Array.from(unknown);
+  }, [allSalesRows, customerDataVersion]);
 
   // Available Flute types present in this dataset
   const availableFlutes = useMemo(() => {
@@ -78,9 +124,18 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     return Array.from(set).sort();
   }, [allSalesRows]);
 
-  // Filtered rows based on Search, CO Status, Flute, and Substance K200
+  // Filtered rows based on Search, Customer, CO Status, Flute, and Substance K200
   const filteredRows = useMemo(() => {
     return allSalesRows.filter((r) => {
+      // Customer filter
+      if (customerFilter !== 'ALL') {
+        const rowCustName = (r.customerName || '').toUpperCase();
+        const rowCustCode = (r.customerCode || '').toUpperCase();
+        if (rowCustName !== customerFilter.toUpperCase() && rowCustCode !== customerFilter.toUpperCase()) {
+          return false;
+        }
+      }
+
       // CO filter
       if (coFilter === 'OPEN' && r.coStatus !== 'OPEN') return false;
       if (coFilter === 'CLOSED' && r.coStatus !== 'CLOSED') return false;
@@ -101,6 +156,8 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
         const match =
+          (r.customerName && r.customerName.toLowerCase().includes(query)) ||
+          (r.customerCode && r.customerCode.toLowerCase().includes(query)) ||
           r.noPO.toLowerCase().includes(query) ||
           r.artikel.toLowerCase().includes(query) ||
           r.itemName.toLowerCase().includes(query) ||
@@ -115,7 +172,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
 
       return true;
     });
-  }, [allSalesRows, coFilter, fluteFilter, substanceK200Filter, searchTerm]);
+  }, [allSalesRows, customerFilter, coFilter, fluteFilter, substanceK200Filter, searchTerm]);
 
   // Totals computed from the filtered set
   const totals = useMemo(() => {
@@ -616,6 +673,28 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               >
                 {highlightK200 ? 'ON' : 'OFF'}
               </span>
+            </button>
+
+            {/* Tombol Data Customer (CRUD Kode & Nama Customer) */}
+            <button
+              type="button"
+              onClick={() => {
+                haptic.selection();
+                setIsCustomerModalOpen(true);
+              }}
+              className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs group"
+              title="Buka Data Customer untuk Tambah, Edit, dan Hapus pemetaan kode customer"
+            >
+              <Users className="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition-transform" />
+              <span>Data Customer</span>
+              {unregisteredCustomerCodes.length > 0 && (
+                <span
+                  className="px-1.5 py-0.2 rounded-full text-[10px] font-bold font-mono bg-amber-100 text-amber-800 border border-amber-300 animate-pulse"
+                  title={`${unregisteredCustomerCodes.length} kode customer pada artikel belum terdaftar`}
+                >
+                  +{unregisteredCustomerCodes.length}
+                </span>
+              )}
             </button>
 
             {/* Sort Order Toggle Button */}
@@ -1512,9 +1591,49 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             </div>
           )}
         </div>
+
+        {/* Customer Filter Pills (jika ada lebih dari 1 customer pada file gabungan) */}
+        {availableCustomers.length > 1 && (
+          <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 text-xs overflow-x-auto py-0.5">
+            <span className="text-[11px] font-medium text-slate-400 shrink-0 flex items-center gap-1">
+              <Building2 className="w-3 h-3 text-slate-400" />
+              Customer:
+            </span>
+            <button
+              type="button"
+              onClick={() => setCustomerFilter('ALL')}
+              className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors shrink-0 ${
+                customerFilter === 'ALL'
+                  ? 'bg-slate-900 text-white shadow-2xs'
+                  : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+              }`}
+            >
+              Semua Customer ({availableCustomers.length})
+            </button>
+            {availableCustomers.map((c) => (
+              <button
+                key={c.name}
+                type="button"
+                onClick={() => setCustomerFilter(c.name)}
+                className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors shrink-0 inline-flex items-center gap-1 ${
+                  customerFilter === c.name
+                    ? 'bg-blue-600 text-white shadow-2xs'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                <span>{c.name}</span>
+                <span className={`text-[9px] font-mono px-1 py-0.2 rounded ${
+                  customerFilter === c.name ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {c.count}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Main 18-Column Table matching Sales Order Schema */}
+      {/* Main Table matching Sales Order Schema */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto max-h-[70vh]">
           <table className="w-full text-xs text-left border-collapse border border-slate-300">
@@ -1522,6 +1641,16 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <thead className="bg-slate-100 text-slate-800 font-bold sticky top-0 z-20 select-none shadow-xs">
               {/* Row 1 of Header */}
               <tr>
+                {/* Kolom A: Customers */}
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-left font-bold tracking-tight bg-slate-100 min-w-[150px] text-slate-900 select-none"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-slate-600" />
+                    <span>Customers</span>
+                  </div>
+                </th>
                 <th
                   rowSpan={2}
                   onClick={() => {
@@ -1688,7 +1817,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               {filteredRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={deliveryMode === 'TOTAL_ACCUMULATION' ? 16 : 20}
+                    colSpan={deliveryMode === 'TOTAL_ACCUMULATION' ? 17 : 21}
                     className="px-4 py-12 text-center text-slate-400"
                   >
                     Tidak ada data yang sesuai dengan pencarian atau filter.
@@ -1719,6 +1848,21 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                       key={r.id}
                       className={`transition-colors ${rowBgClass}`}
                     >
+                      {/* 0. Customers (Kolom A) */}
+                      <td className="px-3 py-2 border border-slate-200 font-semibold text-slate-800">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{r.customerName || customerName}</span>
+                          {r.customerCode && r.customerCode !== '-' && (
+                            <span
+                              className="text-[10px] px-1.5 py-0.2 rounded font-mono font-medium bg-slate-100 text-slate-600 border border-slate-200"
+                              title={`Kode Customer: ${r.customerCode}`}
+                            >
+                              {r.customerCode}
+                            </span>
+                          )}
+                        </div>
+                      </td>
+
                       {/* 1. NO PO */}
                       <td className="px-3 py-2 border border-slate-200 font-medium text-slate-900">
                         {r.noPO ? (
@@ -1882,7 +2026,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <tfoot className="sticky bottom-0 z-10 border-t-2 border-slate-300 shadow-md">
               <tr className="bg-slate-100 font-bold text-slate-900 text-xs">
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-3 py-2.5 border border-slate-300 text-center font-bold tracking-wider uppercase text-slate-800"
                 >
                   GRAND TOTAL REKAPITULASI SALES ({totals.totalPos} NO PO / {totals.totalArtikels} ARTIKEL)
@@ -1934,6 +2078,14 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
           </table>
         </div>
       </div>
+
+      {/* Modal Manajemen "Data Customer" */}
+      <CustomerDataModal
+        isOpen={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
+        unregisteredCodes={unregisteredCustomerCodes}
+        onDataChanged={() => setCustomerDataVersion((v) => v + 1)}
+      />
     </div>
   );
 };

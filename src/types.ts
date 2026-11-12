@@ -180,6 +180,8 @@ export type K200Classification = 'K200_SW' | 'K200_DW' | 'NON_K200';
 export interface SalesOrderRow {
   id: string;
   poRecordId: string;
+  customerName?: string;
+  customerCode?: string;
   coNumber: string;
   coStatus: CoStatus;
   noPO: string;
