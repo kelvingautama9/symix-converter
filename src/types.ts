@@ -57,6 +57,8 @@ export interface ExtractedRecord {
   scheduleQty?: number;
   schedules?: DeliveryScheduleRecord[];
   customerName?: string;
+  sourceFileName?: string;
+  _sourceFileName?: string;
   deliveries?: DeliveryRecord[];
   _has_delivery?: boolean;
   _parentIndex?: number;
@@ -180,6 +182,7 @@ export type K200Classification = 'K200_SW' | 'K200_DW' | 'NON_K200';
 export interface SalesOrderRow {
   id: string;
   poRecordId: string;
+  sourceFileName?: string;
   customerName?: string;
   customerCode?: string;
   coNumber: string;

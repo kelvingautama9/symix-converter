@@ -1566,7 +1566,8 @@ export function flattenSalesOrderRows(
       flatRows.push({
         id: `${poRecId}_row_${rowIdx + 1}`,
         poRecordId: poRecId,
-        customerName: isFirst ? custInfo.customerName : '',
+        sourceFileName: po.sourceFileName || '',
+        customerName: custInfo.customerName,
         customerCode: custInfo.customerCode,
         coNumber: po.CO || '-',
         coStatus: po.coStatus || 'UNKNOWN',
@@ -1721,6 +1722,14 @@ export function parseExcelBuffer(
   const rawRows: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
   const finalData = extractDataWithPoQty(rawRows);
+  const cleanFileName = (fileName || '').replace(/\.[^/.]+$/, '').trim();
+  if (cleanFileName) {
+    finalData.forEach((d) => {
+      if (!d.sourceFileName) {
+        d.sourceFileName = cleanFileName;
+      }
+    });
+  }
 
   // Compute summary metrics (distinguishing Total Baris PO-Item vs Total Nomor PO Unik)
   const uniqueItems = new Set(finalData.map((d) => d.Artikel)).size;

@@ -1095,7 +1095,13 @@ export function exportCombinedSalesOrderMasterWorkbook(
 
   validItems.forEach((item, fIdx) => {
     if (!item.data) return;
-    allCombinedData.push(...item.data);
+    const cleanSource = (item.rawFileName || `File_${fIdx + 1}`).replace(/\.[^/.]+$/, '').trim();
+    const taggedData = item.data.map((rec) => ({
+      ...rec,
+      sourceFileName: cleanSource,
+      _sourceFileName: cleanSource,
+    }));
+    allCombinedData.push(...taggedData);
 
     const rows = flattenSalesOrderRows(item.data, scope, sortByPoAsc, deliveryMode);
     const uniquePos = new Set<string>();
@@ -1213,7 +1219,8 @@ export function exportCombinedSalesOrderMasterWorkbook(
     'GABUNGAN SEMUA CUSTOMER',
     sortByPoAsc,
     deliveryMode,
-    true // isCombinedMaster = true (Includes Customers column in Column A)
+    true, // includeCustomerColumn = true
+    true // includeSourceFileColumn = true (Adds 'Sumber File' column in Column A)
   );
   XLSX.utils.book_append_sheet(workbook, masterWs, 'MASTER_GABUNGAN_SALES');
 
@@ -1238,7 +1245,8 @@ export function exportCombinedSalesOrderMasterWorkbook(
       fileCustName,
       sortByPoAsc,
       deliveryMode,
-      false // isCombinedMaster = false (No Customers column in Column A)
+      true, // includeCustomerColumn = true (Customers column in Column A before No PO)
+      false // includeSourceFileColumn = false (Single file sheet doesn't need redundant source file column)
     );
     XLSX.utils.book_append_sheet(workbook, fileWs, sheetName);
   });

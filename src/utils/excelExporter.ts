@@ -1520,8 +1520,9 @@ export function getSalesOrderExportFileName(
 
 /**
  * Builds the Rekap Order Sales worksheet with 2-tier headers matching user specification.
- * - When isCombinedMaster = true: Column A is Customers (16 cols total in Total Accumulation, 20 in Fallback).
- * - When isCombinedMaster = false: Column A is NO PO (15 cols total in Total Accumulation, 19 in Fallback).
+ * - When includeSourceFileColumn = true: Column A is Sumber File, Column B is Customers (17 cols in Total Accumulation, 21 in Fallback).
+ * - When isCombinedMaster = true (and includeSourceFileColumn = false): Column A is Customers (16 cols in Total Accumulation, 20 in Fallback).
+ * - When both false: Column A is NO PO (15 cols in Total Accumulation, 19 in Fallback).
  * - Row 1 has Size header merged over P & L, Row 2 has column titles, Row 3 starts data rows.
  */
 export function buildSalesOrderWorksheet(
@@ -1530,45 +1531,144 @@ export function buildSalesOrderWorksheet(
   customerTitle?: string,
   sortByPoAsc: boolean = false,
   deliveryMode: SalesDeliveryMode = 'FALLBACK_DETAIL_SJ',
-  isCombinedMaster: boolean = false
+  includeCustomerColumn: boolean = true,
+  includeSourceFileColumn: boolean = false
 ): XLSX.WorkSheet {
+  const isCombinedMaster = includeCustomerColumn;
   const isTotalAccumulation = deliveryMode === 'TOTAL_ACCUMULATION';
   const flatRows = flattenSalesOrderRows(data, scope, sortByPoAsc, deliveryMode);
 
   const sheetData: any[][] = [];
 
   // Define dynamic column letters
-  const colSub = isCombinedMaster ? 'C' : 'B';
-  const colFlu = isCombinedMaster ? 'D' : 'C';
-  const colQtyPcs = isCombinedMaster ? 'I' : 'H';
-  const colQtyKg = isCombinedMaster ? 'J' : 'I';
+  let colSub: string;
+  let colFlu: string;
+  let colQtyPcs: string;
+  let colQtyKg: string;
+  let colPlanPcs: string;
+  let colPlanKg: string;
+  let colDelivPcs: string;
+  let colDelivKg: string;
+  let colHarga: string;
+  let totalCols: number;
+  let labelColSpan: number;
 
-  const colPlanPcs = isTotalAccumulation
-    ? (isCombinedMaster ? 'K' : 'J')
-    : (isCombinedMaster ? 'L' : 'K');
-  const colPlanKg = isTotalAccumulation
-    ? (isCombinedMaster ? 'L' : 'K')
-    : (isCombinedMaster ? 'M' : 'L');
-  const colDelivPcs = isTotalAccumulation
-    ? (isCombinedMaster ? 'M' : 'L')
-    : (isCombinedMaster ? 'Q' : 'P');
-  const colDelivKg = isTotalAccumulation
-    ? (isCombinedMaster ? 'N' : 'M')
-    : (isCombinedMaster ? 'R' : 'Q');
-  const colHarga = isTotalAccumulation
-    ? (isCombinedMaster ? 'O' : 'N')
-    : (isCombinedMaster ? 'S' : 'R');
+  if (includeSourceFileColumn) {
+    // Column A: Sumber File, Column B: Customers, Column C: NO PO
+    colSub = 'D';
+    colFlu = 'E';
+    colQtyPcs = 'J';
+    colQtyKg = 'K';
 
-  const totalCols = isTotalAccumulation
-    ? (isCombinedMaster ? 16 : 15)
-    : (isCombinedMaster ? 20 : 19);
+    if (isTotalAccumulation) {
+      colPlanPcs = 'L';
+      colPlanKg = 'M';
+      colDelivPcs = 'N';
+      colDelivKg = 'O';
+      colHarga = 'P';
+      totalCols = 17;
+    } else {
+      colPlanPcs = 'M';
+      colPlanKg = 'N';
+      colDelivPcs = 'R';
+      colDelivKg = 'S';
+      colHarga = 'T';
+      totalCols = 21;
+    }
+    labelColSpan = 9; // Cols A through I (indices 0..8)
+  } else if (isCombinedMaster) {
+    // Column A: Customers, Column B: NO PO
+    colSub = 'C';
+    colFlu = 'D';
+    colQtyPcs = 'I';
+    colQtyKg = 'J';
+
+    if (isTotalAccumulation) {
+      colPlanPcs = 'K';
+      colPlanKg = 'L';
+      colDelivPcs = 'M';
+      colDelivKg = 'N';
+      colHarga = 'O';
+      totalCols = 16;
+    } else {
+      colPlanPcs = 'L';
+      colPlanKg = 'M';
+      colDelivPcs = 'Q';
+      colDelivKg = 'R';
+      colHarga = 'S';
+      totalCols = 20;
+    }
+    labelColSpan = 8; // Cols A through H (indices 0..7)
+  } else {
+    // Column A: NO PO
+    colSub = 'B';
+    colFlu = 'C';
+    colQtyPcs = 'H';
+    colQtyKg = 'I';
+
+    if (isTotalAccumulation) {
+      colPlanPcs = 'J';
+      colPlanKg = 'K';
+      colDelivPcs = 'L';
+      colDelivKg = 'M';
+      colHarga = 'N';
+      totalCols = 15;
+    } else {
+      colPlanPcs = 'K';
+      colPlanKg = 'L';
+      colDelivPcs = 'P';
+      colDelivKg = 'Q';
+      colHarga = 'R';
+      totalCols = 19;
+    }
+    labelColSpan = 7; // Cols A through G (indices 0..6)
+  }
 
   // Row 1 & Row 2: 2-Tier Table Header Rows
   // In Excel vertical merge (Row 1:Row 2), Excel displays the value of the top cell (Row 1).
   // Therefore, all column titles are placed in Row 1, with 'Size' spanning P & L.
   // Row 2 only contains 'P' and 'L' under the Size column, while other cells are blank for the vertical merge.
   if (isTotalAccumulation) {
-    if (isCombinedMaster) {
+    if (includeSourceFileColumn) {
+      sheetData.push([
+        'Sumber File',
+        'Customers',
+        'NO PO',
+        'Substance',
+        'Flute',
+        'Size',
+        '', // Merged with F for Size
+        'Artikel',
+        'Item Name',
+        'Qty (Pcs)',
+        'Qty (Kg)',
+        'Qty Planning',
+        'Kg Planning',
+        'Qty Delivery',
+        'Kg Delivery',
+        'Harga',
+        'Rp/Kg',
+      ]);
+      sheetData.push([
+        '',
+        '',
+        '',
+        '',
+        '',
+        'P',
+        'L',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+    } else if (isCombinedMaster) {
       sheetData.push([
         'Customers',
         'NO PO',
@@ -1643,7 +1743,54 @@ export function buildSalesOrderWorksheet(
     }
   } else {
     // Mode Detail per SJ (Fallback)
-    if (isCombinedMaster) {
+    if (includeSourceFileColumn) {
+      sheetData.push([
+        'Sumber File',
+        'Customers',
+        'NO PO',
+        'Substance',
+        'Flute',
+        'Size',
+        '', // Merged with F for Size
+        'Artikel',
+        'Item Name',
+        'Qty (Pcs)',
+        'Qty (Kg)',
+        'Planning Date',
+        'Qty Planning',
+        'Kg Planning',
+        'Remarks',
+        'Actual Delivery Date',
+        'No SJ',
+        'Qty Delivery',
+        'Kg Delivery',
+        'Harga',
+        'Rp/Kg',
+      ]);
+      sheetData.push([
+        '',
+        '',
+        '',
+        '',
+        '',
+        'P',
+        'L',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+        '',
+      ]);
+    } else if (isCombinedMaster) {
       sheetData.push([
         'Customers',
         'NO PO',
@@ -1870,10 +2017,37 @@ export function buildSalesOrderWorksheet(
           )
         : '';
 
+    const rowSourceFile = r.sourceFileName || '';
+    const rowCustomer =
+      r.customerName ||
+      (customerTitle && customerTitle !== 'GABUNGAN SEMUA CUSTOMER' ? customerTitle : '') ||
+      (data.length > 0 && data[0].customerName ? data[0].customerName : '') ||
+      '';
+
     if (isTotalAccumulation) {
-      if (isCombinedMaster) {
+      if (includeSourceFileColumn) {
         sheetData.push([
-          r.customerName || '',
+          rowSourceFile,
+          rowCustomer,
+          r.noPO,
+          r.substance,
+          r.flute,
+          r.sizeP !== '' ? r.sizeP : '',
+          r.sizeL !== '' ? r.sizeL : '',
+          r.artikel,
+          r.itemName,
+          r.qtyPcs !== '' ? r.qtyPcs : '',
+          r.qtyKg !== '' ? r.qtyKg : '',
+          r.qtyDelivery !== '' ? r.qtyDelivery : '',
+          r.kgDelivery !== '' ? r.kgDelivery : '',
+          r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
+          r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          hargaCell,
+          rpPerKgCell,
+        ]);
+      } else if (isCombinedMaster) {
+        sheetData.push([
+          rowCustomer,
           r.noPO,
           r.substance,
           r.flute,
@@ -1911,9 +2085,33 @@ export function buildSalesOrderWorksheet(
       }
     } else {
       // FALLBACK_DETAIL_SJ
-      if (isCombinedMaster) {
+      if (includeSourceFileColumn) {
         sheetData.push([
-          r.customerName || '',
+          rowSourceFile,
+          rowCustomer,
+          r.noPO,
+          r.substance,
+          r.flute,
+          r.sizeP !== '' ? r.sizeP : '',
+          r.sizeL !== '' ? r.sizeL : '',
+          r.artikel,
+          r.itemName,
+          r.qtyPcs !== '' ? r.qtyPcs : '',
+          r.qtyKg !== '' ? r.qtyKg : '',
+          r.deliveryDate,
+          r.qtyDelivery !== '' ? r.qtyDelivery : '',
+          r.kgDelivery !== '' ? r.kgDelivery : '',
+          r.remarks || '',
+          r.actualDeliveryDate || '',
+          r.noSJ || '',
+          r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
+          r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          hargaCell,
+          rpPerKgCell,
+        ]);
+      } else if (isCombinedMaster) {
+        sheetData.push([
+          rowCustomer,
           r.noPO,
           r.substance,
           r.flute,
@@ -1965,7 +2163,6 @@ export function buildSalesOrderWorksheet(
   // Grand Total Row
   const gtRowIndex = sheetData.length;
   const gtRow = gtRowIndex + 1;
-  const labelColSpan = isCombinedMaster ? 8 : 7; // Columns before Qty (Pcs)
 
   const gtRowData: any[] = Array(totalCols).fill('');
   gtRowData[0] = 'GRAND TOTAL ORDER & PENGIRIMAN';
@@ -2114,7 +2311,53 @@ export function buildSalesOrderWorksheet(
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
 
   // Column Widths
-  if (isCombinedMaster) {
+  if (includeSourceFileColumn) {
+    if (isTotalAccumulation) {
+      worksheet['!cols'] = [
+        { wch: 22 }, // A: Sumber File
+        { wch: 24 }, // B: Customers
+        { wch: 22 }, // C: NO PO
+        { wch: 20 }, // D: Substance
+        { wch: 10 }, // E: Flute
+        { wch: 10 }, // F: P
+        { wch: 10 }, // G: L
+        { wch: 20 }, // H: Artikel
+        { wch: 34 }, // I: Item Name
+        { wch: 14 }, // J: Qty (Pcs)
+        { wch: 14 }, // K: Qty (Kg)
+        { wch: 16 }, // L: Qty Planning
+        { wch: 16 }, // M: Kg Planning
+        { wch: 16 }, // N: Qty Delivery
+        { wch: 16 }, // O: Kg Delivery
+        { wch: 14 }, // P: Harga
+        { wch: 14 }, // Q: Rp/Kg
+      ];
+    } else {
+      worksheet['!cols'] = [
+        { wch: 22 }, // A: Sumber File
+        { wch: 24 }, // B: Customers
+        { wch: 22 }, // C: NO PO
+        { wch: 20 }, // D: Substance
+        { wch: 10 }, // E: Flute
+        { wch: 10 }, // F: P
+        { wch: 10 }, // G: L
+        { wch: 20 }, // H: Artikel
+        { wch: 34 }, // I: Item Name
+        { wch: 14 }, // J: Qty (Pcs)
+        { wch: 14 }, // K: Qty (Kg)
+        { wch: 16 }, // L: Planning Date
+        { wch: 16 }, // M: Qty Planning
+        { wch: 16 }, // N: Kg Planning
+        { wch: 18 }, // O: Remarks
+        { wch: 20 }, // P: Actual Delivery Date
+        { wch: 18 }, // Q: No SJ
+        { wch: 16 }, // R: Qty Delivery
+        { wch: 16 }, // S: Kg Delivery
+        { wch: 14 }, // T: Harga
+        { wch: 14 }, // U: Rp/Kg
+      ];
+    }
+  } else if (isCombinedMaster) {
     if (isTotalAccumulation) {
       worksheet['!cols'] = [
         { wch: 24 }, // A: Customers
@@ -2208,7 +2451,15 @@ export function buildSalesOrderWorksheet(
   const lastColIdx = totalCols - 1;
   const labelMergeEnd = labelColSpan - 1;
 
-  if (isCombinedMaster) {
+  if (includeSourceFileColumn) {
+    // Size is cols 5 & 6 (F1:G1)
+    merges.push({ s: { r: 0, c: 5 }, e: { r: 0, c: 6 } });
+    for (let c = 0; c < totalCols; c++) {
+      if (c !== 5 && c !== 6) {
+        merges.push({ s: { r: 0, c }, e: { r: 1, c } });
+      }
+    }
+  } else if (isCombinedMaster) {
     // Size is cols 4 & 5 (E1:F1)
     merges.push({ s: { r: 0, c: 4 }, e: { r: 0, c: 5 } });
     for (let c = 0; c < totalCols; c++) {
