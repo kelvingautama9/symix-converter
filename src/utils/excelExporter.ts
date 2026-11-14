@@ -2160,14 +2160,15 @@ export function buildSalesOrderWorksheet(
 
   const lastRow = Math.max(3, flatRows.length + 2);
 
+  const getColIdx = (letter: string) => letter.charCodeAt(0) - 'A'.charCodeAt(0);
+  const labelColIdx = labelColSpan - 1; // Kolom Item Name (tepat sebelum Qty Pcs)
+
   // Grand Total Row
   const gtRowIndex = sheetData.length;
   const gtRow = gtRowIndex + 1;
 
   const gtRowData: any[] = Array(totalCols).fill('');
-  gtRowData[0] = 'GRAND TOTAL ORDER & PENGIRIMAN';
-
-  const getColIdx = (letter: string) => letter.charCodeAt(0) - 'A'.charCodeAt(0);
+  gtRowData[labelColIdx] = 'GRAND TOTAL ORDER & PENGIRIMAN';
 
   gtRowData[getColIdx(colQtyPcs)] = fNum(`SUM(${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, sumQtyPcs, '#,##0');
   gtRowData[getColIdx(colQtyKg)] = fNum(`SUM(${colQtyKg}$3:${colQtyKg}$${lastRow})`, sumQtyKg, '#,##0');
@@ -2182,12 +2183,12 @@ export function buildSalesOrderWorksheet(
   sheetData.push([]);
   const kpiTitleIndex = sheetData.length;
   const kpiTitleRowData: any[] = Array(totalCols).fill('');
-  kpiTitleRowData[0] = 'TOTAL PO BERDASARKAN TIPE FLUTE (SW & DW)';
+  kpiTitleRowData[labelColIdx] = 'TOTAL PO BERDASARKAN TIPE FLUTE (SW & DW)';
   sheetData.push(kpiTitleRowData);
 
   const kpiHeaderIndex = sheetData.length;
   const kpiHeaderRowData: any[] = Array(totalCols).fill('');
-  kpiHeaderRowData[0] = 'KATEGORI FLUTE';
+  kpiHeaderRowData[labelColIdx] = 'KATEGORI FLUTE';
   kpiHeaderRowData[getColIdx(colQtyPcs)] = 'Qty PO (Pcs)';
   kpiHeaderRowData[getColIdx(colQtyKg)] = 'Qty PO (Kg)';
   kpiHeaderRowData[getColIdx(colPlanPcs)] = 'Qty Planning (Pcs)';
@@ -2199,7 +2200,7 @@ export function buildSalesOrderWorksheet(
   // SW Row
   const kpiSwIndex = sheetData.length;
   const kpiSwRowData: any[] = Array(totalCols).fill('');
-  kpiSwRowData[0] = '1. SINGLEWALL (Flute B, C, E)';
+  kpiSwRowData[labelColIdx] = '1. SINGLEWALL (Flute B, C, E)';
   kpiSwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colQtyPcs}$3:${colQtyPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colQtyPcs}$3:${colQtyPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, swQtyPcs, '#,##0');
   kpiSwRowData[getColIdx(colQtyKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colQtyKg}$3:${colQtyKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colQtyKg}$3:${colQtyKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyKg}$3:${colQtyKg}$${lastRow})`, swQtyKg, '#,##0');
   kpiSwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colPlanPcs}$3:${colPlanPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colPlanPcs}$3:${colPlanPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanPcs}$3:${colPlanPcs}$${lastRow})`, swQtyDelivery, '#,##0');
@@ -2211,7 +2212,7 @@ export function buildSalesOrderWorksheet(
   // DW Row
   const kpiDwIndex = sheetData.length;
   const kpiDwRowData: any[] = Array(totalCols).fill('');
-  kpiDwRowData[0] = '2. DOUBLEWALL (Flute BC)';
+  kpiDwRowData[labelColIdx] = '2. DOUBLEWALL (Flute BC)';
   kpiDwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, dwQtyPcs, '#,##0');
   kpiDwRowData[getColIdx(colQtyKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colQtyKg}$3:${colQtyKg}$${lastRow})`, dwQtyKg, '#,##0');
   kpiDwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colPlanPcs}$3:${colPlanPcs}$${lastRow})`, dwQtyDelivery, '#,##0');
@@ -2223,7 +2224,7 @@ export function buildSalesOrderWorksheet(
   // Khusus E Flute Row
   const kpiEFluteIndex = sheetData.length;
   const kpiEFluteRowData: any[] = Array(totalCols).fill('');
-  kpiEFluteRowData[0] = '3. KHUSUS E FLUTE';
+  kpiEFluteRowData[labelColIdx] = '3. KHUSUS E FLUTE';
   kpiEFluteRowData[getColIdx(colQtyPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyPcs}$3:${colQtyPcs}$${lastRow})`, eFluteQtyPcs, '#,##0');
   kpiEFluteRowData[getColIdx(colQtyKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colQtyKg}$3:${colQtyKg}$${lastRow})`, eFluteQtyKg, '#,##0');
   kpiEFluteRowData[getColIdx(colPlanPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanPcs}$3:${colPlanPcs}$${lastRow})`, eFluteQtyDelivery, '#,##0');
@@ -2236,12 +2237,12 @@ export function buildSalesOrderWorksheet(
   sheetData.push([]);
   const k200TitleIndex = sheetData.length;
   const k200TitleRowData: any[] = Array(totalCols).fill('');
-  k200TitleRowData[0] = 'TOTAL ORDER SUBSTANCE K200 (SW & DW)';
+  k200TitleRowData[labelColIdx] = 'TOTAL ORDER SUBSTANCE K200 (SW & DW)';
   sheetData.push(k200TitleRowData);
 
   const k200HeaderIndex = sheetData.length;
   const k200HeaderRowData: any[] = Array(totalCols).fill('');
-  k200HeaderRowData[0] = 'KATEGORI SUBSTANCE K200';
+  k200HeaderRowData[labelColIdx] = 'KATEGORI SUBSTANCE K200';
   k200HeaderRowData[getColIdx(colQtyPcs)] = 'Qty PO (Pcs)';
   k200HeaderRowData[getColIdx(colQtyKg)] = 'Qty PO (Kg)';
   k200HeaderRowData[getColIdx(colPlanPcs)] = 'Qty Planning (Pcs)';
@@ -2254,7 +2255,7 @@ export function buildSalesOrderWorksheet(
   const k200SwIndex = sheetData.length;
   const k200SwExcelRow = k200SwIndex + 1;
   const k200SwRowData: any[] = Array(totalCols).fill('');
-  k200SwRowData[0] = '1. K200 SW (Flute B, C, E)';
+  k200SwRowData[labelColIdx] = '1. K200 SW (Flute B, C, E)';
   k200SwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwQtyPcs, '#,##0');
   k200SwRowData[getColIdx(colQtyKg)] = fNum(`SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwQtyKg, '#,##0');
   k200SwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwQtyDelivery, '#,##0');
@@ -2267,7 +2268,7 @@ export function buildSalesOrderWorksheet(
   const k200DwIndex = sheetData.length;
   const k200DwExcelRow = k200DwIndex + 1;
   const k200DwRowData: any[] = Array(totalCols).fill('');
-  k200DwRowData[0] = '2. K200 DW (Flute BC)';
+  k200DwRowData[labelColIdx] = '2. K200 DW (Flute BC)';
   k200DwRowData[getColIdx(colQtyPcs)] = fNum(`SUMIFS(${colQtyPcs}$3:${colQtyPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwQtyPcs, '#,##0');
   k200DwRowData[getColIdx(colQtyKg)] = fNum(`SUMIFS(${colQtyKg}$3:${colQtyKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwQtyKg, '#,##0');
   k200DwRowData[getColIdx(colPlanPcs)] = fNum(`SUMIFS(${colPlanPcs}$3:${colPlanPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwQtyDelivery, '#,##0');
@@ -2287,7 +2288,7 @@ export function buildSalesOrderWorksheet(
   const k200TotalActualKgDelivery = k200SwActualKgDelivery + k200DwActualKgDelivery;
 
   const k200SubtotalRowData: any[] = Array(totalCols).fill('');
-  k200SubtotalRowData[0] = 'SUBTOTAL ORDER K200 (SW & DW)';
+  k200SubtotalRowData[labelColIdx] = 'SUBTOTAL ORDER K200 (SW & DW)';
   k200SubtotalRowData[getColIdx(colQtyPcs)] = fNum(`${colQtyPcs}${k200SwExcelRow}+${colQtyPcs}${k200DwExcelRow}`, k200TotalQtyPcs, '#,##0');
   k200SubtotalRowData[getColIdx(colQtyKg)] = fNum(`${colQtyKg}${k200SwExcelRow}+${colQtyKg}${k200DwExcelRow}`, k200TotalQtyKg, '#,##0');
   k200SubtotalRowData[getColIdx(colPlanPcs)] = fNum(`${colPlanPcs}${k200SwExcelRow}+${colPlanPcs}${k200DwExcelRow}`, k200TotalQtyDelivery, '#,##0');
@@ -2299,7 +2300,7 @@ export function buildSalesOrderWorksheet(
   // Non-K200 Row
   const nonK200Index = sheetData.length;
   const nonK200RowData: any[] = Array(totalCols).fill('');
-  nonK200RowData[0] = '3. SUBSTANCE NON-K200 (Substance Lainnya)';
+  nonK200RowData[labelColIdx] = '3. SUBSTANCE NON-K200 (Substance Lainnya)';
   nonK200RowData[getColIdx(colQtyPcs)] = fNum(`${colQtyPcs}${gtRow}-${colQtyPcs}${k200SubtotalExcelRow}`, nonK200QtyPcs, '#,##0');
   nonK200RowData[getColIdx(colQtyKg)] = fNum(`${colQtyKg}${gtRow}-${colQtyKg}${k200SubtotalExcelRow}`, nonK200QtyKg, '#,##0');
   nonK200RowData[getColIdx(colPlanPcs)] = fNum(`${colPlanPcs}${gtRow}-${colPlanPcs}${k200SubtotalExcelRow}`, nonK200QtyDelivery, '#,##0');
@@ -2322,7 +2323,7 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // F: P
         { wch: 10 }, // G: L
         { wch: 20 }, // H: Artikel
-        { wch: 34 }, // I: Item Name
+        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
         { wch: 14 }, // J: Qty (Pcs)
         { wch: 14 }, // K: Qty (Kg)
         { wch: 16 }, // L: Qty Planning
@@ -2342,7 +2343,7 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // F: P
         { wch: 10 }, // G: L
         { wch: 20 }, // H: Artikel
-        { wch: 34 }, // I: Item Name
+        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
         { wch: 14 }, // J: Qty (Pcs)
         { wch: 14 }, // K: Qty (Kg)
         { wch: 16 }, // L: Planning Date
@@ -2367,7 +2368,7 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // E: P
         { wch: 10 }, // F: L
         { wch: 20 }, // G: Artikel
-        { wch: 34 }, // H: Item Name
+        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
         { wch: 14 }, // I: Qty (Pcs)
         { wch: 14 }, // J: Qty (Kg)
         { wch: 16 }, // K: Qty Planning
@@ -2386,7 +2387,7 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // E: P
         { wch: 10 }, // F: L
         { wch: 20 }, // G: Artikel
-        { wch: 34 }, // H: Item Name
+        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
         { wch: 14 }, // I: Qty (Pcs)
         { wch: 14 }, // J: Qty (Kg)
         { wch: 16 }, // K: Planning Date
@@ -2411,7 +2412,7 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // D: P
         { wch: 10 }, // E: L
         { wch: 20 }, // F: Artikel
-        { wch: 34 }, // G: Item Name
+        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
         { wch: 14 }, // H: Qty (Pcs)
         { wch: 14 }, // I: Qty (Kg)
         { wch: 16 }, // J: Qty Planning
@@ -2429,7 +2430,7 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // D: P
         { wch: 10 }, // E: L
         { wch: 20 }, // F: Artikel
-        { wch: 34 }, // G: Item Name
+        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
         { wch: 14 }, // H: Qty (Pcs)
         { wch: 14 }, // I: Qty (Kg)
         { wch: 16 }, // J: Planning Date
@@ -2446,10 +2447,8 @@ export function buildSalesOrderWorksheet(
     }
   }
 
-  // Merges
+  // Merges (hanya untuk 2-tier table header; baris Grand Total & Ringkasan tidak di-merge agar sejajar rapi di kolom Item Name)
   const merges: XLSX.Range[] = [];
-  const lastColIdx = totalCols - 1;
-  const labelMergeEnd = labelColSpan - 1;
 
   if (includeSourceFileColumn) {
     // Size is cols 5 & 6 (F1:G1)
@@ -2476,24 +2475,6 @@ export function buildSalesOrderWorksheet(
       }
     }
   }
-
-  // Grand Total label merge
-  merges.push({ s: { r: gtRowIndex, c: 0 }, e: { r: gtRowIndex, c: labelMergeEnd } });
-
-  // KPI Flute merges
-  merges.push({ s: { r: kpiTitleIndex, c: 0 }, e: { r: kpiTitleIndex, c: lastColIdx } });
-  merges.push({ s: { r: kpiHeaderIndex, c: 0 }, e: { r: kpiHeaderIndex, c: labelMergeEnd } });
-  merges.push({ s: { r: kpiSwIndex, c: 0 }, e: { r: kpiSwIndex, c: labelMergeEnd } });
-  merges.push({ s: { r: kpiDwIndex, c: 0 }, e: { r: kpiDwIndex, c: labelMergeEnd } });
-  merges.push({ s: { r: kpiEFluteIndex, c: 0 }, e: { r: kpiEFluteIndex, c: labelMergeEnd } });
-
-  // KPI K200 merges
-  merges.push({ s: { r: k200TitleIndex, c: 0 }, e: { r: k200TitleIndex, c: lastColIdx } });
-  merges.push({ s: { r: k200HeaderIndex, c: 0 }, e: { r: k200HeaderIndex, c: labelMergeEnd } });
-  merges.push({ s: { r: k200SwIndex, c: 0 }, e: { r: k200SwIndex, c: labelMergeEnd } });
-  merges.push({ s: { r: k200DwIndex, c: 0 }, e: { r: k200DwIndex, c: labelMergeEnd } });
-  merges.push({ s: { r: k200SubtotalIndex, c: 0 }, e: { r: k200SubtotalIndex, c: labelMergeEnd } });
-  merges.push({ s: { r: nonK200Index, c: 0 }, e: { r: nonK200Index, c: labelMergeEnd } });
 
   worksheet['!merges'] = merges;
 
