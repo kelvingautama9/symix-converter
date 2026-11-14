@@ -18,20 +18,15 @@ import {
   Download,
   Share2,
   Search,
-  Filter,
   Layers,
-  Calendar,
-  Package,
-  Weight,
-  Truck,
-  CheckCircle2,
-  Clock,
   FileSpreadsheet,
   Building2,
   ChevronDown,
+  ChevronUp,
   ArrowUpDown,
   ArrowDownAZ,
   Users,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { CustomerDataModal } from './CustomerDataModal';
 import {
@@ -74,8 +69,58 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     onDeliveryModeChange?.(mode);
   };
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const [isDisplayMenuOpen, setIsDisplayMenuOpen] = useState(false);
+  const [showSummarySection, setShowSummarySection] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('blackeye_sales_summary_visible');
+      return saved === null ? true : saved === 'true';
+    } catch {
+      return true;
+    }
+  });
+  const [summaryTab, setSummaryTab] = useState<'ALL' | 'FLUTE' | 'K200'>(() => {
+    try {
+      const saved = localStorage.getItem('blackeye_sales_summary_tab');
+      if (saved === 'FLUTE' || saved === 'K200' || saved === 'ALL') return saved;
+    } catch {
+      // ignore
+    }
+    return 'ALL';
+  });
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
   const [customerDataVersion, setCustomerDataVersion] = useState(0);
+
+  const exportMenuRef = React.useRef<HTMLDivElement>(null);
+  const displayMenuRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('blackeye_sales_summary_visible', String(showSummarySection));
+    } catch {
+      // ignore
+    }
+  }, [showSummarySection]);
+
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('blackeye_sales_summary_tab', summaryTab);
+    } catch {
+      // ignore
+    }
+  }, [summaryTab]);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+      if (displayMenuRef.current && !displayMenuRef.current.contains(e.target as Node)) {
+        setIsDisplayMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Listen to customer data updates from modal / localStorage
   React.useEffect(() => {
@@ -523,9 +568,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     const outName = getSalesOrderExportFileName(fileName, scope, shouldSort, modeToUse);
     exportSalesOrderToExcel(data, scope, outName, shouldSort, modeToUse);
     if (onShareStatus) {
-      onShareStatus(
-        `Berhasil mengekspor format Sales (${modeToUse === 'TOTAL_ACCUMULATION' ? 'Total Akumulasi' : 'Detail SJ'}, ${shouldSort ? 'Urut No. PO A-Z' : 'Urutan Asli'}): ${outName}`
-      );
+      onShareStatus(`Export selesai: ${outName}`);
     }
   };
 
@@ -598,49 +641,47 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
   };
 
   return (
-    <div className="space-y-4">
-      {/* Top Header Card */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-2xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center shrink-0 text-slate-700">
-              <FileSpreadsheet className="w-5 h-5" />
-            </div>
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold tracking-tight text-slate-900">
-                RECAP ORDER {customerName}
+    <div className="space-y-3">
+      {/* Compact Header & Controls */}
+      <div className="bg-white border border-slate-200 rounded-xl px-4 py-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          {/* Left: Compact Title & Inline Metadata */}
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-slate-500 shrink-0" />
+              <h2 className="text-sm sm:text-[15px] font-semibold text-slate-900 truncate">
+                Recap Order — {customerName}
               </h2>
-              <div className="flex items-center gap-2 text-xs text-slate-500 mt-0.5">
-                <span className="font-medium text-slate-700">{filteredRows.length} baris data</span>
-                <span>•</span>
-                <span>{totals.totalPos} No. PO</span>
-                <span>•</span>
-                <span>{totals.totalArtikels} Artikel</span>
-                <span>•</span>
-                <span>{totals.totalSJs} No. SJ</span>
-              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-mono tabular-nums whitespace-nowrap overflow-x-auto mt-0.5">
+              <span>{filteredRows.length} baris</span>
+              <span className="text-slate-300">·</span>
+              <span>{totals.totalPos} PO</span>
+              <span className="text-slate-300">·</span>
+              <span>{totals.totalArtikels} Artikel</span>
+              <span className="text-slate-300">·</span>
+              <span>{totals.totalSJs} SJ</span>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
-            {/* Delivery Presentation Mode Selector (Jenis 1: Fallback Detail per SJ vs Jenis 2: Total Keseluruhan) */}
-            <div className="bg-slate-100 p-0.5 rounded-lg border border-slate-200 inline-flex items-center shadow-2xs">
+          {/* Right: Clean Minimalist Controls */}
+          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+            {/* Mode Switch */}
+            <div className="bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 inline-flex items-center">
               <button
                 type="button"
                 onClick={() => {
                   haptic.selection();
                   setDeliveryMode('FALLBACK_DETAIL_SJ');
                 }}
-                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                   deliveryMode === 'FALLBACK_DETAIL_SJ'
-                    ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                    ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Penjumlahan delivery dengan rincian baris terfallback per Surat Jalan (lengkap No SJ & Tanggal Aktual Kirim)"
+                title="Rincian baris per Surat Jalan (No SJ & Tanggal Aktual Kirim)"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
-                <span>Detail per SJ (Fallback)</span>
+                Detail per SJ
               </button>
               <button
                 type="button"
@@ -648,95 +689,140 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   haptic.selection();
                   setDeliveryMode('TOTAL_ACCUMULATION');
                 }}
-                className={`px-2.5 py-1.5 text-xs font-semibold rounded-md transition-all cursor-pointer inline-flex items-center gap-1.5 ${
+                className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer whitespace-nowrap ${
                   deliveryMode === 'TOTAL_ACCUMULATION'
-                    ? 'bg-slate-900 text-white shadow-2xs font-bold'
+                    ? 'bg-slate-900 text-white shadow-2xs font-semibold'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
-                title="Penjumlahan total delivery secara keseluruhan per PO (tanpa detail No SJ dan Tanggal Aktual Kirim)"
+                title="Total keseluruhan per PO (tanpa rincian SJ)"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-                <span>Total Keseluruhan (Tanpa Detail SJ)</span>
+                Total Keseluruhan
               </button>
             </div>
 
-            {/* Highlight K200 Toggle Button */}
-            <button
-              type="button"
-              onClick={() => {
-                haptic.selection();
-                setHighlightK200(!highlightK200);
-              }}
-              className={`px-3 py-2 text-xs font-semibold rounded-lg border inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs ${
-                highlightK200
-                  ? 'bg-amber-100 text-amber-950 border-amber-300 ring-2 ring-amber-300/50'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-              title="Beri warna latar baris: Kuning untuk K200 Singlewall dan Biru untuk K200 Doublewall sesuai format Sales"
-            >
-              <span className="flex items-center gap-0.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600"></span>
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 border border-sky-600 -ml-1"></span>
-              </span>
-              <span>Highlight K200</span>
-              <span
-                className={`text-[10px] px-1 py-0.2 rounded font-mono ${
-                  highlightK200 ? 'bg-amber-200 text-amber-950 font-bold' : 'bg-slate-100 text-slate-500'
-                }`}
-              >
-                {highlightK200 ? 'ON' : 'OFF'}
-              </span>
-            </button>
-
-            {/* Tombol Data Customer (CRUD Kode & Nama Customer) */}
+            {/* Data Customer */}
             <button
               type="button"
               onClick={() => {
                 haptic.selection();
                 setIsCustomerModalOpen(true);
               }}
-              className="px-3 py-2 text-xs font-semibold rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs group"
-              title="Buka Data Customer untuk Tambah, Edit, dan Hapus pemetaan kode customer"
+              className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap"
+              title="Kelola kode & nama customer"
             >
-              <Users className="w-3.5 h-3.5 text-blue-600 group-hover:scale-110 transition-transform" />
+              <Users className="w-3.5 h-3.5 text-slate-500" />
               <span>Data Customer</span>
               {unregisteredCustomerCodes.length > 0 && (
-                <span
-                  className="px-1.5 py-0.2 rounded-full text-[10px] font-bold font-mono bg-amber-100 text-amber-800 border border-amber-300 animate-pulse"
-                  title={`${unregisteredCustomerCodes.length} kode customer pada artikel belum terdaftar`}
-                >
-                  +{unregisteredCustomerCodes.length}
+                <span className="text-[10px] font-mono font-semibold text-amber-700">
+                  (+{unregisteredCustomerCodes.length})
                 </span>
               )}
             </button>
 
-            {/* Sort Order Toggle Button */}
+            {/* Tampilan & Opsi Slider Dropdown */}
+            <div className="relative" ref={displayMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsDisplayMenuOpen(!isDisplayMenuOpen)}
+                className={`px-2.5 py-1.5 text-[11px] font-medium rounded-lg border inline-flex items-center gap-1.5 transition-colors cursor-pointer whitespace-nowrap ${
+                  isDisplayMenuOpen
+                    ? 'bg-slate-100 border-slate-300 text-slate-900'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+                title="Pengaturan tampilan tabel & ringkasan"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-slate-500" />
+                <span>Tampilan</span>
+                <ChevronDown className={`w-3 h-3 text-slate-400 transition-transform ${isDisplayMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isDisplayMenuOpen && (
+                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white rounded-xl shadow-lg border border-slate-200 z-50 p-2 space-y-1">
+                  <div className="px-2 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                    Opsi Tampilan & Urutan
+                  </div>
+
+                  {/* Slider Toggle: Urut No. PO */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic.selection();
+                      setSortByPoAsc(!sortByPoAsc);
+                    }}
+                    className="w-full px-2 py-1.5 rounded-lg hover:bg-slate-50 flex items-center justify-between gap-2 text-left cursor-pointer"
+                  >
+                    <span className="text-[11px] font-medium text-slate-700">Urut No. PO (A–Z)</span>
+                    <span
+                      className={`w-8 h-4.5 rounded-full p-0.5 transition-colors flex items-center ${
+                        sortByPoAsc ? 'bg-slate-900 justify-end' : 'bg-slate-200 justify-start'
+                      }`}
+                    >
+                      <span className="w-3.5 h-3.5 rounded-full bg-white shadow-xs" />
+                    </span>
+                  </button>
+
+                  {/* Slider Toggle: Highlight K200 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic.selection();
+                      setHighlightK200(!highlightK200);
+                    }}
+                    className="w-full px-2 py-1.5 rounded-lg hover:bg-slate-50 flex items-center justify-between gap-2 text-left cursor-pointer"
+                  >
+                    <span className="text-[11px] font-medium text-slate-700">Highlight Warna K200</span>
+                    <span
+                      className={`w-8 h-4.5 rounded-full p-0.5 transition-colors flex items-center ${
+                        highlightK200 ? 'bg-amber-500 justify-end' : 'bg-slate-200 justify-start'
+                      }`}
+                    >
+                      <span className="w-3.5 h-3.5 rounded-full bg-white shadow-xs" />
+                    </span>
+                  </button>
+
+                  {/* Slider Toggle: Ringkasan Flute & K200 */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      haptic.selection();
+                      setShowSummarySection(!showSummarySection);
+                    }}
+                    className="w-full px-2 py-1.5 rounded-lg hover:bg-slate-50 flex items-center justify-between gap-2 text-left cursor-pointer"
+                  >
+                    <span className="text-[11px] font-medium text-slate-700">Ringkasan Flute & K200</span>
+                    <span
+                      className={`w-8 h-4.5 rounded-full p-0.5 transition-colors flex items-center ${
+                        showSummarySection ? 'bg-slate-900 justify-end' : 'bg-slate-200 justify-start'
+                      }`}
+                    >
+                      <span className="w-3.5 h-3.5 rounded-full bg-white shadow-xs" />
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Share WA */}
             <button
               type="button"
-              onClick={() => {
-                haptic.selection();
-                setSortByPoAsc(!sortByPoAsc);
-              }}
-              className={`px-3 py-2 text-xs font-semibold rounded-lg border inline-flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs ${
-                sortByPoAsc
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-              }`}
-              title="Urutkan baris berdasarkan Nomor PO secara ascending (abjad & angka)"
+              onClick={() =>
+                handleShareWA(
+                  coFilter === 'ALL'
+                    ? 'ALL'
+                    : coFilter === 'OPEN'
+                    ? 'OPEN_ONLY'
+                    : 'CLOSED_ONLY'
+                )
+              }
+              className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
+              title="Kirim Excel Sales via WhatsApp"
             >
-              <ArrowDownAZ className={`w-3.5 h-3.5 ${sortByPoAsc ? 'text-emerald-400' : 'text-slate-500'}`} />
-              <span>Urut No. PO (A-Z)</span>
-              <span
-                className={`text-[10px] px-1 py-0.2 rounded font-mono ${
-                  sortByPoAsc ? 'bg-slate-800 text-emerald-300 font-bold' : 'bg-slate-100 text-slate-500'
-                }`}
-              >
-                {sortByPoAsc ? 'AKTIF' : 'OFF'}
-              </span>
+              <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Share WA</span>
             </button>
 
-            {/* Split Download Button */}
-            <div className="relative inline-flex shadow-xs rounded-lg">
+            {/* Compact Export Split Button */}
+            <div className="relative inline-flex rounded-lg" ref={exportMenuRef}>
               <button
                 type="button"
                 onClick={() =>
@@ -754,25 +840,24 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                       : 'CLOSED_ONLY'
                   )
                 }
-                className="px-3.5 py-2 text-xs font-semibold rounded-l-lg bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 cursor-pointer transition-colors"
+                className="px-2.5 py-1.5 text-[11px] font-semibold rounded-l-lg bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
               >
-                <Download className="w-4 h-4 text-emerald-400" />
-                <span>Export Excel Sales (.xlsx)</span>
+                <Download className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Export (.xlsx)</span>
               </button>
               <button
                 type="button"
                 onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
-                className="px-2 py-2 rounded-r-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border-l border-slate-700 cursor-pointer transition-colors"
+                className="px-1.5 py-1.5 rounded-r-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border-l border-slate-700 cursor-pointer transition-colors"
                 title="Pilihan Export"
               >
                 <ChevronDown className="w-3.5 h-3.5" />
               </button>
 
               {isExportMenuOpen && (
-                <div className="absolute right-0 top-full mt-1.5 w-76 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 text-xs text-slate-800 max-h-[85vh] overflow-y-auto">
-                  {/* Mode Penjumlahan Delivery */}
-                  <div className="px-3 py-1 font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-                    Mode Penjumlahan Delivery
+                <div className="absolute right-0 top-full mt-1.5 w-68 bg-white rounded-xl shadow-xl border border-slate-200 z-50 py-1.5 text-[11px] text-slate-800 max-h-[85vh] overflow-y-auto">
+                  <div className="px-3 py-1 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
+                    Mode Penjumlahan
                   </div>
                   <button
                     type="button"
@@ -784,23 +869,13 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                         'FALLBACK_DETAIL_SJ'
                       );
                     }}
-                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
-                      deliveryMode === 'FALLBACK_DETAIL_SJ' ? 'bg-blue-50/70 font-semibold text-blue-950' : 'text-slate-700'
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                      deliveryMode === 'FALLBACK_DETAIL_SJ' ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
                     }`}
                   >
-                    <div>
-                      <div className="font-semibold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                        <span>Detail per SJ (Fallback)</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Rincian baris terfallback per SJ + Tgl Aktual Kirim
-                      </div>
-                    </div>
+                    <span>Detail per SJ (Fallback)</span>
                     {deliveryMode === 'FALLBACK_DETAIL_SJ' && (
-                      <span className="text-[10px] bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                        AKTIF
-                      </span>
+                      <span className="text-[10px] font-mono text-blue-700 font-semibold">Aktif</span>
                     )}
                   </button>
                   <button
@@ -813,696 +888,480 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                         'TOTAL_ACCUMULATION'
                       );
                     }}
-                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
-                      deliveryMode === 'TOTAL_ACCUMULATION' ? 'bg-emerald-50/70 font-semibold text-emerald-950' : 'text-slate-700'
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                      deliveryMode === 'TOTAL_ACCUMULATION' ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
                     }`}
                   >
-                    <div>
-                      <div className="font-semibold flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        <span>Total Keseluruhan PO</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Total delivery akumulasi tanpa detail baris SJ
-                      </div>
-                    </div>
+                    <span>Total Keseluruhan PO</span>
                     {deliveryMode === 'TOTAL_ACCUMULATION' && (
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                        AKTIF
-                      </span>
+                      <span className="text-[10px] font-mono text-emerald-700 font-semibold">Aktif</span>
                     )}
                   </button>
 
                   <div className="border-t border-slate-100 my-1" />
-                  <div className="px-3 py-1 font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-                    Mode Urutan Ekspor
+                  <div className="px-3 py-1 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
+                    Urutan No. PO
                   </div>
                   <button
                     type="button"
                     onClick={() => {
                       setSortByPoAsc(true);
                       handleExport(
-                        coFilter === 'ALL'
-                          ? 'ALL'
-                          : coFilter === 'OPEN'
-                          ? 'OPEN_ONLY'
-                          : 'CLOSED_ONLY',
+                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
                         true
                       );
                     }}
-                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
-                      sortByPoAsc ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-700'
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                      sortByPoAsc ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
                     }`}
                   >
                     <span className="flex items-center gap-1.5">
-                      <ArrowDownAZ className="w-3.5 h-3.5 text-emerald-600" />
-                      <span>Urut No. PO (A-Z & Angka)</span>
+                      <ArrowDownAZ className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Urut No. PO (A–Z)</span>
                     </span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono font-bold">
-                      A-Z
-                    </span>
+                    {sortByPoAsc && <span className="text-[10px] font-mono text-emerald-700">A–Z</span>}
                   </button>
                   <button
                     type="button"
                     onClick={() => {
                       setSortByPoAsc(false);
                       handleExport(
-                        coFilter === 'ALL'
-                          ? 'ALL'
-                          : coFilter === 'OPEN'
-                          ? 'OPEN_ONLY'
-                          : 'CLOSED_ONLY',
+                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
                         false
                       );
                     }}
-                    className={`w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
+                    className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
                       !sortByPoAsc ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
                     }`}
                   >
                     <span>Sesuai Dokumen Asli</span>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">
-                      ASLI
-                    </span>
+                    {!sortByPoAsc && <span className="text-[10px] font-mono text-slate-500">Asli</span>}
                   </button>
 
                   <div className="border-t border-slate-100 my-1" />
-                  <div className="px-3 py-1 font-bold text-amber-700 uppercase tracking-wider text-[10px] flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                    <span>Cakupan Khusus K200 Sales</span>
+                  <div className="px-3 py-1 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
+                    Cakupan K200 & Status CO
                   </div>
                   <button
                     type="button"
                     onClick={() => handleExport('K200_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-amber-50/70 flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer text-slate-700"
                   >
-                    <div>
-                      <div className="font-semibold text-amber-950">Khusus Semua K200 (SW + DW)</div>
-                      <div className="text-[10px] text-slate-500">
-                        {totals.k200Total.totalPos} PO • {totals.k200Total.sumQtyPcs.toLocaleString('id-ID')} Pcs
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-amber-100 text-amber-900 font-bold px-1.5 py-0.5 rounded font-mono">
-                      K200
-                    </span>
+                    <span>Semua K200 (SW + DW)</span>
+                    <span className="text-[10px] font-mono text-slate-400">{totals.k200Total.totalPos} PO</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExport('K200_SW_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-amber-50/70 flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-3 py-1.5 hover:bg-amber-50/50 flex items-center justify-between cursor-pointer text-amber-900"
                   >
-                    <div>
-                      <div className="font-semibold text-amber-950 flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-amber-400"></span>
-                        <span>K200 Singlewall (Kuning)</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Flute B, C, E • {totals.k200Sw.sumQtyPcs.toLocaleString('id-ID')} Pcs
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-amber-200 text-amber-900 font-bold px-1.5 py-0.5 rounded font-mono">
-                      SW
-                    </span>
+                    <span>K200 Singlewall (Kuning)</span>
+                    <span className="text-[10px] font-mono text-amber-700">{totals.k200Sw.sumQtyPcs.toLocaleString('id-ID')}</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExport('K200_DW_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-sky-50 flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-3 py-1.5 hover:bg-sky-50/50 flex items-center justify-between cursor-pointer text-sky-900"
                   >
-                    <div>
-                      <div className="font-semibold text-sky-950 flex items-center gap-1">
-                        <span className="w-2 h-2 rounded-full bg-sky-400"></span>
-                        <span>K200 Doublewall (Biru)</span>
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Flute BC • {totals.k200Dw.sumQtyPcs.toLocaleString('id-ID')} Pcs
-                      </div>
-                    </div>
-                    <span className="text-[10px] bg-sky-200 text-sky-900 font-bold px-1.5 py-0.5 rounded font-mono">
-                      DW
-                    </span>
+                    <span>K200 Doublewall (Biru)</span>
+                    <span className="text-[10px] font-mono text-sky-700">{totals.k200Dw.sumQtyPcs.toLocaleString('id-ID')}</span>
                   </button>
-
-                  <div className="border-t border-slate-100 my-1" />
-                  <div className="px-3 py-1 font-bold text-slate-400 uppercase tracking-wider text-[10px]">
-                    Filter Status CO
-                  </div>
                   <button
                     type="button"
                     onClick={() => handleExport('ALL')}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer text-slate-700"
                   >
                     <span>Semua Baris (Open + Closed)</span>
-                    <span className="text-[10px] bg-slate-100 px-1.5 py-0.5 rounded font-mono">ALL</span>
+                    <span className="text-[10px] font-mono text-slate-400">ALL</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExport('OPEN_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer text-slate-700"
                   >
-                    <span>Khusus CO Open Saja</span>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-mono">OPEN</span>
+                    <span>CO Open Saja</span>
+                    <span className="text-[10px] font-mono text-emerald-700">OPEN</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleExport('CLOSED_ONLY')}
-                    className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center justify-between cursor-pointer"
+                    className="w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer text-slate-700"
                   >
-                    <span>Khusus CO Closed Saja</span>
-                    <span className="text-[10px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono">CLOSED</span>
-                  </button>
-                  <div className="border-t border-slate-100 my-1" />
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleShareWA(
-                        coFilter === 'ALL'
-                          ? 'ALL'
-                          : coFilter === 'OPEN'
-                          ? 'OPEN_ONLY'
-                          : 'CLOSED_ONLY'
-                      )
-                    }
-                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-700 flex items-center gap-1.5 font-medium cursor-pointer"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Kirim File via WhatsApp</span>
+                    <span>CO Closed Saja</span>
+                    <span className="text-[10px] font-mono text-slate-500">CLOSED</span>
                   </button>
 
                   {onDownloadMasterCombined && totalFilesCount > 1 && (
                     <>
                       <div className="border-t border-slate-100 my-1" />
-                      <div className="px-3 py-1 font-bold text-emerald-700 uppercase tracking-wider text-[10px] flex items-center gap-1">
-                        <FileSpreadsheet className="w-3 h-3 text-emerald-600" />
-                        <span>Ekspor Multi File Gabungan</span>
-                      </div>
                       <button
                         type="button"
                         onClick={() => {
                           setIsExportMenuOpen(false);
                           onDownloadMasterCombined();
                         }}
-                        className="w-full text-left px-3 py-2 hover:bg-emerald-50 text-emerald-800 flex items-center justify-between cursor-pointer font-medium"
+                        className="w-full text-left px-3 py-1.5 hover:bg-emerald-50 text-emerald-800 flex items-center justify-between cursor-pointer font-medium"
                       >
-                        <div>
-                          <div className="font-semibold flex items-center gap-1.5 text-emerald-950">
-                            <Layers className="w-3.5 h-3.5 text-emerald-600" />
-                            <span>Gabung Master ({totalFilesCount} File)</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500">
-                            Format Rekap Sales ({deliveryMode === 'TOTAL_ACCUMULATION' ? 'Total Akumulasi' : 'Detail SJ'}) + Sheet Summary
-                          </div>
-                        </div>
-                        <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded font-mono">
-                          MASTER
+                        <span className="flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Gabung Master ({totalFilesCount} File)</span>
                         </span>
+                        <span className="text-[10px] font-mono text-emerald-700">MASTER</span>
                       </button>
                     </>
                   )}
                 </div>
               )}
             </div>
-
-            <button
-              type="button"
-              onClick={() =>
-                handleShareWA(
-                  coFilter === 'ALL'
-                    ? 'ALL'
-                    : coFilter === 'OPEN'
-                    ? 'OPEN_ONLY'
-                    : 'CLOSED_ONLY'
-                )
-              }
-              className="px-3 py-2 text-xs font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition-colors shadow-2xs"
-            >
-              <Share2 className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Share WA</span>
-            </button>
           </div>
         </div>
       </div>
 
-      {/* 5 Key Metric Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
-            Total No. PO
-          </span>
-          <div className="mt-1">
-            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
-              <span>{totals.totalPos}</span>
-              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PO</span>
-            </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500">
-              {totals.totalRows} baris jadwal
-            </div>
+      {/* Unified Minimalist Key Metric Strip */}
+      <div className="bg-white border border-slate-200 rounded-xl grid grid-cols-2 sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+        <div className="px-3.5 py-2.5">
+          <div className="text-[11px] font-medium text-slate-500">Total No. PO</div>
+          <div className="mt-0.5 flex items-baseline gap-1 font-mono tabular-nums">
+            <span className="text-base sm:text-lg font-semibold text-slate-900">{totals.totalPos}</span>
+            <span className="text-[10px] text-slate-400">PO</span>
+          </div>
+          <div className="text-[10px] font-mono tabular-nums text-slate-400 mt-0.5">
+            {totals.totalRows} baris jadwal
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
-            Total Artikel
-          </span>
-          <div className="mt-1">
-            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
-              <span>{totals.totalArtikels}</span>
-              <span className="text-[10px] sm:text-xs font-normal text-slate-400">Item</span>
-            </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-500 truncate">
-              Dimensi P & L
-            </div>
+        <div className="px-3.5 py-2.5">
+          <div className="text-[11px] font-medium text-slate-500">Total Artikel</div>
+          <div className="mt-0.5 flex items-baseline gap-1 font-mono tabular-nums">
+            <span className="text-base sm:text-lg font-semibold text-slate-900">{totals.totalArtikels}</span>
+            <span className="text-[10px] text-slate-400">Item</span>
+          </div>
+          <div className="text-[10px] font-mono text-slate-400 mt-0.5 truncate">
+            Dimensi P & L
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
-            Total QTY PO
-          </span>
-          <div className="mt-1">
-            <div className="text-lg sm:text-xl font-bold font-mono text-emerald-700 tracking-tight leading-none flex items-baseline gap-1">
-              <span>{totals.sumQtyPcs.toLocaleString('id-ID')}</span>
-              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
-            </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-600">
-              {totals.sumQtyKg.toLocaleString('id-ID')} KG
-            </div>
+        <div className="px-3.5 py-2.5">
+          <div className="text-[11px] font-medium text-slate-500">Total Qty PO</div>
+          <div className="mt-0.5 flex items-baseline gap-1 font-mono tabular-nums">
+            <span className="text-base sm:text-lg font-semibold text-emerald-700">
+              {totals.sumQtyPcs.toLocaleString('id-ID')}
+            </span>
+            <span className="text-[10px] text-slate-400">pcs</span>
+          </div>
+          <div className="text-[10px] font-mono tabular-nums text-slate-400 mt-0.5">
+            {totals.sumQtyKg.toLocaleString('id-ID')} kg
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
-            Rencana Kirim (Jadwal)
-          </span>
-          <div className="mt-1">
-            <div className="text-lg sm:text-xl font-bold font-mono text-blue-700 tracking-tight leading-none flex items-baseline gap-1">
-              <span>{totals.sumQtyDelivery.toLocaleString('id-ID')}</span>
-              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
-            </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-600">
-              {totals.sumKgDelivery.toLocaleString('id-ID')} KG
-            </div>
+        <div className="px-3.5 py-2.5">
+          <div className="text-[11px] font-medium text-slate-500">Rencana Kirim</div>
+          <div className="mt-0.5 flex items-baseline gap-1 font-mono tabular-nums">
+            <span className="text-base sm:text-lg font-semibold text-blue-700">
+              {totals.sumQtyDelivery.toLocaleString('id-ID')}
+            </span>
+            <span className="text-[10px] text-slate-400">pcs</span>
+          </div>
+          <div className="text-[10px] font-mono tabular-nums text-slate-400 mt-0.5">
+            {totals.sumKgDelivery.toLocaleString('id-ID')} kg
           </div>
         </div>
 
-        <div className="bg-white rounded-xl p-3 sm:p-3.5 border border-slate-200 shadow-2xs col-span-2 sm:col-span-1">
-          <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 truncate block">
-            Realisasi Kirim (SJ)
-          </span>
-          <div className="mt-1">
-            <div className="text-lg sm:text-xl font-bold font-mono text-slate-900 tracking-tight leading-none flex items-baseline gap-1">
-              <span>{totals.sumActualQtyDelivery.toLocaleString('id-ID')}</span>
-              <span className="text-[10px] sm:text-xs font-normal text-slate-400">PCS</span>
-            </div>
-            <div className="mt-1.5 pt-1.5 border-t border-slate-100 text-[10px] sm:text-[11px] font-mono text-slate-600 flex justify-between">
-              <span>{totals.sumActualKgDelivery.toLocaleString('id-ID')} KG</span>
-              <span className="text-slate-400 font-sans">{totals.totalSJs} SJ</span>
-            </div>
+        <div className="px-3.5 py-2.5 col-span-2 sm:col-span-1">
+          <div className="text-[11px] font-medium text-slate-500">Realisasi (SJ)</div>
+          <div className="mt-0.5 flex items-baseline gap-1 font-mono tabular-nums">
+            <span className="text-base sm:text-lg font-semibold text-slate-900">
+              {totals.sumActualQtyDelivery.toLocaleString('id-ID')}
+            </span>
+            <span className="text-[10px] text-slate-400">pcs</span>
+          </div>
+          <div className="text-[10px] font-mono tabular-nums text-slate-400 mt-0.5 flex items-center justify-between">
+            <span>{totals.sumActualKgDelivery.toLocaleString('id-ID')} kg</span>
+            <span>{totals.totalSJs} SJ</span>
           </div>
         </div>
       </div>
 
-      {/* Rekapitulasi Total PO Berdasarkan Tipe Flute (Singlewall, Doublewall & E Flute) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        {/* 1. Singlewall Card (Flute B, C, E) */}
-        <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:border-blue-200 transition-colors">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span>
-              <span className="text-xs font-bold text-slate-900 tracking-tight">
-                1. SINGLEWALL (SW)
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                Flute B, C, E (3-Ply)
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-slate-500">
-              {totals.sw.totalPos} PO • {totals.sw.totalArtikels} Item
+      {/* Minimalist Collapsible Ringkasan Flute (SW/DW/E) & Substance K200 */}
+      <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className="px-3.5 py-2 bg-slate-50/70 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span className="text-xs font-semibold text-slate-800">
+              Ringkasan Flute & Substance K200
             </span>
+            {showSummarySection ? (
+              <div className="inline-flex items-center bg-slate-200/70 p-0.5 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setSummaryTab('ALL')}
+                  className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                    summaryTab === 'ALL'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Semua
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryTab('FLUTE')}
+                  className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                    summaryTab === 'FLUTE'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Tipe Flute
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSummaryTab('K200')}
+                  className={`px-2 py-0.5 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
+                    summaryTab === 'K200'
+                      ? 'bg-white text-slate-900 shadow-2xs'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  Substance K200
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-[11px] font-mono tabular-nums text-slate-500">
+                <span>SW {totals.sw.sumQtyPcs.toLocaleString('id-ID')}</span>
+                <span className="text-slate-300">·</span>
+                <span>DW {totals.dw.sumQtyPcs.toLocaleString('id-ID')}</span>
+                <span className="text-slate-300">·</span>
+                <span>E {totals.eFlute.sumQtyPcs.toLocaleString('id-ID')}</span>
+                <span className="text-slate-300">·</span>
+                <span>K200 {totals.k200Total.sumQtyPcs.toLocaleString('id-ID')} pcs</span>
+              </div>
+            )}
           </div>
 
-          <div className="grid grid-cols-3 gap-2 pt-2.5">
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Total QTY PO
-              </span>
-              <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
-                {totals.sw.sumQtyPcs.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.sw.sumQtyKg.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Rencana Kirim
-              </span>
-              <div className="font-mono font-bold text-blue-700 text-sm mt-0.5">
-                {totals.sw.sumQtyDelivery.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.sw.sumKgDelivery.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Realisasi (SJ)
-              </span>
-              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
-                {totals.sw.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.sw.sumActualKgDelivery.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => {
+              haptic.selection();
+              setShowSummarySection(!showSummarySection);
+            }}
+            className="text-[11px] font-medium text-slate-600 hover:text-slate-900 inline-flex items-center gap-1 px-2 py-1 rounded-md hover:bg-slate-200/60 transition-colors cursor-pointer"
+          >
+            <span>{showSummarySection ? 'Sembunyikan' : 'Tampilkan'}</span>
+            {showSummarySection ? (
+              <ChevronUp className="w-3.5 h-3.5" />
+            ) : (
+              <ChevronDown className="w-3.5 h-3.5" />
+            )}
+          </button>
         </div>
 
-        {/* 2. Doublewall Card (Flute BC) */}
-        <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:border-purple-200 transition-colors">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
-              <span className="text-xs font-bold text-slate-900 tracking-tight">
-                2. DOUBLEWALL (DW)
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-purple-50 text-purple-700 border border-purple-200">
-                Flute BC (5-Ply)
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-slate-500">
-              {totals.dw.totalPos} PO • {totals.dw.totalArtikels} Item
-            </span>
+        {showSummarySection && (
+          <div
+            className={`border-t border-slate-100 grid grid-cols-1 ${
+              summaryTab === 'ALL' ? 'xl:grid-cols-2 divide-y xl:divide-y-0 xl:divide-x divide-slate-100' : ''
+            }`}
+          >
+            {/* Panel 1: Tipe Flute (SW, DW, E) */}
+            {(summaryTab === 'ALL' || summaryTab === 'FLUTE') && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] font-medium text-slate-400">
+                      <th className="py-2 pl-3.5 pr-2 font-medium">Tipe Flute</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">PO / Item</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Qty PO (pcs)</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Rencana</th>
+                      <th className="py-2 pl-2 pr-3.5 text-right font-medium whitespace-nowrap">Realisasi SJ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    <tr className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2 pl-3.5 pr-2">
+                        <div className="font-medium text-slate-900">Singlewall (SW)</div>
+                        <div className="text-[10px] text-slate-400">Flute B, C, E · 3-Ply</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums text-[11px] text-slate-500 whitespace-nowrap">
+                        {totals.sw.totalPos} · {totals.sw.totalArtikels}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-slate-900">{totals.sw.sumQtyPcs.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.sw.sumQtyKg.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-blue-700">{totals.sw.sumQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.sw.sumKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 pl-2 pr-3.5 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-emerald-700">{totals.sw.sumActualQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.sw.sumActualKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2 pl-3.5 pr-2">
+                        <div className="font-medium text-slate-900">Doublewall (DW)</div>
+                        <div className="text-[10px] text-slate-400">Flute BC · 5-Ply</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums text-[11px] text-slate-500 whitespace-nowrap">
+                        {totals.dw.totalPos} · {totals.dw.totalArtikels}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-slate-900">{totals.dw.sumQtyPcs.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.dw.sumQtyKg.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-blue-700">{totals.dw.sumQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.dw.sumKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 pl-2 pr-3.5 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-emerald-700">{totals.dw.sumActualQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.dw.sumActualKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                    </tr>
+
+                    <tr className="hover:bg-slate-50/70 transition-colors">
+                      <td className="py-2 pl-3.5 pr-2">
+                        <div className="font-medium text-slate-900">Khusus E-Flute</div>
+                        <div className="text-[10px] text-slate-400">Flute E · 3-Ply</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums text-[11px] text-slate-500 whitespace-nowrap">
+                        {totals.eFlute.totalPos} · {totals.eFlute.totalArtikels}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-slate-900">{totals.eFlute.sumQtyPcs.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.eFlute.sumQtyKg.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-blue-700">{totals.eFlute.sumQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.eFlute.sumKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 pl-2 pr-3.5 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-emerald-700">{totals.eFlute.sumActualQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-400">{totals.eFlute.sumActualKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* Panel 2: Order Substance K200 */}
+            {(summaryTab === 'ALL' || summaryTab === 'K200') && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-100 text-[10px] font-medium text-slate-400">
+                      <th className="py-2 pl-3.5 pr-2 font-medium">Substance K200</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">PO / Item</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Qty PO (pcs)</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Rencana</th>
+                      <th className="py-2 pl-2 pr-3.5 text-right font-medium whitespace-nowrap">Realisasi SJ</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 text-xs">
+                    <tr className="bg-amber-50/45 hover:bg-amber-50/80 transition-colors">
+                      <td className="py-2 pl-3.5 pr-2">
+                        <div className="font-medium text-amber-950">K200 Singlewall</div>
+                        <div className="text-[10px] text-amber-700/80">Flute B, C, E · Kuning</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums text-[11px] text-amber-800/80 whitespace-nowrap">
+                        {totals.k200Sw.totalPos} · {totals.k200Sw.totalArtikels}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-slate-900">{totals.k200Sw.sumQtyPcs.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Sw.sumQtyKg.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-blue-700">{totals.k200Sw.sumQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Sw.sumKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 pl-2 pr-3.5 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-emerald-700">{totals.k200Sw.sumActualQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Sw.sumActualKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                    </tr>
+
+                    <tr className="bg-sky-50/45 hover:bg-sky-50/80 transition-colors">
+                      <td className="py-2 pl-3.5 pr-2">
+                        <div className="font-medium text-sky-950">K200 Doublewall</div>
+                        <div className="text-[10px] text-sky-700/80">Flute BC · Biru</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums text-[11px] text-sky-800/80 whitespace-nowrap">
+                        {totals.k200Dw.totalPos} · {totals.k200Dw.totalArtikels}
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-slate-900">{totals.k200Dw.sumQtyPcs.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Dw.sumQtyKg.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-blue-700">{totals.k200Dw.sumQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Dw.sumKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 pl-2 pr-3.5 text-right font-mono tabular-nums">
+                        <div className="font-semibold text-emerald-700">{totals.k200Dw.sumActualQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Dw.sumActualKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                    </tr>
+
+                    <tr className="bg-slate-50/60 hover:bg-slate-50 transition-colors">
+                      <td className="py-2 pl-3.5 pr-2">
+                        <div className="font-semibold text-slate-900">Subtotal K200 (SW & DW)</div>
+                        <div className="text-[10px] text-slate-500 font-mono tabular-nums">
+                          {totals.k200Total.percentQtyPcs.toFixed(1)}% dari total pcs
+                        </div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums text-[11px] text-slate-600 whitespace-nowrap">
+                        {totals.k200Total.totalPos} PO
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-bold text-slate-900">{totals.k200Total.sumQtyPcs.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Total.sumQtyKg.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono tabular-nums">
+                        <div className="font-bold text-blue-700">{totals.k200Total.sumQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Total.sumKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                      <td className="py-2 pl-2 pr-3.5 text-right font-mono tabular-nums">
+                        <div className="font-bold text-emerald-700">{totals.k200Total.sumActualQtyDelivery.toLocaleString('id-ID')}</div>
+                        <div className="text-[10px] text-slate-500">{totals.k200Total.sumActualKgDelivery.toLocaleString('id-ID')} kg</div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
-
-          <div className="grid grid-cols-3 gap-2 pt-2.5">
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Total QTY PO
-              </span>
-              <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
-                {totals.dw.sumQtyPcs.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.dw.sumQtyKg.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Rencana Kirim
-              </span>
-              <div className="font-mono font-bold text-purple-700 text-sm mt-0.5">
-                {totals.dw.sumQtyDelivery.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.dw.sumKgDelivery.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Realisasi (SJ)
-              </span>
-              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
-                {totals.dw.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.dw.sumActualKgDelivery.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 3. Khusus E Flute Card */}
-        <div className="bg-white rounded-xl p-3.5 border border-slate-200 shadow-2xs hover:border-emerald-200 transition-colors">
-          <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
-              <span className="text-xs font-bold text-slate-900 tracking-tight">
-                3. KHUSUS E FLUTE
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded font-mono font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                Flute E (3-Ply)
-              </span>
-            </div>
-            <span className="text-[11px] font-mono text-slate-500">
-              {totals.eFlute.totalPos} PO • {totals.eFlute.totalArtikels} Item
-            </span>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 pt-2.5">
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Total QTY PO
-              </span>
-              <div className="font-mono font-bold text-slate-900 text-sm mt-0.5">
-                {totals.eFlute.sumQtyPcs.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.eFlute.sumQtyKg.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Rencana Kirim
-              </span>
-              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
-                {totals.eFlute.sumQtyDelivery.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.eFlute.sumKgDelivery.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-
-            <div>
-              <span className="text-[10px] font-medium text-slate-400 block uppercase tracking-wider">
-                Realisasi (SJ)
-              </span>
-              <div className="font-mono font-bold text-emerald-700 text-sm mt-0.5">
-                {totals.eFlute.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
-                <span className="text-[10px] font-normal text-slate-500">PCS</span>
-              </div>
-              <div className="text-[10px] font-mono text-slate-500">
-                {totals.eFlute.sumActualKgDelivery.toLocaleString('id-ID')} KG
-              </div>
-            </div>
-          </div>
-        </div>
+        )}
       </div>
 
-      {/* Rekapitulasi Khusus Sales: Order Substance K200 (Singlewall vs Doublewall) */}
-      <div className="bg-slate-50 border border-slate-200/90 rounded-xl p-3.5 space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-slate-200">
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-0.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600"></span>
-              <span className="w-2.5 h-2.5 rounded-full bg-sky-400 border border-sky-600 -ml-1"></span>
-            </span>
-            <span className="text-xs font-bold text-slate-900 tracking-tight uppercase">
-              TOTAL ORDER SUBSTANCE K200 (SW & DW)
-            </span>
-          </div>
-          <div className="text-[11px] text-slate-500 font-medium">
-            Kuning: <strong className="text-amber-800">Singlewall (B, C, E)</strong> • Biru: <strong className="text-sky-800">Doublewall (BC)</strong>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Card 1: K200 Singlewall (SW - Kuning) */}
-          <div className="bg-[#fffdf0] rounded-xl p-3 border border-amber-300 shadow-2xs">
-            <div className="flex items-center justify-between pb-1.5 border-b border-amber-200">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400 border border-amber-600"></span>
-                <span className="text-xs font-bold text-amber-950">
-                  1. K200 SW (Flute B, C, E)
-                </span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-amber-200 text-amber-900 border border-amber-300">
-                  KUNING
-                </span>
-              </div>
-              <span className="text-[10px] font-mono font-medium text-amber-900">
-                {totals.k200Sw.totalPos} PO • {totals.k200Sw.totalArtikels} Item
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <div>
-                <span className="text-[9px] font-bold text-amber-800 block uppercase">Total Qty PO</span>
-                <div className="font-mono font-bold text-slate-900 text-xs mt-0.5">
-                  {totals.k200Sw.sumQtyPcs.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Sw.sumQtyKg.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-amber-800 block uppercase">Rencana Kirim</span>
-                <div className="font-mono font-bold text-blue-700 text-xs mt-0.5">
-                  {totals.k200Sw.sumQtyDelivery.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Sw.sumKgDelivery.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-amber-800 block uppercase">Realisasi (SJ)</span>
-                <div className="font-mono font-bold text-emerald-700 text-xs mt-0.5">
-                  {totals.k200Sw.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Sw.sumActualKgDelivery.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 2: K200 Doublewall (DW - Biru) */}
-          <div className="bg-[#f0f9ff] rounded-xl p-3 border border-sky-300 shadow-2xs">
-            <div className="flex items-center justify-between pb-1.5 border-b border-sky-200">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-sky-400 border border-sky-600"></span>
-                <span className="text-xs font-bold text-sky-950">
-                  2. K200 DW (Flute BC)
-                </span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-sky-200 text-sky-900 border border-sky-300">
-                  BIRU
-                </span>
-              </div>
-              <span className="text-[10px] font-mono font-medium text-sky-900">
-                {totals.k200Dw.totalPos} PO • {totals.k200Dw.totalArtikels} Item
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <div>
-                <span className="text-[9px] font-bold text-sky-800 block uppercase">Total Qty PO</span>
-                <div className="font-mono font-bold text-slate-900 text-xs mt-0.5">
-                  {totals.k200Dw.sumQtyPcs.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Dw.sumQtyKg.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-sky-800 block uppercase">Rencana Kirim</span>
-                <div className="font-mono font-bold text-blue-700 text-xs mt-0.5">
-                  {totals.k200Dw.sumQtyDelivery.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Dw.sumKgDelivery.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-sky-800 block uppercase">Realisasi (SJ)</span>
-                <div className="font-mono font-bold text-emerald-700 text-xs mt-0.5">
-                  {totals.k200Dw.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Dw.sumActualKgDelivery.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Card 3: Total K200 (SW + DW) */}
-          <div className="bg-white rounded-xl p-3 border border-slate-300 shadow-2xs">
-            <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs font-bold text-slate-900">
-                  SUBTOTAL ORDER K200 (SW & DW)
-                </span>
-                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono font-bold bg-slate-100 text-slate-800 border border-slate-300">
-                  {totals.k200Total.percentQtyPcs.toFixed(1)}% Pcs
-                </span>
-              </div>
-              <span className="text-[10px] font-mono font-medium text-slate-600">
-                {totals.k200Total.totalPos} PO
-              </span>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2 pt-2">
-              <div>
-                <span className="text-[9px] font-bold text-slate-500 block uppercase">Total Qty PO</span>
-                <div className="font-mono font-bold text-slate-900 text-xs mt-0.5">
-                  {totals.k200Total.sumQtyPcs.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Total.sumQtyKg.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-slate-500 block uppercase">Rencana Kirim</span>
-                <div className="font-mono font-bold text-blue-700 text-xs mt-0.5">
-                  {totals.k200Total.sumQtyDelivery.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Total.sumKgDelivery.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-slate-500 block uppercase">Realisasi (SJ)</span>
-                <div className="font-mono font-bold text-emerald-700 text-xs mt-0.5">
-                  {totals.k200Total.sumActualQtyDelivery.toLocaleString('id-ID')}{' '}
-                  <span className="text-[9px] font-normal text-slate-500">PCS</span>
-                </div>
-                <div className="text-[10px] font-mono text-slate-600">
-                  {totals.k200Total.sumActualKgDelivery.toLocaleString('id-ID')} KG
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-2xs flex flex-col gap-2.5">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-          {/* Search Input */}
-          <div className="relative flex-1 min-w-[240px]">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      {/* Compact Search & Filter Bar */}
+      <div className="bg-white px-3.5 py-2.5 rounded-xl border border-slate-200 flex flex-col gap-2">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5">
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Cari No PO, Artikel, Item Name, Substance, Flute, Tanggal..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900 focus:bg-white text-slate-800 placeholder-slate-400 transition-all"
+              placeholder="Cari No PO, Artikel, Item, Substance, Flute..."
+              className="w-full pl-8 pr-7 py-1.5 text-[11px] bg-slate-50 border border-slate-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900/15 focus:bg-white text-slate-800 placeholder-slate-400 transition-all"
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-bold"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 font-semibold cursor-pointer"
               >
                 ×
               </button>
             )}
           </div>
 
-          {/* CO Filter Tabs */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 self-start md:self-auto">
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 self-start md:self-auto">
             <button
               type="button"
               onClick={() => setCoFilter('ALL')}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
                 coFilter === 'ALL'
                   ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900'
@@ -1513,37 +1372,35 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <button
               type="button"
               onClick={() => setCoFilter('OPEN')}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
                 coFilter === 'OPEN'
                   ? 'bg-emerald-600 text-white shadow-2xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              CO Open (O)
+              CO Open
             </button>
             <button
               type="button"
               onClick={() => setCoFilter('CLOSED')}
-              className={`px-2.5 py-1 text-xs font-medium rounded-md transition-colors ${
+              className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors cursor-pointer ${
                 coFilter === 'CLOSED'
                   ? 'bg-slate-700 text-white shadow-2xs font-semibold'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              CO Closed (C)
+              CO Closed
             </button>
           </div>
         </div>
 
-        {/* Filters Row: Substance & Flute */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs">
-          {/* Substance K200 Filter Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100 text-[11px]">
           <div className="flex items-center gap-1 overflow-x-auto py-0.5">
-            <span className="text-[11px] font-medium text-slate-400 shrink-0 mr-1">Substance:</span>
+            <span className="text-slate-400 shrink-0 mr-1">Substance:</span>
             <button
               type="button"
               onClick={() => setSubstanceK200Filter('ALL')}
-              className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer ${
                 substanceK200Filter === 'ALL'
                   ? 'bg-slate-900 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1554,46 +1411,40 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <button
               type="button"
               onClick={() => setSubstanceK200Filter('K200_ALL')}
-              className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors inline-flex items-center gap-1 ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer ${
                 substanceK200Filter === 'K200_ALL'
-                  ? 'bg-amber-500 text-slate-950 shadow-2xs'
-                  : 'bg-amber-100/70 text-amber-900 hover:bg-amber-200/70'
+                  ? 'bg-amber-500 text-slate-950 font-semibold'
+                  : 'bg-amber-50 text-amber-900 hover:bg-amber-100'
               }`}
             >
-              <span className="flex items-center gap-0.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 border border-amber-700"></span>
-                <span className="w-1.5 h-1.5 rounded-full bg-sky-500 border border-sky-700 -ml-0.5"></span>
-              </span>
-              <span>Khusus K200 (SW+DW)</span>
+              K200 (SW+DW)
             </button>
             <button
               type="button"
               onClick={() => setSubstanceK200Filter('K200_SW')}
-              className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors inline-flex items-center gap-1 ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer ${
                 substanceK200Filter === 'K200_SW'
-                  ? 'bg-amber-300 text-amber-950 ring-1 ring-amber-500'
-                  : 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100'
+                  ? 'bg-amber-300 text-amber-950 font-semibold'
+                  : 'bg-amber-50/70 text-amber-800 hover:bg-amber-100'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-amber-400 border border-amber-600"></span>
-              <span>K200 SW (Kuning)</span>
+              K200 SW
             </button>
             <button
               type="button"
               onClick={() => setSubstanceK200Filter('K200_DW')}
-              className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors inline-flex items-center gap-1 ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer ${
                 substanceK200Filter === 'K200_DW'
-                  ? 'bg-sky-400 text-sky-950 ring-1 ring-sky-600'
-                  : 'bg-sky-50 text-sky-800 border border-sky-200 hover:bg-sky-100'
+                  ? 'bg-sky-300 text-sky-950 font-semibold'
+                  : 'bg-sky-50 text-sky-800 hover:bg-sky-100'
               }`}
             >
-              <span className="w-2 h-2 rounded-full bg-sky-400 border border-sky-600"></span>
-              <span>K200 DW (Biru)</span>
+              K200 DW
             </button>
             <button
               type="button"
               onClick={() => setSubstanceK200Filter('NON_K200')}
-              className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer ${
                 substanceK200Filter === 'NON_K200'
                   ? 'bg-slate-700 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1603,14 +1454,13 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             </button>
           </div>
 
-          {/* Flute Filter Pills */}
           {availableFlutes.length > 0 && (
             <div className="flex items-center gap-1 overflow-x-auto py-0.5">
-              <span className="text-[11px] font-medium text-slate-400 shrink-0 mr-1">Flute:</span>
+              <span className="text-slate-400 shrink-0 mr-1">Flute:</span>
               <button
                 type="button"
                 onClick={() => setFluteFilter('ALL')}
-                className={`px-2 py-0.5 rounded-md text-[11px] font-medium transition-colors ${
+                className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer ${
                   fluteFilter === 'ALL'
                     ? 'bg-slate-900 text-white'
                     : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -1623,7 +1473,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                   key={f}
                   type="button"
                   onClick={() => setFluteFilter(f)}
-                  className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors ${
+                  className={`px-2 py-0.5 rounded-md font-medium transition-colors cursor-pointer ${
                     fluteFilter === f
                       ? 'bg-slate-900 text-white'
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1636,41 +1486,36 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
           )}
         </div>
 
-        {/* Customer Filter Pills (jika ada lebih dari 1 customer pada file gabungan) */}
         {availableCustomers.length > 1 && (
-          <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100 text-xs overflow-x-auto py-0.5">
-            <span className="text-[11px] font-medium text-slate-400 shrink-0 flex items-center gap-1">
-              <Building2 className="w-3 h-3 text-slate-400" />
+          <div className="flex items-center gap-1.5 pt-1.5 border-t border-slate-100 text-[11px] overflow-x-auto py-0.5">
+            <span className="text-slate-400 shrink-0 flex items-center gap-1">
+              <Building2 className="w-3 h-3" />
               Customer:
             </span>
             <button
               type="button"
               onClick={() => setCustomerFilter('ALL')}
-              className={`px-2 py-0.5 rounded-md text-[11px] font-semibold transition-colors shrink-0 ${
+              className={`px-2 py-0.5 rounded-md font-medium transition-colors shrink-0 cursor-pointer ${
                 customerFilter === 'ALL'
-                  ? 'bg-slate-900 text-white shadow-2xs'
+                  ? 'bg-slate-900 text-white'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              Semua Customer ({availableCustomers.length})
+              Semua ({availableCustomers.length})
             </button>
             {availableCustomers.map((c) => (
               <button
                 key={c.name}
                 type="button"
                 onClick={() => setCustomerFilter(c.name)}
-                className={`px-2 py-0.5 rounded-md text-[11px] font-bold transition-colors shrink-0 inline-flex items-center gap-1 ${
+                className={`px-2 py-0.5 rounded-md font-medium transition-colors shrink-0 inline-flex items-center gap-1 cursor-pointer ${
                   customerFilter === c.name
-                    ? 'bg-blue-600 text-white shadow-2xs'
+                    ? 'bg-blue-600 text-white'
                     : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
               >
                 <span>{c.name}</span>
-                <span className={`text-[9px] font-mono px-1 py-0.2 rounded ${
-                  customerFilter === c.name ? 'bg-blue-700 text-white' : 'bg-slate-200 text-slate-600'
-                }`}>
-                  {c.count}
-                </span>
+                <span className="text-[10px] font-mono opacity-75">{c.count}</span>
               </button>
             ))}
           </div>

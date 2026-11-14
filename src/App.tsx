@@ -788,7 +788,7 @@ export default function App() {
       {statusMessage && (
         <div
           id="toast-notification"
-          className="fixed top-16 right-4 sm:right-6 z-50 flex items-center gap-2 px-3 py-2 bg-slate-900 text-white rounded-lg shadow-lg text-xs animate-in fade-in duration-150"
+          className="fixed top-16 right-4 sm:right-6 z-50 flex items-center gap-2 px-2.5 py-1.5 bg-slate-900 text-white rounded-lg shadow-lg text-[11px] animate-in fade-in duration-150"
         >
           <span className="font-medium pr-1">{statusMessage}</span>
           <button
