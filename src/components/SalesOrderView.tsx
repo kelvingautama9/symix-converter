@@ -40,7 +40,7 @@ interface SalesOrderViewProps {
   onShareStatus?: (msg: string) => void;
   deliveryMode?: SalesDeliveryMode;
   onDeliveryModeChange?: (mode: SalesDeliveryMode) => void;
-  onDownloadMasterCombined?: () => void;
+  onDownloadMasterCombined?: (scope?: SalesOrderExportScope) => void;
   totalFilesCount?: number;
 }
 
@@ -240,6 +240,8 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     let sumKgDelivery = 0;
     let sumActualQtyDelivery = 0;
     let sumActualKgDelivery = 0;
+    let sumSisaOsPcs = 0;
+    let sumSisaOsKg = 0;
     const uniquePos = new Set<string>();
     const uniqueArtikels = new Set<string>();
     const uniqueSJs = new Set<string>();
@@ -438,6 +440,14 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
           nonK200ActualKgDelivery += r.actualKgDelivery;
         }
       }
+
+      if (typeof r.sisaOsPcs === 'number') {
+        sumSisaOsPcs += r.sisaOsPcs;
+      }
+
+      if (typeof r.sisaOsKg === 'number') {
+        sumSisaOsKg += r.sisaOsKg;
+      }
     });
 
     const k200TotalQtyPcs = k200SwQtyPcs + k200DwQtyPcs;
@@ -458,6 +468,8 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
       sumKgDelivery,
       sumActualQtyDelivery,
       sumActualKgDelivery,
+      sumSisaOsPcs,
+      sumSisaOsKg,
       sw: {
         totalPos: swUniquePos.size,
         totalArtikels: swUniqueArtikels.size,
@@ -548,6 +560,17 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     };
   }, [filteredRows]);
 
+  // Resolve active UI filter into Excel export scope
+  const resolveActiveExportScope = (): SalesOrderExportScope => {
+    if (fluteFilter.toUpperCase() === 'E') return 'E_FLUTE_ONLY';
+    if (substanceK200Filter === 'K200_ALL') return 'K200_ONLY';
+    if (substanceK200Filter === 'K200_SW') return 'K200_SW_ONLY';
+    if (substanceK200Filter === 'K200_DW') return 'K200_DW_ONLY';
+    if (coFilter === 'OPEN') return 'OPEN_ONLY';
+    if (coFilter === 'CLOSED') return 'CLOSED_ONLY';
+    return 'ALL';
+  };
+
   // Handle Export Excel
   const handleExport = (
     scope: SalesOrderExportScope = 'ALL',
@@ -555,6 +578,22 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     explicitDeliveryMode?: SalesDeliveryMode
   ) => {
     setIsExportMenuOpen(false);
+    const shouldSort = explicitSort !== undefined ? explicitSort : sortByPoAsc;
+    const modeToUse = explicitDeliveryMode !== undefined ? explicitDeliveryMode : deliveryMode;
+
+    const matchedRows = flattenSalesOrderRows(data, scope, shouldSort, modeToUse);
+    if (matchedRows.length === 0) {
+      haptic.error();
+      if (onShareStatus) {
+        onShareStatus(
+          scope === 'E_FLUTE_ONLY'
+            ? 'Tidak ada data E-Flute pada file aktif untuk diexport.'
+            : 'Tidak ada data sesuai filter export pada file aktif.'
+        );
+      }
+      return;
+    }
+
     haptic.success();
     confetti({
       particleCount: 50,
@@ -563,8 +602,6 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
       colors: ['#0284c7', '#10b981', '#1e293b'],
     });
 
-    const shouldSort = explicitSort !== undefined ? explicitSort : sortByPoAsc;
-    const modeToUse = explicitDeliveryMode !== undefined ? explicitDeliveryMode : deliveryMode;
     const outName = getSalesOrderExportFileName(fileName, scope, shouldSort, modeToUse);
     exportSalesOrderToExcel(data, scope, outName, shouldSort, modeToUse);
     if (onShareStatus) {
@@ -579,9 +616,23 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
     explicitDeliveryMode?: SalesDeliveryMode
   ) => {
     setIsExportMenuOpen(false);
-    haptic.medium();
     const shouldSort = explicitSort !== undefined ? explicitSort : sortByPoAsc;
     const modeToUse = explicitDeliveryMode !== undefined ? explicitDeliveryMode : deliveryMode;
+
+    const matchedRows = flattenSalesOrderRows(data, scope, shouldSort, modeToUse);
+    if (matchedRows.length === 0) {
+      haptic.error();
+      if (onShareStatus) {
+        onShareStatus(
+          scope === 'E_FLUTE_ONLY'
+            ? 'Tidak ada data E-Flute pada file aktif untuk dibagikan.'
+            : 'Tidak ada data sesuai filter export untuk dibagikan.'
+        );
+      }
+      return;
+    }
+
+    haptic.medium();
     const outName = getSalesOrderExportFileName(fileName, scope, shouldSort, modeToUse);
     const res = await shareSalesOrderExcelFileToWhatsApp(data, scope, outName, shouldSort, modeToUse);
     if (onShareStatus) {
@@ -805,15 +856,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             {/* Share WA */}
             <button
               type="button"
-              onClick={() =>
-                handleShareWA(
-                  coFilter === 'ALL'
-                    ? 'ALL'
-                    : coFilter === 'OPEN'
-                    ? 'OPEN_ONLY'
-                    : 'CLOSED_ONLY'
-                )
-              }
+              onClick={() => handleShareWA(resolveActiveExportScope())}
               className="px-2.5 py-1.5 text-[11px] font-medium rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
               title="Kirim Excel Sales via WhatsApp"
             >
@@ -825,25 +868,15 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
             <div className="relative inline-flex rounded-lg" ref={exportMenuRef}>
               <button
                 type="button"
-                onClick={() =>
-                  handleExport(
-                    substanceK200Filter === 'K200_ALL'
-                      ? 'K200_ONLY'
-                      : substanceK200Filter === 'K200_SW'
-                      ? 'K200_SW_ONLY'
-                      : substanceK200Filter === 'K200_DW'
-                      ? 'K200_DW_ONLY'
-                      : coFilter === 'ALL'
-                      ? 'ALL'
-                      : coFilter === 'OPEN'
-                      ? 'OPEN_ONLY'
-                      : 'CLOSED_ONLY'
-                  )
-                }
+                onClick={() => handleExport(resolveActiveExportScope())}
                 className="px-2.5 py-1.5 text-[11px] font-semibold rounded-l-lg bg-slate-900 hover:bg-slate-800 text-white inline-flex items-center gap-1.5 cursor-pointer transition-colors whitespace-nowrap"
               >
                 <Download className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Export (.xlsx)</span>
+                <span>
+                  {fluteFilter.toUpperCase() === 'E'
+                    ? 'Export E-Flute (.xlsx)'
+                    : 'Export (.xlsx)'}
+                </span>
               </button>
               <button
                 type="button"
@@ -863,11 +896,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                     type="button"
                     onClick={() => {
                       setDeliveryMode('FALLBACK_DETAIL_SJ');
-                      handleExport(
-                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
-                        undefined,
-                        'FALLBACK_DETAIL_SJ'
-                      );
+                      handleExport(resolveActiveExportScope(), undefined, 'FALLBACK_DETAIL_SJ');
                     }}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
                       deliveryMode === 'FALLBACK_DETAIL_SJ' ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
@@ -882,11 +911,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                     type="button"
                     onClick={() => {
                       setDeliveryMode('TOTAL_ACCUMULATION');
-                      handleExport(
-                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
-                        undefined,
-                        'TOTAL_ACCUMULATION'
-                      );
+                      handleExport(resolveActiveExportScope(), undefined, 'TOTAL_ACCUMULATION');
                     }}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
                       deliveryMode === 'TOTAL_ACCUMULATION' ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
@@ -906,10 +931,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                     type="button"
                     onClick={() => {
                       setSortByPoAsc(true);
-                      handleExport(
-                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
-                        true
-                      );
+                      handleExport(resolveActiveExportScope(), true);
                     }}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
                       sortByPoAsc ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
@@ -925,10 +947,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                     type="button"
                     onClick={() => {
                       setSortByPoAsc(false);
-                      handleExport(
-                        coFilter === 'ALL' ? 'ALL' : coFilter === 'OPEN' ? 'OPEN_ONLY' : 'CLOSED_ONLY',
-                        false
-                      );
+                      handleExport(resolveActiveExportScope(), false);
                     }}
                     className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center justify-between cursor-pointer ${
                       !sortByPoAsc ? 'bg-slate-50 font-semibold text-slate-900' : 'text-slate-600'
@@ -940,8 +959,18 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
 
                   <div className="border-t border-slate-100 my-1" />
                   <div className="px-3 py-1 font-semibold text-slate-400 uppercase tracking-wider text-[10px]">
-                    Cakupan K200 & Status CO
+                    Filter Flute, K200 & Status CO
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => handleExport('E_FLUTE_ONLY')}
+                    className="w-full text-left px-3 py-1.5 hover:bg-emerald-50/70 flex items-center justify-between cursor-pointer text-emerald-900 font-medium"
+                  >
+                    <span>Khusus E-Flute Saja</span>
+                    <span className="text-[10px] font-mono text-emerald-700">
+                      {totals.eFlute.totalPos} PO · {totals.eFlute.sumQtyPcs.toLocaleString('id-ID')}
+                    </span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleExport('K200_ONLY')}
@@ -998,7 +1027,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                         type="button"
                         onClick={() => {
                           setIsExportMenuOpen(false);
-                          onDownloadMasterCombined();
+                          onDownloadMasterCombined('ALL');
                         }}
                         className="w-full text-left px-3 py-1.5 hover:bg-emerald-50 text-emerald-800 flex items-center justify-between cursor-pointer font-medium"
                       >
@@ -1007,6 +1036,20 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                           <span>Gabung Master ({totalFilesCount} File)</span>
                         </span>
                         <span className="text-[10px] font-mono text-emerald-700">MASTER</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsExportMenuOpen(false);
+                          onDownloadMasterCombined('E_FLUTE_ONLY');
+                        }}
+                        className="w-full text-left px-3 py-1.5 hover:bg-emerald-50 text-emerald-900 flex items-center justify-between cursor-pointer font-medium"
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <Layers className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Gabung Master (Khusus E-Flute)</span>
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-700">E-FLUTE</span>
                       </button>
                     </>
                   )}
@@ -1169,9 +1212,9 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                     <tr className="border-b border-slate-100 text-[10px] font-medium text-slate-400">
                       <th className="py-2 pl-3.5 pr-2 font-medium">Tipe Flute</th>
                       <th className="py-2 px-2 text-right font-medium whitespace-nowrap">PO / Item</th>
-                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Qty PO (pcs)</th>
-                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Rencana</th>
-                      <th className="py-2 pl-2 pr-3.5 text-right font-medium whitespace-nowrap">Realisasi SJ</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">PO QTY (pcs)</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Planning (pcs)</th>
+                      <th className="py-2 pl-2 pr-3.5 text-right font-medium whitespace-nowrap">Delivery (pcs)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -1253,9 +1296,9 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                     <tr className="border-b border-slate-100 text-[10px] font-medium text-slate-400">
                       <th className="py-2 pl-3.5 pr-2 font-medium">Substance K200</th>
                       <th className="py-2 px-2 text-right font-medium whitespace-nowrap">PO / Item</th>
-                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Qty PO (pcs)</th>
-                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Rencana</th>
-                      <th className="py-2 pl-2 pr-3.5 text-right font-medium whitespace-nowrap">Realisasi SJ</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">PO QTY (pcs)</th>
+                      <th className="py-2 px-2 text-right font-medium whitespace-nowrap">Planning (pcs)</th>
+                      <th className="py-2 pl-2 pr-3.5 text-right font-medium whitespace-nowrap">Delivery (pcs)</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
@@ -1602,15 +1645,15 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 </th>
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[110px]"
                 >
-                  Qty (Pcs)
+                  PO QTY (pcs)
                 </th>
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[90px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[115px]"
                 >
-                  Qty (Kg)
+                  PO Weight (kg)
                 </th>
                 {deliveryMode !== 'TOTAL_ACCUMULATION' && (
                   <th
@@ -1622,15 +1665,15 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 )}
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[110px]"
                 >
-                  Qty Planning
+                  Planning (pcs)
                 </th>
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[110px]"
                 >
-                  Kg Planning
+                  Planning (kg)
                 </th>
                 {deliveryMode !== 'TOTAL_ACCUMULATION' && (
                   <>
@@ -1656,10 +1699,10 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 )}
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[110px]"
                 >
                   <div className="flex flex-col items-end">
-                    <span>Qty Delivery</span>
+                    <span>Delivery (pcs)</span>
                     {deliveryMode === 'TOTAL_ACCUMULATION' && (
                       <span className="text-[9px] text-emerald-700 font-normal font-mono">(Total PO)</span>
                     )}
@@ -1667,14 +1710,26 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 </th>
                 <th
                   rowSpan={2}
-                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[100px]"
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[110px]"
                 >
                   <div className="flex flex-col items-end">
-                    <span>Kg Delivery</span>
+                    <span>Delivery (kg)</span>
                     {deliveryMode === 'TOTAL_ACCUMULATION' && (
                       <span className="text-[9px] text-emerald-700 font-normal font-mono">(Total PO)</span>
                     )}
                   </div>
+                </th>
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[105px]"
+                >
+                  Sisa OS (pcs)
+                </th>
+                <th
+                  rowSpan={2}
+                  className="px-3 py-2.5 border border-slate-300 text-right font-bold tracking-tight bg-slate-100 min-w-[105px]"
+                >
+                  Sisa OS (kg)
                 </th>
                 <th
                   rowSpan={2}
@@ -1706,7 +1761,7 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
               {filteredRows.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={deliveryMode === 'TOTAL_ACCUMULATION' ? 17 : 21}
+                    colSpan={deliveryMode === 'TOTAL_ACCUMULATION' ? 19 : 23}
                     className="px-4 py-12 text-center text-slate-400"
                   >
                     Tidak ada data yang sesuai dengan pencarian atau filter.
@@ -1892,6 +1947,20 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                           : r.actualKgDelivery || ''}
                       </td>
 
+                      {/* Sisa OS (pcs) */}
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-amber-800">
+                        {typeof r.sisaOsPcs === 'number'
+                          ? r.sisaOsPcs.toLocaleString('id-ID')
+                          : r.sisaOsPcs || ''}
+                      </td>
+
+                      {/* Sisa OS (kg) */}
+                      <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-amber-800">
+                        {typeof r.sisaOsKg === 'number'
+                          ? r.sisaOsKg.toLocaleString('id-ID')
+                          : r.sisaOsKg || ''}
+                      </td>
+
                       {/* Harga (Rp) */}
                       <td className="px-3 py-2 border border-slate-200 text-right font-mono font-medium text-slate-900">
                         {r.harga !== '' && typeof r.harga === 'number'
@@ -1955,6 +2024,12 @@ export const SalesOrderView: React.FC<SalesOrderViewProps> = ({
                 </td>
                 <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-emerald-800 bg-emerald-100/60">
                   {totals.sumActualKgDelivery.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-amber-800 bg-amber-50/70">
+                  {totals.sumSisaOsPcs.toLocaleString('id-ID')}
+                </td>
+                <td className="px-3 py-2.5 border border-slate-300 text-right font-mono font-black text-amber-800 bg-amber-50/70">
+                  {totals.sumSisaOsKg.toLocaleString('id-ID')}
                 </td>
                 <td className="px-3 py-2.5 border border-slate-300 text-center text-slate-400">
                   -

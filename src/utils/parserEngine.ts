@@ -1405,6 +1405,7 @@ export function flattenSalesOrderRows(
     if (scope === 'K200_ONLY') return isK;
     if (scope === 'K200_SW_ONLY') return isK && !isDW;
     if (scope === 'K200_DW_ONLY') return isK && isDW;
+    if (scope === 'E_FLUTE_ONLY') return flt === 'E';
     return true;
   });
 
@@ -1474,6 +1475,15 @@ export function flattenSalesOrderRows(
       (acc, d) => acc + (Number(d.beratKirimKg) || 0),
       0
     );
+
+    const poSisaOsPcs =
+      typeof po['Sisa OS (pcs)'] === 'number'
+        ? Math.max(0, po['Sisa OS (pcs)'])
+        : Math.max(0, qtyPoPcs - totalActualQtyDelivery);
+    const poSisaOsKg =
+      typeof po['Sisa OS (kg)'] === 'number'
+        ? Math.max(0, po['Sisa OS (kg)'])
+        : Math.max(0, beratPoKg - totalActualKgDelivery);
 
     const cleanNoPO = po['No PO'] || '-';
     const poRecId = po.id || `po_rec_${poIdx + 1}`;
@@ -1593,6 +1603,8 @@ export function flattenSalesOrderRows(
         noSJ,
         actualQtyDelivery,
         actualKgDelivery,
+        sisaOsPcs: isFirst ? poSisaOsPcs : '',
+        sisaOsKg: isFirst ? poSisaOsKg : '',
         harga: isFirst ? (harga > 0 ? harga : '') : '',
         rpPerKg: isFirst ? (rpPerKg > 0 ? rpPerKg : '') : '',
         isFirstScheduleOfPO: isFirst,

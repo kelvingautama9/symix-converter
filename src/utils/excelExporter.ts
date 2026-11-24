@@ -1464,16 +1464,18 @@ export const SALES_ORDER_EXCEL_COLUMNS = [
   'L',
   'Artikel',
   'Item Name',
-  'Qty (Pcs)',
-  'Qty (Kg)',
+  'PO QTY (pcs)',
+  'PO Weight (kg)',
   'Planning Date',
-  'Qty Planning',
-  'Kg Planning',
+  'Planning (pcs)',
+  'Planning (kg)',
   'Remarks',
   'Actual Delivery Date',
   'No SJ',
-  'Qty Delivery',
-  'Kg Delivery',
+  'Delivery (pcs)',
+  'Delivery (kg)',
+  'Sisa OS (pcs)',
+  'Sisa OS (kg)',
   'Harga',
   'Rp/Kg',
 ] as const;
@@ -1515,14 +1517,17 @@ export function getSalesOrderExportFileName(
   if (scope === 'K200_DW_ONLY') {
     return `${baseName}_KHUSUS_K200_DW${modeSuffix}${sortSuffix}.xlsx`;
   }
+  if (scope === 'E_FLUTE_ONLY') {
+    return `${baseName}_KHUSUS_E_FLUTE${modeSuffix}${sortSuffix}.xlsx`;
+  }
   return `${baseName}${modeSuffix}${sortSuffix}.xlsx`;
 }
 
 /**
  * Builds the Rekap Order Sales worksheet with 2-tier headers matching user specification.
- * - When includeSourceFileColumn = true: Column A is Sumber File, Column B is Customers (17 cols in Total Accumulation, 21 in Fallback).
- * - When isCombinedMaster = true (and includeSourceFileColumn = false): Column A is Customers (16 cols in Total Accumulation, 20 in Fallback).
- * - When both false: Column A is NO PO (15 cols in Total Accumulation, 19 in Fallback).
+ * - When includeSourceFileColumn = true: Column A is Sumber File, Column B is Customers (19 cols in Total Accumulation, 23 in Fallback).
+ * - When isCombinedMaster = true (and includeSourceFileColumn = false): Column A is Customers (18 cols in Total Accumulation, 22 in Fallback).
+ * - When both false: Column A is NO PO (17 cols in Total Accumulation, 21 in Fallback).
  * - Row 1 has Size header merged over P & L, Row 2 has column titles, Row 3 starts data rows.
  */
 export function buildSalesOrderWorksheet(
@@ -1549,6 +1554,8 @@ export function buildSalesOrderWorksheet(
   let colPlanKg: string;
   let colDelivPcs: string;
   let colDelivKg: string;
+  let colSisaOsPcs: string;
+  let colSisaOsKg: string;
   let colHarga: string;
   let totalCols: number;
   let labelColSpan: number;
@@ -1565,15 +1572,19 @@ export function buildSalesOrderWorksheet(
       colPlanKg = 'M';
       colDelivPcs = 'N';
       colDelivKg = 'O';
-      colHarga = 'P';
-      totalCols = 17;
+      colSisaOsPcs = 'P';
+      colSisaOsKg = 'Q';
+      colHarga = 'R';
+      totalCols = 19;
     } else {
       colPlanPcs = 'M';
       colPlanKg = 'N';
       colDelivPcs = 'R';
       colDelivKg = 'S';
-      colHarga = 'T';
-      totalCols = 21;
+      colSisaOsPcs = 'T';
+      colSisaOsKg = 'U';
+      colHarga = 'V';
+      totalCols = 23;
     }
     labelColSpan = 9; // Cols A through I (indices 0..8)
   } else if (isCombinedMaster) {
@@ -1588,15 +1599,19 @@ export function buildSalesOrderWorksheet(
       colPlanKg = 'L';
       colDelivPcs = 'M';
       colDelivKg = 'N';
-      colHarga = 'O';
-      totalCols = 16;
+      colSisaOsPcs = 'O';
+      colSisaOsKg = 'P';
+      colHarga = 'Q';
+      totalCols = 18;
     } else {
       colPlanPcs = 'L';
       colPlanKg = 'M';
       colDelivPcs = 'Q';
       colDelivKg = 'R';
-      colHarga = 'S';
-      totalCols = 20;
+      colSisaOsPcs = 'S';
+      colSisaOsKg = 'T';
+      colHarga = 'U';
+      totalCols = 22;
     }
     labelColSpan = 8; // Cols A through H (indices 0..7)
   } else {
@@ -1611,15 +1626,19 @@ export function buildSalesOrderWorksheet(
       colPlanKg = 'K';
       colDelivPcs = 'L';
       colDelivKg = 'M';
-      colHarga = 'N';
-      totalCols = 15;
+      colSisaOsPcs = 'N';
+      colSisaOsKg = 'O';
+      colHarga = 'P';
+      totalCols = 17;
     } else {
       colPlanPcs = 'K';
       colPlanKg = 'L';
       colDelivPcs = 'P';
       colDelivKg = 'Q';
-      colHarga = 'R';
-      totalCols = 19;
+      colSisaOsPcs = 'R';
+      colSisaOsKg = 'S';
+      colHarga = 'T';
+      totalCols = 21;
     }
     labelColSpan = 7; // Cols A through G (indices 0..6)
   }
@@ -1640,12 +1659,14 @@ export function buildSalesOrderWorksheet(
         '', // Merged with F for Size
         'Artikel',
         'Item Name',
-        'Qty (Pcs)',
-        'Qty (Kg)',
-        'Qty Planning',
-        'Kg Planning',
-        'Qty Delivery',
-        'Kg Delivery',
+        'PO QTY (pcs)',
+        'PO Weight (kg)',
+        'Planning (pcs)',
+        'Planning (kg)',
+        'Delivery (pcs)',
+        'Delivery (kg)',
+        'Sisa OS (pcs)',
+        'Sisa OS (kg)',
         'Harga',
         'Rp/Kg',
       ]);
@@ -1657,6 +1678,8 @@ export function buildSalesOrderWorksheet(
         '',
         'P',
         'L',
+        '',
+        '',
         '',
         '',
         '',
@@ -1678,12 +1701,14 @@ export function buildSalesOrderWorksheet(
         '', // Merged with E for Size
         'Artikel',
         'Item Name',
-        'Qty (Pcs)',
-        'Qty (Kg)',
-        'Qty Planning',
-        'Kg Planning',
-        'Qty Delivery',
-        'Kg Delivery',
+        'PO QTY (pcs)',
+        'PO Weight (kg)',
+        'Planning (pcs)',
+        'Planning (kg)',
+        'Delivery (pcs)',
+        'Delivery (kg)',
+        'Sisa OS (pcs)',
+        'Sisa OS (kg)',
         'Harga',
         'Rp/Kg',
       ]);
@@ -1694,6 +1719,8 @@ export function buildSalesOrderWorksheet(
         '',
         'P',
         'L',
+        '',
+        '',
         '',
         '',
         '',
@@ -1714,12 +1741,14 @@ export function buildSalesOrderWorksheet(
         '', // Merged with D for Size
         'Artikel',
         'Item Name',
-        'Qty (Pcs)',
-        'Qty (Kg)',
-        'Qty Planning',
-        'Kg Planning',
-        'Qty Delivery',
-        'Kg Delivery',
+        'PO QTY (pcs)',
+        'PO Weight (kg)',
+        'Planning (pcs)',
+        'Planning (kg)',
+        'Delivery (pcs)',
+        'Delivery (kg)',
+        'Sisa OS (pcs)',
+        'Sisa OS (kg)',
         'Harga',
         'Rp/Kg',
       ]);
@@ -1729,6 +1758,8 @@ export function buildSalesOrderWorksheet(
         '',
         'P',
         'L',
+        '',
+        '',
         '',
         '',
         '',
@@ -1754,16 +1785,18 @@ export function buildSalesOrderWorksheet(
         '', // Merged with F for Size
         'Artikel',
         'Item Name',
-        'Qty (Pcs)',
-        'Qty (Kg)',
+        'PO QTY (pcs)',
+        'PO Weight (kg)',
         'Planning Date',
-        'Qty Planning',
-        'Kg Planning',
+        'Planning (pcs)',
+        'Planning (kg)',
         'Remarks',
         'Actual Delivery Date',
         'No SJ',
-        'Qty Delivery',
-        'Kg Delivery',
+        'Delivery (pcs)',
+        'Delivery (kg)',
+        'Sisa OS (pcs)',
+        'Sisa OS (kg)',
         'Harga',
         'Rp/Kg',
       ]);
@@ -1775,6 +1808,8 @@ export function buildSalesOrderWorksheet(
         '',
         'P',
         'L',
+        '',
+        '',
         '',
         '',
         '',
@@ -1800,16 +1835,18 @@ export function buildSalesOrderWorksheet(
         '', // Merged with E for Size
         'Artikel',
         'Item Name',
-        'Qty (Pcs)',
-        'Qty (Kg)',
+        'PO QTY (pcs)',
+        'PO Weight (kg)',
         'Planning Date',
-        'Qty Planning',
-        'Kg Planning',
+        'Planning (pcs)',
+        'Planning (kg)',
         'Remarks',
         'Actual Delivery Date',
         'No SJ',
-        'Qty Delivery',
-        'Kg Delivery',
+        'Delivery (pcs)',
+        'Delivery (kg)',
+        'Sisa OS (pcs)',
+        'Sisa OS (kg)',
         'Harga',
         'Rp/Kg',
       ]);
@@ -1820,6 +1857,8 @@ export function buildSalesOrderWorksheet(
         '',
         'P',
         'L',
+        '',
+        '',
         '',
         '',
         '',
@@ -1844,16 +1883,18 @@ export function buildSalesOrderWorksheet(
         '', // Merged with D for Size
         'Artikel',
         'Item Name',
-        'Qty (Pcs)',
-        'Qty (Kg)',
+        'PO QTY (pcs)',
+        'PO Weight (kg)',
         'Planning Date',
-        'Qty Planning',
-        'Kg Planning',
+        'Planning (pcs)',
+        'Planning (kg)',
         'Remarks',
         'Actual Delivery Date',
         'No SJ',
-        'Qty Delivery',
-        'Kg Delivery',
+        'Delivery (pcs)',
+        'Delivery (kg)',
+        'Sisa OS (pcs)',
+        'Sisa OS (kg)',
         'Harga',
         'Rp/Kg',
       ]);
@@ -1863,6 +1904,8 @@ export function buildSalesOrderWorksheet(
         '',
         'P',
         'L',
+        '',
+        '',
         '',
         '',
         '',
@@ -1888,6 +1931,8 @@ export function buildSalesOrderWorksheet(
   let sumKgDelivery = 0;
   let sumActualQtyDelivery = 0;
   let sumActualKgDelivery = 0;
+  let sumSisaOsPcs = 0;
+  let sumSisaOsKg = 0;
 
   // Singlewall (B, C, E) & Doublewall (BC) counters
   let swQtyPcs = 0;
@@ -1896,6 +1941,8 @@ export function buildSalesOrderWorksheet(
   let swKgDelivery = 0;
   let swActualQtyDelivery = 0;
   let swActualKgDelivery = 0;
+  let swSisaOsPcs = 0;
+  let swSisaOsKg = 0;
 
   let dwQtyPcs = 0;
   let dwQtyKg = 0;
@@ -1903,6 +1950,8 @@ export function buildSalesOrderWorksheet(
   let dwKgDelivery = 0;
   let dwActualQtyDelivery = 0;
   let dwActualKgDelivery = 0;
+  let dwSisaOsPcs = 0;
+  let dwSisaOsKg = 0;
 
   // Substance K200 specific counters
   let k200SwQtyPcs = 0;
@@ -1911,6 +1960,8 @@ export function buildSalesOrderWorksheet(
   let k200SwKgDelivery = 0;
   let k200SwActualQtyDelivery = 0;
   let k200SwActualKgDelivery = 0;
+  let k200SwSisaOsPcs = 0;
+  let k200SwSisaOsKg = 0;
 
   let k200DwQtyPcs = 0;
   let k200DwQtyKg = 0;
@@ -1918,6 +1969,8 @@ export function buildSalesOrderWorksheet(
   let k200DwKgDelivery = 0;
   let k200DwActualQtyDelivery = 0;
   let k200DwActualKgDelivery = 0;
+  let k200DwSisaOsPcs = 0;
+  let k200DwSisaOsKg = 0;
 
   let nonK200QtyPcs = 0;
   let nonK200QtyKg = 0;
@@ -1925,6 +1978,8 @@ export function buildSalesOrderWorksheet(
   let nonK200KgDelivery = 0;
   let nonK200ActualQtyDelivery = 0;
   let nonK200ActualKgDelivery = 0;
+  let nonK200SisaOsPcs = 0;
+  let nonK200SisaOsKg = 0;
 
   let eFluteQtyPcs = 0;
   let eFluteQtyKg = 0;
@@ -1932,6 +1987,8 @@ export function buildSalesOrderWorksheet(
   let eFluteKgDelivery = 0;
   let eFluteActualQtyDelivery = 0;
   let eFluteActualKgDelivery = 0;
+  let eFluteSisaOsPcs = 0;
+  let eFluteSisaOsKg = 0;
 
   flatRows.forEach((r, idx) => {
     const numQtyPcs = typeof r.qtyPcs === 'number' ? r.qtyPcs : 0;
@@ -1940,6 +1997,8 @@ export function buildSalesOrderWorksheet(
     const numKgDelivery = typeof r.kgDelivery === 'number' ? r.kgDelivery : 0;
     const numActualQtyDelivery = typeof r.actualQtyDelivery === 'number' ? r.actualQtyDelivery : 0;
     const numActualKgDelivery = typeof r.actualKgDelivery === 'number' ? r.actualKgDelivery : 0;
+    const numSisaOsPcs = typeof r.sisaOsPcs === 'number' ? r.sisaOsPcs : 0;
+    const numSisaOsKg = typeof r.sisaOsKg === 'number' ? r.sisaOsKg : 0;
 
     sumQtyPcs += numQtyPcs;
     sumQtyKg += numQtyKg;
@@ -1947,6 +2006,8 @@ export function buildSalesOrderWorksheet(
     sumKgDelivery += numKgDelivery;
     sumActualQtyDelivery += numActualQtyDelivery;
     sumActualKgDelivery += numActualKgDelivery;
+    sumSisaOsPcs += numSisaOsPcs;
+    sumSisaOsKg += numSisaOsKg;
 
     const cleanFlute = String(r.flute || '').trim().toUpperCase();
     const isDw = cleanFlute === 'BC';
@@ -1959,6 +2020,8 @@ export function buildSalesOrderWorksheet(
       dwKgDelivery += numKgDelivery;
       dwActualQtyDelivery += numActualQtyDelivery;
       dwActualKgDelivery += numActualKgDelivery;
+      dwSisaOsPcs += numSisaOsPcs;
+      dwSisaOsKg += numSisaOsKg;
     } else {
       swQtyPcs += numQtyPcs;
       swQtyKg += numQtyKg;
@@ -1966,6 +2029,8 @@ export function buildSalesOrderWorksheet(
       swKgDelivery += numKgDelivery;
       swActualQtyDelivery += numActualQtyDelivery;
       swActualKgDelivery += numActualKgDelivery;
+      swSisaOsPcs += numSisaOsPcs;
+      swSisaOsKg += numSisaOsKg;
     }
 
     if (cleanFlute === 'E') {
@@ -1975,6 +2040,8 @@ export function buildSalesOrderWorksheet(
       eFluteKgDelivery += numKgDelivery;
       eFluteActualQtyDelivery += numActualQtyDelivery;
       eFluteActualKgDelivery += numActualKgDelivery;
+      eFluteSisaOsPcs += numSisaOsPcs;
+      eFluteSisaOsKg += numSisaOsKg;
     }
 
     if (isK) {
@@ -1985,6 +2052,8 @@ export function buildSalesOrderWorksheet(
         k200DwKgDelivery += numKgDelivery;
         k200DwActualQtyDelivery += numActualQtyDelivery;
         k200DwActualKgDelivery += numActualKgDelivery;
+        k200DwSisaOsPcs += numSisaOsPcs;
+        k200DwSisaOsKg += numSisaOsKg;
       } else {
         k200SwQtyPcs += numQtyPcs;
         k200SwQtyKg += numQtyKg;
@@ -1992,6 +2061,8 @@ export function buildSalesOrderWorksheet(
         k200SwKgDelivery += numKgDelivery;
         k200SwActualQtyDelivery += numActualQtyDelivery;
         k200SwActualKgDelivery += numActualKgDelivery;
+        k200SwSisaOsPcs += numSisaOsPcs;
+        k200SwSisaOsKg += numSisaOsKg;
       }
     } else {
       nonK200QtyPcs += numQtyPcs;
@@ -2000,6 +2071,8 @@ export function buildSalesOrderWorksheet(
       nonK200KgDelivery += numKgDelivery;
       nonK200ActualQtyDelivery += numActualQtyDelivery;
       nonK200ActualKgDelivery += numActualKgDelivery;
+      nonK200SisaOsPcs += numSisaOsPcs;
+      nonK200SisaOsKg += numSisaOsKg;
     }
 
     const excelRow = idx + 3;
@@ -2042,6 +2115,8 @@ export function buildSalesOrderWorksheet(
           r.kgDelivery !== '' ? r.kgDelivery : '',
           r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
           r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          r.sisaOsPcs !== '' ? r.sisaOsPcs : '',
+          r.sisaOsKg !== '' ? r.sisaOsKg : '',
           hargaCell,
           rpPerKgCell,
         ]);
@@ -2061,6 +2136,8 @@ export function buildSalesOrderWorksheet(
           r.kgDelivery !== '' ? r.kgDelivery : '',
           r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
           r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          r.sisaOsPcs !== '' ? r.sisaOsPcs : '',
+          r.sisaOsKg !== '' ? r.sisaOsKg : '',
           hargaCell,
           rpPerKgCell,
         ]);
@@ -2079,6 +2156,8 @@ export function buildSalesOrderWorksheet(
           r.kgDelivery !== '' ? r.kgDelivery : '',
           r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
           r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          r.sisaOsPcs !== '' ? r.sisaOsPcs : '',
+          r.sisaOsKg !== '' ? r.sisaOsKg : '',
           hargaCell,
           rpPerKgCell,
         ]);
@@ -2106,6 +2185,8 @@ export function buildSalesOrderWorksheet(
           r.noSJ || '',
           r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
           r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          r.sisaOsPcs !== '' ? r.sisaOsPcs : '',
+          r.sisaOsKg !== '' ? r.sisaOsKg : '',
           hargaCell,
           rpPerKgCell,
         ]);
@@ -2129,6 +2210,8 @@ export function buildSalesOrderWorksheet(
           r.noSJ || '',
           r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
           r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          r.sisaOsPcs !== '' ? r.sisaOsPcs : '',
+          r.sisaOsKg !== '' ? r.sisaOsKg : '',
           hargaCell,
           rpPerKgCell,
         ]);
@@ -2151,6 +2234,8 @@ export function buildSalesOrderWorksheet(
           r.noSJ || '',
           r.actualQtyDelivery !== '' ? r.actualQtyDelivery : '',
           r.actualKgDelivery !== '' ? r.actualKgDelivery : '',
+          r.sisaOsPcs !== '' ? r.sisaOsPcs : '',
+          r.sisaOsKg !== '' ? r.sisaOsKg : '',
           hargaCell,
           rpPerKgCell,
         ]);
@@ -2158,10 +2243,14 @@ export function buildSalesOrderWorksheet(
     }
   });
 
+  if (flatRows.length === 0) {
+    sheetData.push(Array(totalCols).fill(''));
+  }
+
   const lastRow = Math.max(3, flatRows.length + 2);
 
   const getColIdx = (letter: string) => letter.charCodeAt(0) - 'A'.charCodeAt(0);
-  const labelColIdx = labelColSpan - 1; // Kolom Item Name (tepat sebelum Qty Pcs)
+  const labelColIdx = labelColSpan - 1; // Kolom Item Name (tepat sebelum PO QTY)
 
   // Grand Total Row
   const gtRowIndex = sheetData.length;
@@ -2176,6 +2265,8 @@ export function buildSalesOrderWorksheet(
   gtRowData[getColIdx(colPlanKg)] = fNum(`SUM(${colPlanKg}$3:${colPlanKg}$${lastRow})`, sumKgDelivery, '#,##0');
   gtRowData[getColIdx(colDelivPcs)] = fNum(`SUM(${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, sumActualQtyDelivery, '#,##0');
   gtRowData[getColIdx(colDelivKg)] = fNum(`SUM(${colDelivKg}$3:${colDelivKg}$${lastRow})`, sumActualKgDelivery, '#,##0');
+  gtRowData[getColIdx(colSisaOsPcs)] = fNum(`SUM(${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow})`, sumSisaOsPcs, '#,##0');
+  gtRowData[getColIdx(colSisaOsKg)] = fNum(`SUM(${colSisaOsKg}$3:${colSisaOsKg}$${lastRow})`, sumSisaOsKg, '#,##0');
 
   sheetData.push(gtRowData);
 
@@ -2189,12 +2280,14 @@ export function buildSalesOrderWorksheet(
   const kpiHeaderIndex = sheetData.length;
   const kpiHeaderRowData: any[] = Array(totalCols).fill('');
   kpiHeaderRowData[labelColIdx] = 'KATEGORI FLUTE';
-  kpiHeaderRowData[getColIdx(colQtyPcs)] = 'Qty PO (Pcs)';
-  kpiHeaderRowData[getColIdx(colQtyKg)] = 'Qty PO (Kg)';
-  kpiHeaderRowData[getColIdx(colPlanPcs)] = 'Qty Planning (Pcs)';
-  kpiHeaderRowData[getColIdx(colPlanKg)] = 'Kg Planning (Kg)';
-  kpiHeaderRowData[getColIdx(colDelivPcs)] = 'Qty Realisasi (Pcs)';
-  kpiHeaderRowData[getColIdx(colDelivKg)] = 'Kg Realisasi (Kg)';
+  kpiHeaderRowData[getColIdx(colQtyPcs)] = 'PO QTY (pcs)';
+  kpiHeaderRowData[getColIdx(colQtyKg)] = 'PO Weight (kg)';
+  kpiHeaderRowData[getColIdx(colPlanPcs)] = 'Planning (pcs)';
+  kpiHeaderRowData[getColIdx(colPlanKg)] = 'Planning (kg)';
+  kpiHeaderRowData[getColIdx(colDelivPcs)] = 'Delivery (pcs)';
+  kpiHeaderRowData[getColIdx(colDelivKg)] = 'Delivery (kg)';
+  kpiHeaderRowData[getColIdx(colSisaOsPcs)] = 'Sisa OS (pcs)';
+  kpiHeaderRowData[getColIdx(colSisaOsKg)] = 'Sisa OS (kg)';
   sheetData.push(kpiHeaderRowData);
 
   // SW Row
@@ -2207,6 +2300,8 @@ export function buildSalesOrderWorksheet(
   kpiSwRowData[getColIdx(colPlanKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colPlanKg}$3:${colPlanKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colPlanKg}$3:${colPlanKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanKg}$3:${colPlanKg}$${lastRow})`, swKgDelivery, '#,##0');
   kpiSwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colDelivPcs}$3:${colDelivPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colDelivPcs}$3:${colDelivPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, swActualQtyDelivery, '#,##0');
   kpiSwRowData[getColIdx(colDelivKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colDelivKg}$3:${colDelivKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colDelivKg}$3:${colDelivKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivKg}$3:${colDelivKg}$${lastRow})`, swActualKgDelivery, '#,##0');
+  kpiSwRowData[getColIdx(colSisaOsPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow})`, swSisaOsPcs, '#,##0');
+  kpiSwRowData[getColIdx(colSisaOsKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"B",${colSisaOsKg}$3:${colSisaOsKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"C",${colSisaOsKg}$3:${colSisaOsKg}$${lastRow})+SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colSisaOsKg}$3:${colSisaOsKg}$${lastRow})`, swSisaOsKg, '#,##0');
   sheetData.push(kpiSwRowData);
 
   // DW Row
@@ -2219,6 +2314,8 @@ export function buildSalesOrderWorksheet(
   kpiDwRowData[getColIdx(colPlanKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colPlanKg}$3:${colPlanKg}$${lastRow})`, dwKgDelivery, '#,##0');
   kpiDwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, dwActualQtyDelivery, '#,##0');
   kpiDwRowData[getColIdx(colDelivKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colDelivKg}$3:${colDelivKg}$${lastRow})`, dwActualKgDelivery, '#,##0');
+  kpiDwRowData[getColIdx(colSisaOsPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow})`, dwSisaOsPcs, '#,##0');
+  kpiDwRowData[getColIdx(colSisaOsKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"BC",${colSisaOsKg}$3:${colSisaOsKg}$${lastRow})`, dwSisaOsKg, '#,##0');
   sheetData.push(kpiDwRowData);
 
   // Khusus E Flute Row
@@ -2231,6 +2328,8 @@ export function buildSalesOrderWorksheet(
   kpiEFluteRowData[getColIdx(colPlanKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colPlanKg}$3:${colPlanKg}$${lastRow})`, eFluteKgDelivery, '#,##0');
   kpiEFluteRowData[getColIdx(colDelivPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivPcs}$3:${colDelivPcs}$${lastRow})`, eFluteActualQtyDelivery, '#,##0');
   kpiEFluteRowData[getColIdx(colDelivKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colDelivKg}$3:${colDelivKg}$${lastRow})`, eFluteActualKgDelivery, '#,##0');
+  kpiEFluteRowData[getColIdx(colSisaOsPcs)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow})`, eFluteSisaOsPcs, '#,##0');
+  kpiEFluteRowData[getColIdx(colSisaOsKg)] = fNum(`SUMIF(${colFlu}$3:${colFlu}$${lastRow},"E",${colSisaOsKg}$3:${colSisaOsKg}$${lastRow})`, eFluteSisaOsKg, '#,##0');
   sheetData.push(kpiEFluteRowData);
 
   // Section 2: Special Sales Recap Box for Substance K200 (SW & DW)
@@ -2243,12 +2342,14 @@ export function buildSalesOrderWorksheet(
   const k200HeaderIndex = sheetData.length;
   const k200HeaderRowData: any[] = Array(totalCols).fill('');
   k200HeaderRowData[labelColIdx] = 'KATEGORI SUBSTANCE K200';
-  k200HeaderRowData[getColIdx(colQtyPcs)] = 'Qty PO (Pcs)';
-  k200HeaderRowData[getColIdx(colQtyKg)] = 'Qty PO (Kg)';
-  k200HeaderRowData[getColIdx(colPlanPcs)] = 'Qty Planning (Pcs)';
-  k200HeaderRowData[getColIdx(colPlanKg)] = 'Kg Planning (Kg)';
-  k200HeaderRowData[getColIdx(colDelivPcs)] = 'Qty Realisasi (Pcs)';
-  k200HeaderRowData[getColIdx(colDelivKg)] = 'Kg Realisasi (Kg)';
+  k200HeaderRowData[getColIdx(colQtyPcs)] = 'PO QTY (pcs)';
+  k200HeaderRowData[getColIdx(colQtyKg)] = 'PO Weight (kg)';
+  k200HeaderRowData[getColIdx(colPlanPcs)] = 'Planning (pcs)';
+  k200HeaderRowData[getColIdx(colPlanKg)] = 'Planning (kg)';
+  k200HeaderRowData[getColIdx(colDelivPcs)] = 'Delivery (pcs)';
+  k200HeaderRowData[getColIdx(colDelivKg)] = 'Delivery (kg)';
+  k200HeaderRowData[getColIdx(colSisaOsPcs)] = 'Sisa OS (pcs)';
+  k200HeaderRowData[getColIdx(colSisaOsKg)] = 'Sisa OS (kg)';
   sheetData.push(k200HeaderRowData);
 
   // K200 SW Row
@@ -2262,6 +2363,8 @@ export function buildSalesOrderWorksheet(
   k200SwRowData[getColIdx(colPlanKg)] = fNum(`SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwKgDelivery, '#,##0');
   k200SwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwActualQtyDelivery, '#,##0');
   k200SwRowData[getColIdx(colDelivKg)] = fNum(`SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwActualKgDelivery, '#,##0');
+  k200SwRowData[getColIdx(colSisaOsPcs)] = fNum(`SUMIFS(${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwSisaOsPcs, '#,##0');
+  k200SwRowData[getColIdx(colSisaOsKg)] = fNum(`SUMIFS(${colSisaOsKg}$3:${colSisaOsKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"B")+SUMIFS(${colSisaOsKg}$3:${colSisaOsKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"C")+SUMIFS(${colSisaOsKg}$3:${colSisaOsKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"E")`, k200SwSisaOsKg, '#,##0');
   sheetData.push(k200SwRowData);
 
   // K200 DW Row
@@ -2275,6 +2378,8 @@ export function buildSalesOrderWorksheet(
   k200DwRowData[getColIdx(colPlanKg)] = fNum(`SUMIFS(${colPlanKg}$3:${colPlanKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwKgDelivery, '#,##0');
   k200DwRowData[getColIdx(colDelivPcs)] = fNum(`SUMIFS(${colDelivPcs}$3:${colDelivPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwActualQtyDelivery, '#,##0');
   k200DwRowData[getColIdx(colDelivKg)] = fNum(`SUMIFS(${colDelivKg}$3:${colDelivKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwActualKgDelivery, '#,##0');
+  k200DwRowData[getColIdx(colSisaOsPcs)] = fNum(`SUMIFS(${colSisaOsPcs}$3:${colSisaOsPcs}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwSisaOsPcs, '#,##0');
+  k200DwRowData[getColIdx(colSisaOsKg)] = fNum(`SUMIFS(${colSisaOsKg}$3:${colSisaOsKg}$${lastRow},${colSub}$3:${colSub}$${lastRow},"*K200*",${colFlu}$3:${colFlu}$${lastRow},"BC")`, k200DwSisaOsKg, '#,##0');
   sheetData.push(k200DwRowData);
 
   // K200 Subtotal Row
@@ -2286,6 +2391,8 @@ export function buildSalesOrderWorksheet(
   const k200TotalKgDelivery = k200SwKgDelivery + k200DwKgDelivery;
   const k200TotalActualQtyDelivery = k200SwActualQtyDelivery + k200DwActualQtyDelivery;
   const k200TotalActualKgDelivery = k200SwActualKgDelivery + k200DwActualKgDelivery;
+  const k200TotalSisaOsPcs = k200SwSisaOsPcs + k200DwSisaOsPcs;
+  const k200TotalSisaOsKg = k200SwSisaOsKg + k200DwSisaOsKg;
 
   const k200SubtotalRowData: any[] = Array(totalCols).fill('');
   k200SubtotalRowData[labelColIdx] = 'SUBTOTAL ORDER K200 (SW & DW)';
@@ -2295,6 +2402,8 @@ export function buildSalesOrderWorksheet(
   k200SubtotalRowData[getColIdx(colPlanKg)] = fNum(`${colPlanKg}${k200SwExcelRow}+${colPlanKg}${k200DwExcelRow}`, k200TotalKgDelivery, '#,##0');
   k200SubtotalRowData[getColIdx(colDelivPcs)] = fNum(`${colDelivPcs}${k200SwExcelRow}+${colDelivPcs}${k200DwExcelRow}`, k200TotalActualQtyDelivery, '#,##0');
   k200SubtotalRowData[getColIdx(colDelivKg)] = fNum(`${colDelivKg}${k200SwExcelRow}+${colDelivKg}${k200DwExcelRow}`, k200TotalActualKgDelivery, '#,##0');
+  k200SubtotalRowData[getColIdx(colSisaOsPcs)] = fNum(`${colSisaOsPcs}${k200SwExcelRow}+${colSisaOsPcs}${k200DwExcelRow}`, k200TotalSisaOsPcs, '#,##0');
+  k200SubtotalRowData[getColIdx(colSisaOsKg)] = fNum(`${colSisaOsKg}${k200SwExcelRow}+${colSisaOsKg}${k200DwExcelRow}`, k200TotalSisaOsKg, '#,##0');
   sheetData.push(k200SubtotalRowData);
 
   // Non-K200 Row
@@ -2307,6 +2416,8 @@ export function buildSalesOrderWorksheet(
   nonK200RowData[getColIdx(colPlanKg)] = fNum(`${colPlanKg}${gtRow}-${colPlanKg}${k200SubtotalExcelRow}`, nonK200KgDelivery, '#,##0');
   nonK200RowData[getColIdx(colDelivPcs)] = fNum(`${colDelivPcs}${gtRow}-${colDelivPcs}${k200SubtotalExcelRow}`, nonK200ActualQtyDelivery, '#,##0');
   nonK200RowData[getColIdx(colDelivKg)] = fNum(`${colDelivKg}${gtRow}-${colDelivKg}${k200SubtotalExcelRow}`, nonK200ActualKgDelivery, '#,##0');
+  nonK200RowData[getColIdx(colSisaOsPcs)] = fNum(`${colSisaOsPcs}${gtRow}-${colSisaOsPcs}${k200SubtotalExcelRow}`, nonK200SisaOsPcs, '#,##0');
+  nonK200RowData[getColIdx(colSisaOsKg)] = fNum(`${colSisaOsKg}${gtRow}-${colSisaOsKg}${k200SubtotalExcelRow}`, nonK200SisaOsKg, '#,##0');
   sheetData.push(nonK200RowData);
 
   const worksheet = XLSX.utils.aoa_to_sheet(sheetData);
@@ -2323,15 +2434,17 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // F: P
         { wch: 10 }, // G: L
         { wch: 20 }, // H: Artikel
-        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
-        { wch: 14 }, // J: Qty (Pcs)
-        { wch: 14 }, // K: Qty (Kg)
-        { wch: 16 }, // L: Qty Planning
-        { wch: 16 }, // M: Kg Planning
-        { wch: 16 }, // N: Qty Delivery
-        { wch: 16 }, // O: Kg Delivery
-        { wch: 14 }, // P: Harga
-        { wch: 14 }, // Q: Rp/Kg
+        { wch: 44 }, // I: Item Name (cukup lebar untuk item & label ringkasan)
+        { wch: 15 }, // J: PO QTY (pcs)
+        { wch: 15 }, // K: PO Weight (kg)
+        { wch: 15 }, // L: Planning (pcs)
+        { wch: 15 }, // M: Planning (kg)
+        { wch: 15 }, // N: Delivery (pcs)
+        { wch: 15 }, // O: Delivery (kg)
+        { wch: 15 }, // P: Sisa OS (pcs)
+        { wch: 15 }, // Q: Sisa OS (kg)
+        { wch: 14 }, // R: Harga
+        { wch: 14 }, // S: Rp/Kg
       ];
     } else {
       worksheet['!cols'] = [
@@ -2343,19 +2456,21 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // F: P
         { wch: 10 }, // G: L
         { wch: 20 }, // H: Artikel
-        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
-        { wch: 14 }, // J: Qty (Pcs)
-        { wch: 14 }, // K: Qty (Kg)
+        { wch: 44 }, // I: Item Name (cukup lebar untuk item & label ringkasan)
+        { wch: 15 }, // J: PO QTY (pcs)
+        { wch: 15 }, // K: PO Weight (kg)
         { wch: 16 }, // L: Planning Date
-        { wch: 16 }, // M: Qty Planning
-        { wch: 16 }, // N: Kg Planning
+        { wch: 15 }, // M: Planning (pcs)
+        { wch: 15 }, // N: Planning (kg)
         { wch: 18 }, // O: Remarks
         { wch: 20 }, // P: Actual Delivery Date
         { wch: 18 }, // Q: No SJ
-        { wch: 16 }, // R: Qty Delivery
-        { wch: 16 }, // S: Kg Delivery
-        { wch: 14 }, // T: Harga
-        { wch: 14 }, // U: Rp/Kg
+        { wch: 15 }, // R: Delivery (pcs)
+        { wch: 15 }, // S: Delivery (kg)
+        { wch: 15 }, // T: Sisa OS (pcs)
+        { wch: 15 }, // U: Sisa OS (kg)
+        { wch: 14 }, // V: Harga
+        { wch: 14 }, // W: Rp/Kg
       ];
     }
   } else if (isCombinedMaster) {
@@ -2368,15 +2483,17 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // E: P
         { wch: 10 }, // F: L
         { wch: 20 }, // G: Artikel
-        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
-        { wch: 14 }, // I: Qty (Pcs)
-        { wch: 14 }, // J: Qty (Kg)
-        { wch: 16 }, // K: Qty Planning
-        { wch: 16 }, // L: Kg Planning
-        { wch: 16 }, // M: Qty Delivery
-        { wch: 16 }, // N: Kg Delivery
-        { wch: 14 }, // O: Harga
-        { wch: 14 }, // P: Rp/Kg
+        { wch: 44 }, // H: Item Name (cukup lebar untuk item & label ringkasan)
+        { wch: 15 }, // I: PO QTY (pcs)
+        { wch: 15 }, // J: PO Weight (kg)
+        { wch: 15 }, // K: Planning (pcs)
+        { wch: 15 }, // L: Planning (kg)
+        { wch: 15 }, // M: Delivery (pcs)
+        { wch: 15 }, // N: Delivery (kg)
+        { wch: 15 }, // O: Sisa OS (pcs)
+        { wch: 15 }, // P: Sisa OS (kg)
+        { wch: 14 }, // Q: Harga
+        { wch: 14 }, // R: Rp/Kg
       ];
     } else {
       worksheet['!cols'] = [
@@ -2387,19 +2504,21 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // E: P
         { wch: 10 }, // F: L
         { wch: 20 }, // G: Artikel
-        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
-        { wch: 14 }, // I: Qty (Pcs)
-        { wch: 14 }, // J: Qty (Kg)
+        { wch: 44 }, // H: Item Name (cukup lebar untuk item & label ringkasan)
+        { wch: 15 }, // I: PO QTY (pcs)
+        { wch: 15 }, // J: PO Weight (kg)
         { wch: 16 }, // K: Planning Date
-        { wch: 16 }, // L: Qty Planning
-        { wch: 16 }, // M: Kg Planning
+        { wch: 15 }, // L: Planning (pcs)
+        { wch: 15 }, // M: Planning (kg)
         { wch: 18 }, // N: Remarks
         { wch: 20 }, // O: Actual Delivery Date
         { wch: 18 }, // P: No SJ
-        { wch: 16 }, // Q: Qty Delivery
-        { wch: 16 }, // R: Kg Delivery
-        { wch: 14 }, // S: Harga
-        { wch: 14 }, // T: Rp/Kg
+        { wch: 15 }, // Q: Delivery (pcs)
+        { wch: 15 }, // R: Delivery (kg)
+        { wch: 15 }, // S: Sisa OS (pcs)
+        { wch: 15 }, // T: Sisa OS (kg)
+        { wch: 14 }, // U: Harga
+        { wch: 14 }, // V: Rp/Kg
       ];
     }
   } else {
@@ -2412,15 +2531,17 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // D: P
         { wch: 10 }, // E: L
         { wch: 20 }, // F: Artikel
-        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
-        { wch: 14 }, // H: Qty (Pcs)
-        { wch: 14 }, // I: Qty (Kg)
-        { wch: 16 }, // J: Qty Planning
-        { wch: 16 }, // K: Kg Planning
-        { wch: 16 }, // L: Qty Delivery
-        { wch: 16 }, // M: Kg Delivery
-        { wch: 14 }, // N: Harga
-        { wch: 14 }, // O: Rp/Kg
+        { wch: 44 }, // G: Item Name (cukup lebar untuk item & label ringkasan)
+        { wch: 15 }, // H: PO QTY (pcs)
+        { wch: 15 }, // I: PO Weight (kg)
+        { wch: 15 }, // J: Planning (pcs)
+        { wch: 15 }, // K: Planning (kg)
+        { wch: 15 }, // L: Delivery (pcs)
+        { wch: 15 }, // M: Delivery (kg)
+        { wch: 15 }, // N: Sisa OS (pcs)
+        { wch: 15 }, // O: Sisa OS (kg)
+        { wch: 14 }, // P: Harga
+        { wch: 14 }, // Q: Rp/Kg
       ];
     } else {
       worksheet['!cols'] = [
@@ -2430,19 +2551,21 @@ export function buildSalesOrderWorksheet(
         { wch: 10 }, // D: P
         { wch: 10 }, // E: L
         { wch: 20 }, // F: Artikel
-        { wch: 44 }, // Item Name (cukup lebar untuk item & label ringkasan)
-        { wch: 14 }, // H: Qty (Pcs)
-        { wch: 14 }, // I: Qty (Kg)
+        { wch: 44 }, // G: Item Name (cukup lebar untuk item & label ringkasan)
+        { wch: 15 }, // H: PO QTY (pcs)
+        { wch: 15 }, // I: PO Weight (kg)
         { wch: 16 }, // J: Planning Date
-        { wch: 16 }, // K: Qty Planning
-        { wch: 16 }, // L: Kg Planning
+        { wch: 15 }, // K: Planning (pcs)
+        { wch: 15 }, // L: Planning (kg)
         { wch: 18 }, // M: Remarks
         { wch: 20 }, // N: Actual Delivery Date
         { wch: 18 }, // O: No SJ
-        { wch: 16 }, // P: Qty Delivery
-        { wch: 16 }, // Q: Kg Delivery
-        { wch: 14 }, // R: Harga
-        { wch: 14 }, // S: Rp/Kg
+        { wch: 15 }, // P: Delivery (pcs)
+        { wch: 15 }, // Q: Delivery (kg)
+        { wch: 15 }, // R: Sisa OS (pcs)
+        { wch: 15 }, // S: Sisa OS (kg)
+        { wch: 14 }, // T: Harga
+        { wch: 14 }, // U: Rp/Kg
       ];
     }
   }

@@ -209,6 +209,8 @@ export interface SalesOrderRow {
   noSJ: string;
   actualQtyDelivery: number | '';
   actualKgDelivery: number | '';
+  sisaOsPcs: number | '';
+  sisaOsKg: number | '';
   harga: number | '';
   rpPerKg: number | '';
   isFirstScheduleOfPO: boolean;
@@ -224,7 +226,8 @@ export type SalesOrderExportScope =
   | 'CLOSED_ONLY'
   | 'K200_ONLY'
   | 'K200_SW_ONLY'
-  | 'K200_DW_ONLY';
+  | 'K200_DW_ONLY'
+  | 'E_FLUTE_ONLY';
 
 export type DetailSJExportScope =
   | 'ALL'

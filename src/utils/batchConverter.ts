@@ -226,6 +226,10 @@ export async function downloadAllSalesOrderAsZip(
 
   for (const item of validItems) {
     if (!item.data) continue;
+    if (scope !== 'ALL') {
+      const matched = flattenSalesOrderRows(item.data, scope, sortByPoAsc, deliveryMode);
+      if (matched.length === 0) continue;
+    }
     const { blob } = generateSalesOrderExcelBlobAndFile(
       item.data,
       undefined,
@@ -249,13 +253,32 @@ export async function downloadAllSalesOrderAsZip(
     zip.file(targetName, blob);
   }
 
+  if (usedNames.size === 0) {
+    throw new Error('Tidak ada data yang sesuai dengan filter export pada seluruh file.');
+  }
+
+  const scopeZipSuffix =
+    scope === 'E_FLUTE_ONLY'
+      ? '_KHUSUS_E_FLUTE'
+      : scope === 'K200_ONLY'
+      ? '_KHUSUS_K200'
+      : scope === 'K200_SW_ONLY'
+      ? '_KHUSUS_K200_SW'
+      : scope === 'K200_DW_ONLY'
+      ? '_KHUSUS_K200_DW'
+      : scope === 'OPEN_ONLY'
+      ? '_CO_OPEN'
+      : scope === 'CLOSED_ONLY'
+      ? '_CO_CLOSED'
+      : '';
+
   const now = new Date();
   const dateTag = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(
     now.getDate()
   ).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(
     now.getMinutes()
   ).padStart(2, '0')}`;
-  const zipFileName = `${zipBaseName}_${dateTag}.zip`;
+  const zipFileName = `${zipBaseName}${scopeZipSuffix}_${dateTag}.zip`;
 
   const zipBlob = await zip.generateAsync({
     type: 'blob',
@@ -1058,21 +1081,42 @@ export function exportCombinedSalesOrderMasterWorkbook(
     'Nama File',
     'Total No PO',
     'Total Artikel',
-    'Total Qty PO (Pcs)',
-    'Total Berat PO (Kg)',
-    'Total Qty Planning (Pcs)',
-    'Total Kg Planning (Kg)',
-    'Total Qty Realisasi Kirim (Pcs)',
-    'Total Kg Realisasi Kirim (Kg)',
+    'Total PO QTY (pcs)',
+    'Total PO Weight (kg)',
+    'Total Planning (pcs)',
+    'Total Planning (kg)',
+    'Total Delivery (pcs)',
+    'Total Delivery (kg)',
+    'Total Sisa OS (pcs)',
+    'Total Sisa OS (kg)',
     'Total Nilai Order (Rp)',
     'K200 SW (Pcs)',
     'K200 DW (Pcs)',
   ];
 
+  const scopeLabelMap: Record<SalesOrderExportScope, string> = {
+    ALL: 'Semua Data',
+    OPEN_ONLY: 'CO Open Saja',
+    CLOSED_ONLY: 'CO Closed Saja',
+    K200_ONLY: 'Khusus K200 (SW & DW)',
+    K200_SW_ONLY: 'Khusus K200 SW',
+    K200_DW_ONLY: 'Khusus K200 DW',
+    E_FLUTE_ONLY: 'Khusus E-Flute',
+  };
+  const scopeTagSuffixMap: Record<SalesOrderExportScope, string> = {
+    ALL: '',
+    OPEN_ONLY: '_CO_OPEN',
+    CLOSED_ONLY: '_CO_CLOSED',
+    K200_ONLY: '_KHUSUS_K200',
+    K200_SW_ONLY: '_KHUSUS_K200_SW',
+    K200_DW_ONLY: '_KHUSUS_K200_DW',
+    E_FLUTE_ONLY: '_KHUSUS_E_FLUTE',
+  };
+
   const summaryRows: any[][] = [];
   summaryRows.push(['RINGKASAN REKAPITULASI SALES PER FILE']);
   summaryRows.push([
-    `Tanggal Generate: ${new Date().toLocaleString('id-ID')} | Total File: ${validItems.length} File | Mode: ${
+    `Tanggal Generate: ${new Date().toLocaleString('id-ID')} | Filter: ${scopeLabelMap[scope]} | Mode: ${
       deliveryMode === 'TOTAL_ACCUMULATION' ? 'Total Keseluruhan (Akumulasi)' : 'Detail per SJ (Fallback)'
     }`,
   ]);
@@ -1087,14 +1131,21 @@ export function exportCombinedSalesOrderMasterWorkbook(
   let grandKgPlanning = 0;
   let grandQtyDelivery = 0;
   let grandKgDelivery = 0;
+  let grandSisaOsPcs = 0;
+  let grandSisaOsKg = 0;
   let grandNilaiOrderRp = 0;
   let grandK200SwPcs = 0;
   let grandK200DwPcs = 0;
+  let summaryAddedCount = 0;
 
   const allCombinedData: ExtractedRecord[] = [];
+  const itemsWithRows: { item: BatchFileItem; cleanSource: string }[] = [];
 
   validItems.forEach((item, fIdx) => {
     if (!item.data) return;
+    const rows = flattenSalesOrderRows(item.data, scope, sortByPoAsc, deliveryMode);
+    if (scope !== 'ALL' && rows.length === 0) return;
+
     const cleanSource = (item.rawFileName || `File_${fIdx + 1}`).replace(/\.[^/.]+$/, '').trim();
     const taggedData = item.data.map((rec) => ({
       ...rec,
@@ -1102,8 +1153,8 @@ export function exportCombinedSalesOrderMasterWorkbook(
       _sourceFileName: cleanSource,
     }));
     allCombinedData.push(...taggedData);
+    itemsWithRows.push({ item, cleanSource });
 
-    const rows = flattenSalesOrderRows(item.data, scope, sortByPoAsc, deliveryMode);
     const uniquePos = new Set<string>();
     const uniqueArtikels = new Set<string>();
     let fileQtyPcs = 0;
@@ -1112,6 +1163,8 @@ export function exportCombinedSalesOrderMasterWorkbook(
     let fileKgPlanning = 0;
     let fileQtyDelivery = 0;
     let fileKgDelivery = 0;
+    let fileSisaOsPcs = 0;
+    let fileSisaOsKg = 0;
     let fileNilaiOrder = 0;
     let fileK200SwPcs = 0;
     let fileK200DwPcs = 0;
@@ -1126,6 +1179,8 @@ export function exportCombinedSalesOrderMasterWorkbook(
       if (typeof r.kgDelivery === 'number') fileKgPlanning += r.kgDelivery;
       if (typeof r.actualQtyDelivery === 'number') fileQtyDelivery += r.actualQtyDelivery;
       if (typeof r.actualKgDelivery === 'number') fileKgDelivery += r.actualKgDelivery;
+      if (typeof r.sisaOsPcs === 'number') fileSisaOsPcs += r.sisaOsPcs;
+      if (typeof r.sisaOsKg === 'number') fileSisaOsKg += r.sisaOsKg;
       if (typeof r.harga === 'number' && typeof r.qtyPcs === 'number' && r.qtyPcs > 0) {
         fileNilaiOrder += r.harga * r.qtyPcs;
       }
@@ -1146,14 +1201,17 @@ export function exportCombinedSalesOrderMasterWorkbook(
     grandKgPlanning += fileKgPlanning;
     grandQtyDelivery += fileQtyDelivery;
     grandKgDelivery += fileKgDelivery;
+    grandSisaOsPcs += fileSisaOsPcs;
+    grandSisaOsKg += fileSisaOsKg;
     grandNilaiOrderRp += fileNilaiOrder;
     grandK200SwPcs += fileK200SwPcs;
     grandK200DwPcs += fileK200DwPcs;
 
+    summaryAddedCount += 1;
     const cleanName = item.rawFileName.replace(/\.[^/.]+$/, '');
 
     summaryRows.push([
-      fIdx + 1,
+      summaryAddedCount,
       cleanName,
       uniquePos.size,
       uniqueArtikels.size,
@@ -1163,14 +1221,20 @@ export function exportCombinedSalesOrderMasterWorkbook(
       { t: 'n', v: fileKgPlanning, z: '#,##0' },
       { t: 'n', v: fileQtyDelivery, z: '#,##0' },
       { t: 'n', v: fileKgDelivery, z: '#,##0' },
+      { t: 'n', v: fileSisaOsPcs, z: '#,##0' },
+      { t: 'n', v: fileSisaOsKg, z: '#,##0' },
       { t: 'n', v: fileNilaiOrder, z: '#,##0' },
       { t: 'n', v: fileK200SwPcs, z: '#,##0' },
       { t: 'n', v: fileK200DwPcs, z: '#,##0' },
     ]);
   });
 
+  if (summaryAddedCount === 0) {
+    throw new Error(`Tidak ada data dengan filter "${scopeLabelMap[scope]}" pada seluruh file.`);
+  }
+
   const firstDataRow = 5;
-  const lastDataRow = 4 + validItems.length;
+  const lastDataRow = 4 + summaryAddedCount;
   summaryRows.push([
     'GRAND TOTAL KESELURUHAN (ALL FILES)',
     '',
@@ -1182,9 +1246,11 @@ export function exportCombinedSalesOrderMasterWorkbook(
     { t: 'n', f: `SUM(H${firstDataRow}:H${lastDataRow})`, v: grandKgPlanning, z: '#,##0' },
     { t: 'n', f: `SUM(I${firstDataRow}:I${lastDataRow})`, v: grandQtyDelivery, z: '#,##0' },
     { t: 'n', f: `SUM(J${firstDataRow}:J${lastDataRow})`, v: grandKgDelivery, z: '#,##0' },
-    { t: 'n', f: `SUM(K${firstDataRow}:K${lastDataRow})`, v: grandNilaiOrderRp, z: '#,##0' },
-    { t: 'n', f: `SUM(L${firstDataRow}:L${lastDataRow})`, v: grandK200SwPcs, z: '#,##0' },
-    { t: 'n', f: `SUM(M${firstDataRow}:M${lastDataRow})`, v: grandK200DwPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(K${firstDataRow}:K${lastDataRow})`, v: grandSisaOsPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(L${firstDataRow}:L${lastDataRow})`, v: grandSisaOsKg, z: '#,##0' },
+    { t: 'n', f: `SUM(M${firstDataRow}:M${lastDataRow})`, v: grandNilaiOrderRp, z: '#,##0' },
+    { t: 'n', f: `SUM(N${firstDataRow}:N${lastDataRow})`, v: grandK200SwPcs, z: '#,##0' },
+    { t: 'n', f: `SUM(O${firstDataRow}:O${lastDataRow})`, v: grandK200DwPcs, z: '#,##0' },
   ]);
 
   const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows);
@@ -1197,16 +1263,18 @@ export function exportCombinedSalesOrderMasterWorkbook(
     { wch: 18 },
     { wch: 20 },
     { wch: 20 },
-    { wch: 24 },
-    { wch: 24 },
+    { wch: 20 },
+    { wch: 20 },
+    { wch: 18 },
+    { wch: 18 },
     { wch: 20 },
     { wch: 16 },
     { wch: 16 },
   ];
 
   summaryWs['!merges'] = [
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 12 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 12 } },
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 14 } },
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 14 } },
     { s: { r: summaryRows.length - 1, c: 0 }, e: { r: summaryRows.length - 1, c: 1 } },
   ];
 
@@ -1226,9 +1294,8 @@ export function exportCombinedSalesOrderMasterWorkbook(
 
   // 3. Subsequent Sheets: Individual Customer sheets
   const usedSheetNames = new Set<string>(['SUMMARY_REKAP_FILE', 'MASTER_GABUNGAN_SALES']);
-  validItems.forEach((item) => {
+  itemsWithRows.forEach(({ item, cleanSource }) => {
     if (!item.data) return;
-    const cleanSource = item.rawFileName.replace(/\.[^/.]+$/, '').trim();
     let baseSheet = cleanSource.slice(0, 25);
     let sheetName = baseSheet;
     let counter = 2;
@@ -1257,7 +1324,7 @@ export function exportCombinedSalesOrderMasterWorkbook(
   ).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(
     now.getMinutes()
   ).padStart(2, '0')}`;
-  const outFileName = `${masterBaseName}_${deliveryMode === 'TOTAL_ACCUMULATION' ? 'Total_Akumulasi' : 'Detail_SJ'}_${dateTag}.xlsx`;
+  const outFileName = `${masterBaseName}${scopeTagSuffixMap[scope]}_${deliveryMode === 'TOTAL_ACCUMULATION' ? 'Total_Akumulasi' : 'Detail_SJ'}_${dateTag}.xlsx`;
 
   const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
   const mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';

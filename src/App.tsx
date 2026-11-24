@@ -9,6 +9,7 @@ import {
   ConversionMode,
   DetailSJExportScope,
   SalesDeliveryMode,
+  SalesOrderExportScope,
 } from './types';
 import { parseExcelBuffer, recalculateFIFOStock } from './utils/parserEngine';
 import {
@@ -390,7 +391,7 @@ export default function App() {
   };
 
   // Download master consolidated workbook with all files (respects active conversionMode)
-  const handleDownloadMasterCombined = () => {
+  const handleDownloadMasterCombined = (salesScope: SalesOrderExportScope = 'ALL') => {
     if (convertedFiles.length === 0) return;
     setIsMerging(true);
     haptic.medium();
@@ -406,7 +407,7 @@ export default function App() {
         outputFileName: f.outputFileName,
       }));
       if (conversionMode === 'SALES_ORDER') {
-        exportCombinedSalesOrderMasterWorkbook(items, 'ALL', true, salesDeliveryMode);
+        exportCombinedSalesOrderMasterWorkbook(items, salesScope, true, salesDeliveryMode);
       } else if (conversionMode === 'DETAIL_SJ') {
         exportCombinedDetailSJMasterWorkbook(items, 'ALL');
       } else {
@@ -421,10 +422,12 @@ export default function App() {
       });
       setStatusMessage(
         conversionMode === 'SALES_ORDER'
-          ? 'Berhasil membuat Master Excel Gabungan Rekap Sales beserta Tab Sheet Summary.'
+          ? salesScope === 'E_FLUTE_ONLY'
+            ? 'Master Gabungan E-Flute berhasil diunduh.'
+            : 'Master Gabungan Rekap Sales berhasil diunduh.'
           : conversionMode === 'DETAIL_SJ'
-          ? 'Berhasil membuat Master Excel Gabungan Detail Kiriman SJ beserta Tab Sheet Summary.'
-          : 'Berhasil membuat Master Excel Gabungan Rekap PO beserta Tab Sheet Summary.'
+          ? 'Master Gabungan Detail SJ berhasil diunduh.'
+          : 'Master Gabungan Rekap PO berhasil diunduh.'
       );
       setTimeout(() => setStatusMessage(null), 4000);
     } catch (err: any) {
@@ -674,7 +677,7 @@ export default function App() {
               }}
               onDownloadAllZip={convertedFiles.length > 1 ? handleDownloadAllZip : undefined}
               onDownloadMasterCombined={
-                convertedFiles.length > 1 ? handleDownloadMasterCombined : undefined
+                convertedFiles.length > 1 ? () => handleDownloadMasterCombined('ALL') : undefined
               }
               onAddMoreFiles={handleMultipleFilesSelected}
               onReset={handleReset}
